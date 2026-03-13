@@ -306,12 +306,18 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
   })
 
   const updateMatch = (id, patch) => withSave(async () => {
-    setMatches(prev => {
-      const next = prev.map(m => m.id === id ? { ...m, ...patch } : m)
-      const updated = next.find(m => m.id === id)
-      db.updateMatch(updated)
-      return next
-    })
+    const previous = matches
+    const next = previous.map(m => m.id === id ? { ...m, ...patch } : m)
+    const updated = next.find(m => m.id === id)
+    if (!updated) return
+
+    setMatches(next)
+    try {
+      await db.updateMatch(updated)
+    } catch (err) {
+      setMatches(previous)
+      throw err
+    }
   })
 
   const deleteMatch = id => withSave(async () => {

@@ -32,44 +32,84 @@ export default function FinesTab({ players, matches, setMatches, withSave }) {
   const paidAmt  = filtered.filter(i => i.paid).reduce((s, i) => s + i.amount, 0)
 
   const togglePaid = item => withSave(async () => {
-    setMatches(prev => {
-      const next = prev.map(m => {
-        if (m.id !== item.matchId) return m
-        if (item.kind === 'fine') return { ...m, fines: m.fines.map(f => f.id === item.id ? { ...f, paid: !f.paid } : f) }
-        return { ...m, subs: (m.subs ?? []).map(s => s.id === item.id ? { ...s, paid: !s.paid } : s) }
-      })
-      const updatedMatch = next.find(m => m.id === item.matchId)
-      db.updateMatch(updatedMatch)
-      return next
+    const previous = matches
+    const next = previous.map(m => {
+      if (m.id !== item.matchId) return m
+      if (item.kind === 'fine') return { ...m, fines: m.fines.map(f => f.id === item.id ? { ...f, paid: !f.paid } : f) }
+      return { ...m, subs: (m.subs ?? []).map(s => s.id === item.id ? { ...s, paid: !s.paid } : s) }
     })
+    const updatedMatch = next.find(m => m.id === item.matchId)
+    if (!updatedMatch) return
+
+    setMatches(next)
+    try {
+      await db.updateMatch(updatedMatch)
+    } catch (err) {
+      setMatches(previous)
+      throw err
+    }
   })
 
   const settleAll = playerId => withSave(async () => {
-    setMatches(prev => {
-      const next = prev.map(m => ({
-        ...m,
-        fines: m.fines.map(f => f.playerId === playerId && !f.paid ? { ...f, paid: true } : f),
-        subs:  (m.subs ?? []).map(s => s.playerId === playerId && !s.paid ? { ...s, paid: true } : s),
-      }))
-      next.forEach(m => db.updateMatch(m))
-      return next
+    const previous = matches
+    const changedIds = new Set()
+    const next = previous.map(m => {
+      let changed = false
+      const fines = m.fines.map(f => {
+        if (f.playerId === playerId && !f.paid) {
+          changed = true
+          return { ...f, paid: true }
+        }
+        return f
+      })
+      const subs = (m.subs ?? []).map(s => {
+        if (s.playerId === playerId && !s.paid) {
+          changed = true
+          return { ...s, paid: true }
+        }
+        return s
+      })
+      if (changed) changedIds.add(m.id)
+      return changed ? { ...m, fines, subs } : m
     })
+
+    const changedMatches = next.filter(m => changedIds.has(m.id))
+    if (!changedMatches.length) {
+      setShowSettle(null)
+      return
+    }
+
+    setMatches(next)
+    try {
+      await Promise.all(changedMatches.map(m => db.updateMatch(m)))
+    } catch (err) {
+      setMatches(previous)
+      throw err
+    }
     setShowSettle(null)
   })
 
   const confirmDelete = () => withSave(async () => {
     if (pinInput !== ADMIN_PIN) { setPinError('Incorrect PIN'); return }
     const item = pendingDelete
-    setMatches(prev => {
-      const next = prev.map(m => {
-        if (m.id !== item.matchId) return m
-        if (item.kind === 'fine') return { ...m, fines: m.fines.filter(f => f.id !== item.id) }
-        return { ...m, subs: (m.subs ?? []).filter(s => s.id !== item.id) }
-      })
-      const updatedMatch = next.find(m => m.id === item.matchId)
-      db.updateMatch(updatedMatch)
-      return next
+    if (!item) return
+
+    const previous = matches
+    const next = previous.map(m => {
+      if (m.id !== item.matchId) return m
+      if (item.kind === 'fine') return { ...m, fines: m.fines.filter(f => f.id !== item.id) }
+      return { ...m, subs: (m.subs ?? []).filter(s => s.id !== item.id) }
     })
+    const updatedMatch = next.find(m => m.id === item.matchId)
+    if (!updatedMatch) return
+
+    setMatches(next)
+    try {
+      await db.updateMatch(updatedMatch)
+    } catch (err) {
+      setMatches(previous)
+      throw err
+    }
     setPendingDelete(null); setPinInput(''); setPinError('')
   })
 
