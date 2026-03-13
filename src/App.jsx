@@ -8,7 +8,7 @@ import Dashboard  from './components/Dashboard'
 // ─── Constants ────────────────────────────────────────────────────────────────
 export const ADMIN_PIN  = '1234'
 export const SUB_AMOUNT = 0.50
-const LAST_UPDATED = typeof __LAST_UPDATED__ === 'string' ? __LAST_UPDATED__ : ''
+const LAST_UPDATED = import.meta.env.VITE_LAST_UPDATED
 
 function formatLastUpdated(value) {
   if (!value) return 'Not available'
@@ -186,6 +186,7 @@ export default function App() {
           <div className="flex-1">
             <div className="font-display font-bold text-white text-lg leading-none">White Horse</div>
             <div className="text-zinc-500 text-xs">Pool Fines Tracker</div>
+            <div className="text-zinc-600 text-[10px] mt-0.5">Last updated: {formatLastUpdated(LAST_UPDATED)}</div>
           </div>
           {saveError ? (
             <div className="flex items-center gap-1.5 text-xs text-red-300 bg-red-950/60 border border-red-800/70 px-2 py-1 rounded-full">
@@ -210,13 +211,6 @@ export default function App() {
             <span>Last updated: {formatLastUpdated(LAST_UPDATED)}</span>
           </div>
         </div>
-        {saveError && (
-          <div className="max-w-lg mx-auto px-4 pb-2">
-            <div className="text-xs text-red-200 bg-red-950/70 border border-red-800 rounded-md px-2.5 py-2">
-              Could not save to database: {saveError}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Content */}
