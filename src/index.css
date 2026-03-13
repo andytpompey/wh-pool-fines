@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: #09090b;
+  font-family: 'Barlow Condensed', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.font-display {
+  font-family: 'Barlow Condensed', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
