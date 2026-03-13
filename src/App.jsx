@@ -135,6 +135,7 @@ export default function App() {
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
   const [saving,    setSaving]    = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [players,   setPlayers]   = useState([])
   const [fineTypes, setFineTypes] = useState([])
   const [seasons,   setSeasons]   = useState([])
@@ -161,8 +162,16 @@ export default function App() {
 
   const withSave = async (fn) => {
     setSaving(true)
-    try { await fn() }
-    finally { setSaving(false) }
+    setSaveError('')
+    try {
+      await fn()
+    } catch (err) {
+      const message = err?.message ?? 'Failed to save changes'
+      setSaveError(message)
+      console.error('Save failed:', err)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const tabLabels = ['Dashboard', 'Matches', 'Fines', 'Setup']
@@ -179,7 +188,12 @@ export default function App() {
             <div className="text-zinc-500 text-xs">Pool Fines Tracker</div>
             <div className="text-zinc-600 text-[10px] mt-0.5">Last updated: {formatLastUpdated(LAST_UPDATED)}</div>
           </div>
-          {saving ? (
+          {saveError ? (
+            <div className="flex items-center gap-1.5 text-xs text-red-300 bg-red-950/60 border border-red-800/70 px-2 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 bg-red-400 rounded-full" />
+              Save failed
+            </div>
+          ) : saving ? (
             <div className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-950/50 border border-amber-800/50 px-2 py-1 rounded-full">
               <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" />
               Saving...
