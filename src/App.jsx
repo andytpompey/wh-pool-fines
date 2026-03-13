@@ -191,6 +191,12 @@ export default function App() {
             </div>
           ) : null}
         </div>
+        <div className="max-w-lg mx-auto px-4 pb-2">
+          <div className="inline-flex items-center gap-2 text-xs text-zinc-300 bg-zinc-900/80 border border-zinc-700 rounded-md px-2.5 py-1">
+            <span className="text-amber-400">🕒</span>
+            <span>Last updated: {formatLastUpdated(LAST_UPDATED)}</span>
+          </div>
+        </div>
       </div>
 
       {/* Content */}
