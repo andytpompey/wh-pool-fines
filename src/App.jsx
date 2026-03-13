@@ -8,6 +8,20 @@ import Dashboard  from './components/Dashboard'
 // ─── Constants ────────────────────────────────────────────────────────────────
 export const ADMIN_PIN  = '1234'
 export const SUB_AMOUNT = 0.50
+const LAST_UPDATED = import.meta.env.VITE_LAST_UPDATED
+
+function formatLastUpdated(value) {
+  if (!value) return 'Not available'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Not available'
+  return date.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 export function uuid() {
@@ -163,6 +177,7 @@ export default function App() {
           <div className="flex-1">
             <div className="font-display font-bold text-white text-lg leading-none">White Horse</div>
             <div className="text-zinc-500 text-xs">Pool Fines Tracker</div>
+            <div className="text-zinc-600 text-[10px] mt-0.5">Last updated: {formatLastUpdated(LAST_UPDATED)}</div>
           </div>
           {saving ? (
             <div className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-950/50 border border-amber-800/50 px-2 py-1 rounded-full">
