@@ -13,6 +13,6 @@ function getLastUpdated() {
 export default defineConfig({
   plugins: [react()],
   define: {
-    __LAST_UPDATED__: JSON.stringify(getLastUpdated()),
+    'import.meta.env.VITE_LAST_UPDATED': JSON.stringify(getLastUpdated()),
   },
 })
