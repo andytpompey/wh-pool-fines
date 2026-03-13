@@ -8,6 +8,20 @@ import Dashboard  from './components/Dashboard'
 // ─── Constants ────────────────────────────────────────────────────────────────
 export const ADMIN_PIN  = '1234'
 export const SUB_AMOUNT = 0.50
+const LAST_UPDATED = typeof __LAST_UPDATED__ === 'string' ? __LAST_UPDATED__ : ''
+
+function formatLastUpdated(value) {
+  if (!value) return 'Not available'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Not available'
+  return date.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 export function uuid() {
@@ -121,6 +135,7 @@ export default function App() {
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
   const [saving,    setSaving]    = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [players,   setPlayers]   = useState([])
   const [fineTypes, setFineTypes] = useState([])
   const [seasons,   setSeasons]   = useState([])
@@ -147,8 +162,16 @@ export default function App() {
 
   const withSave = async (fn) => {
     setSaving(true)
-    try { await fn() }
-    finally { setSaving(false) }
+    setSaveError('')
+    try {
+      await fn()
+    } catch (err) {
+      const message = err?.message ?? 'Failed to save changes'
+      setSaveError(message)
+      console.error('Save failed:', err)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const tabLabels = ['Dashboard', 'Matches', 'Fines', 'Setup']
@@ -164,7 +187,12 @@ export default function App() {
             <div className="font-display font-bold text-white text-lg leading-none">White Horse</div>
             <div className="text-zinc-500 text-xs">Pool Fines Tracker</div>
           </div>
-          {saving ? (
+          {saveError ? (
+            <div className="flex items-center gap-1.5 text-xs text-red-300 bg-red-950/60 border border-red-800/70 px-2 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 bg-red-400 rounded-full" />
+              Save failed
+            </div>
+          ) : saving ? (
             <div className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-950/50 border border-amber-800/50 px-2 py-1 rounded-full">
               <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" />
               Saving...
@@ -176,6 +204,19 @@ export default function App() {
             </div>
           ) : null}
         </div>
+        <div className="max-w-lg mx-auto px-4 pb-2">
+          <div className="inline-flex items-center gap-2 text-xs text-zinc-300 bg-zinc-900/80 border border-zinc-700 rounded-md px-2.5 py-1">
+            <span className="text-amber-400">🕒</span>
+            <span>Last updated: {formatLastUpdated(LAST_UPDATED)}</span>
+          </div>
+        </div>
+        {saveError && (
+          <div className="max-w-lg mx-auto px-4 pb-2">
+            <div className="text-xs text-red-200 bg-red-950/70 border border-red-800 rounded-md px-2.5 py-2">
+              Could not save to database: {saveError}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Content */}

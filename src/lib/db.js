@@ -111,48 +111,54 @@ export async function deleteSeason(id) {
 // ─── MATCHES ──────────────────────────────────────────────────────────────────
 export async function addMatch(match) {
   const row = handle(await supabase.from('matches').insert({
-    id: match.id, date: match.date, season_id: match.seasonId,
+    id: match.id, date: match.date, season_id: match.seasonId || null,
     opponent: match.opponent, submitted: match.submitted,
   }).select().single())
   return { ...match, ...row, seasonId: row.season_id }
 }
 
-export async function updateMatch(match) {
-  // Update core match row
-  handle(await supabase.from('matches').update({
-    date: match.date, season_id: match.seasonId,
-    opponent: match.opponent, submitted: match.submitted,
-  }).eq('id', match.id))
-
-  // Sync match_players: delete all then re-insert
-  handle(await supabase.from('match_players').delete().eq('match_id', match.id))
-  if (match.playerIds?.length) {
-    handle(await supabase.from('match_players').insert(
-      match.playerIds.map(pid => ({ match_id: match.id, player_id: pid }))
-    ))
+export async function updateMatch(id, patch) {
+  if ('date' in patch || 'seasonId' in patch || 'opponent' in patch || 'submitted' in patch) {
+    handle(await supabase.from('matches').update({
+      ...(patch.date !== undefined ? { date: patch.date } : {}),
+      ...(patch.seasonId !== undefined ? { season_id: patch.seasonId || null } : {}),
+      ...(patch.opponent !== undefined ? { opponent: patch.opponent } : {}),
+      ...(patch.submitted !== undefined ? { submitted: patch.submitted } : {}),
+    }).eq('id', id))
   }
 
-  // Sync fines: upsert all current fines
-  handle(await supabase.from('fines').delete().eq('match_id', match.id))
-  if (match.fines?.length) {
-    handle(await supabase.from('fines').insert(
-      match.fines.map(f => ({
-        id: f.id, match_id: match.id, player_id: f.playerId,
-        fine_type_id: f.fineTypeId, player_name: f.playerName,
-        fine_name: f.fineName, cost: f.cost, paid: f.paid,
-      }))
-    ))
+  if ('playerIds' in patch) {
+    handle(await supabase.from('match_players').delete().eq('match_id', id))
+    if (patch.playerIds?.length) {
+      handle(await supabase.from('match_players').insert(
+        patch.playerIds.map(pid => ({ match_id: id, player_id: pid }))
+      ))
+    }
   }
 
-  // Sync subs: delete all then re-insert
-  handle(await supabase.from('subs').delete().eq('match_id', match.id))
-  if (match.subs?.length) {
-    handle(await supabase.from('subs').insert(
-      match.subs.map(s => ({
-        id: s.id, match_id: match.id, player_id: s.playerId,
-        player_name: s.playerName, amount: s.amount, paid: s.paid,
-      }))
-    ))
+  if ('fines' in patch) {
+    handle(await supabase.from('fines').delete().eq('match_id', id))
+    if (patch.fines?.length) {
+      handle(await supabase.from('fines').insert(
+        patch.fines.map(f => ({
+          id: f.id, match_id: id, player_id: f.playerId || null,
+          fine_type_id: f.fineTypeId || null, player_name: f.playerName,
+          fine_name: f.fineName, cost: f.cost, paid: f.paid,
+        }))
+      ))
+    }
+  }
+
+  if ('subs' in patch) {
+    handle(await supabase.from('subs').delete().eq('match_id', id))
+    if (patch.subs?.length) {
+      handle(await supabase.from('subs').insert(
+        patch.subs.map(s => ({
+          id: s.id, match_id: id, player_id: s.playerId || null,
+          player_name: s.playerName, amount: s.amount, paid: s.paid,
+        }))
+      ))
+    }
   }
 }
 
