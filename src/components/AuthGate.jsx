@@ -52,14 +52,44 @@ export default function AuthGate({ players, setPlayers, onAuthenticated }) {
 
     setLoading(true); setError('')
     try {
-      const player = await db.addPlayer({
-        name,
-        email,
-        mobile,
-        preferredAuthMethod,
-      })
+      const existingByEmail = email ? await db.findPlayerByAuth({ method: 'email', value: email }) : null
+      const existingByMobile = mobile ? await db.findPlayerByAuth({ method: 'whatsapp', value: mobile }) : null
 
-      setPlayers(prev => [...prev, player].sort((a, b) => a.name.localeCompare(b.name)))
+      if (existingByEmail && existingByMobile && existingByEmail.id !== existingByMobile.id) {
+        throw new Error('That email and mobile belong to different existing players. Use Sign in or contact an admin.')
+      }
+
+      let player = existingByEmail || existingByMobile
+      if (player) {
+        const merged = {
+          ...player,
+          name: name || player.name,
+          email: email || player.email,
+          mobile: mobile || player.mobile,
+          preferredAuthMethod,
+        }
+        const changed =
+          merged.name !== player.name ||
+          merged.email !== player.email ||
+          merged.mobile !== player.mobile ||
+          merged.preferredAuthMethod !== player.preferredAuthMethod
+
+        if (changed) {
+          player = await db.updatePlayer(merged)
+          setPlayers(prev => prev
+            .map(p => p.id === player.id ? player : p)
+            .sort((a, b) => a.name.localeCompare(b.name)))
+        }
+      } else {
+        player = await db.addPlayer({
+          name,
+          email,
+          mobile,
+          preferredAuthMethod,
+        })
+
+        setPlayers(prev => [...prev, player].sort((a, b) => a.name.localeCompare(b.name)))
+      }
 
       const sendMethod = method === 'whatsapp' ? (mobile ? 'whatsapp' : 'email') : (email ? 'email' : 'whatsapp')
       await sendOtpByMethod({ method: sendMethod, email, mobile })
