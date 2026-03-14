@@ -12,7 +12,7 @@ function handle(result) {
 export async function loadAll() {
   const [players, fineTypes, seasons, matchRows, fineRows, subRows, mpRows] =
     await Promise.all([
-      supabase.from('players').select('*').order('name'),
+      supabase.from('players').select('*').order('display_name', { ascending: true, nullsFirst: false }).order('name'),
       supabase.from('fine_types').select('*').order('cost').order('name'),
       supabase.from('seasons').select('*').order('name'),
       supabase.from('matches').select('*').order('date', { ascending: false }),
@@ -44,11 +44,11 @@ export async function loadAll() {
 // ─── normalise DB rows to app shape ──────────────────────────────────────────
 const normalPlayer   = r => ({
   id: r.id,
-  name: r.name,
+  name: r.display_name ?? r.name,
   email: r.email ?? '',
   mobile: r.mobile ?? '',
   preferredAuthMethod: r.preferred_auth_method ?? 'email',
-  authUserId: r.auth_user_id ?? null,
+  authUserId: r.user_id ?? r.auth_user_id ?? null,
 })
 const normalFineType = r => ({ id: r.id, name: r.name, cost: Number(r.cost) })
 const normalSeason = r => ({ id: r.id, name: r.name, type: r.type })
@@ -65,7 +65,8 @@ const normalSub = r => ({
 export async function addPlayer(player) {
   const payload = {
     name: player.name,
-    email: player.email || null,
+    display_name: player.name,
+    email: player.email || `player-${crypto.randomUUID()}@placeholder.local`,
     mobile: player.mobile || null,
     preferred_auth_method: player.preferredAuthMethod || null,
   }
@@ -77,10 +78,12 @@ export async function addPlayer(player) {
 export async function updatePlayer(player) {
   return normalPlayer(handle(await supabase.from('players').update({
     name: player.name,
-    email: player.email || null,
+    display_name: player.name,
+    email: player.email || `player-${crypto.randomUUID()}@placeholder.local`,
     mobile: player.mobile || null,
     preferred_auth_method: player.preferredAuthMethod || null,
     auth_user_id: player.authUserId || null,
+    user_id: player.authUserId || null,
   }).eq('id', player.id).select().single()))
 }
 
@@ -182,7 +185,8 @@ export async function importAll({ players, fineTypes, seasons, matches }) {
   if (players.length)   handle(await supabase.from('players').insert(players.map(p => ({
     id: p.id,
     name: p.name,
-    email: p.email || null,
+    display_name: p.name,
+    email: p.email || `player-${p.id}@placeholder.local`,
     mobile: p.mobile || null,
     preferred_auth_method: p.preferredAuthMethod || null,
     auth_user_id: p.authUserId || null,
