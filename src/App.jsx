@@ -11,7 +11,11 @@ import AuthGate   from './components/AuthGate'
 export const ADMIN_PIN = '1234'
 export const SUB_AMOUNT = 0.50
 const LAST_UPDATED = import.meta.env.VITE_LAST_UPDATED
-const APP_BANNER_PATH = '/images/roo-bin-banner.png'
+const APP_BANNER_PATHS = [
+  '/images/roo-bin-banner.png',
+  '/images/roo-bin-banner.png.PNG',
+  '/images/roo-bin-banner.PNG',
+]
 
 function formatLastUpdated(value) {
   if (!value) return 'Not available'
@@ -127,6 +131,7 @@ export default function App() {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [showBanner, setShowBanner] = useState(true)
+  const [bannerPathIndex, setBannerPathIndex] = useState(0)
   const [players, setPlayers] = useState([])
   const [fineTypes, setFineTypes] = useState([])
   const [seasons,   setSeasons]   = useState([])
@@ -257,10 +262,16 @@ export default function App() {
         {showBanner && (
           <div className="max-w-lg mx-auto px-4 pb-2">
             <img
-              src={APP_BANNER_PATH}
+              src={APP_BANNER_PATHS[bannerPathIndex]}
               alt="Roo Bin banner"
               className="w-full rounded-xl border border-zinc-800"
-              onError={() => setShowBanner(false)}
+              onError={() => {
+                if (bannerPathIndex < APP_BANNER_PATHS.length - 1) {
+                  setBannerPathIndex(prev => prev + 1)
+                  return
+                }
+                setShowBanner(false)
+              }}
             />
           </div>
         )}
