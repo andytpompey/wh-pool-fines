@@ -56,6 +56,8 @@ Edit `.env` and fill in your keys:
 ```env
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
+VITE_TWILIO_WHATSAPP_OTP_SEND_URL=https://your-api.example.com/auth/whatsapp/send
+VITE_TWILIO_WHATSAPP_OTP_VERIFY_URL=https://your-api.example.com/auth/whatsapp/verify
 ```
 
 ### 6. Run locally
@@ -83,6 +85,24 @@ Every push to `main` auto-deploys. Your app will have a URL like `https://wh-poo
 
 ---
 
+
+## Authentication (OTP)
+
+The app now uses one-time passcode authentication with player records stored in `players`.
+
+- **Email OTP:** uses Supabase native `signInWithOtp` + `verifyOtp`.
+- **WhatsApp OTP:** uses Twilio via your own webhook/API endpoints.
+- Players can store `email`, `mobile` (one or both), and choose a `preferred_auth_method`.
+
+### Twilio WhatsApp integration
+
+Supabase does not send WhatsApp OTP directly. Configure API endpoints that call Twilio Verify (or your preferred flow):
+
+- `VITE_TWILIO_WHATSAPP_OTP_SEND_URL` (POST `{ mobile }`)
+- `VITE_TWILIO_WHATSAPP_OTP_VERIFY_URL` (POST `{ mobile, token }`)
+
+These endpoints should handle Twilio secrets server-side and return JSON `{ ok: true }` or `{ error: '...' }`.
+
 ## Importing existing data
 
 If you have a JSON backup from the previous version of the app:
@@ -98,7 +118,7 @@ This will overwrite all current data with the backup.
 ## Database schema
 
 ```
-players        id, name
+players        id, name, email, mobile, preferred_auth_method, auth_user_id
 fine_types     id, name, cost
 seasons        id, name, type (League|Cup)
 matches        id, date, season_id, opponent, submitted

@@ -6,9 +6,14 @@ create extension if not exists "pgcrypto";
 
 -- ── Players ──────────────────────────────────────────────────────────────────
 create table if not exists players (
-  id          uuid primary key default gen_random_uuid(),
-  name        text not null,
-  created_at  timestamptz default now()
+  id                     uuid primary key default gen_random_uuid(),
+  name                   text not null,
+  email                  text unique,
+  mobile                 text unique,
+  preferred_auth_method  text not null default 'email' check (preferred_auth_method in ('email', 'whatsapp')),
+  auth_user_id           uuid,
+  created_at             timestamptz default now(),
+  constraint players_auth_contact_check check (email is not null or mobile is not null)
 );
 
 -- ── Fine Types ────────────────────────────────────────────────────────────────
@@ -89,3 +94,17 @@ create policy "allow all" on matches      for all using (true) with check (true)
 create policy "allow all" on match_players for all using (true) with check (true);
 create policy "allow all" on fines        for all using (true) with check (true);
 create policy "allow all" on subs         for all using (true) with check (true);
+
+
+-- Add auth columns for existing projects running earlier schema versions
+alter table players add column if not exists email text;
+alter table players add column if not exists mobile text;
+alter table players add column if not exists preferred_auth_method text not null default 'email';
+alter table players add column if not exists auth_user_id uuid;
+
+create unique index if not exists players_email_unique_idx on players (lower(email)) where email is not null;
+create unique index if not exists players_mobile_unique_idx on players (mobile) where mobile is not null;
+
+alter table players drop constraint if exists players_preferred_auth_method_check;
+alter table players add constraint players_preferred_auth_method_check
+  check (preferred_auth_method in ('email', 'whatsapp'));
