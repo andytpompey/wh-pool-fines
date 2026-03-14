@@ -12,7 +12,7 @@ function handle(result) {
 export async function loadAll() {
   const [players, fineTypes, seasons, matchRows, fineRows, subRows, mpRows] =
     await Promise.all([
-      supabase.from('players').select('*').order('name'),
+      supabase.from('players').select('*').order('display_name'),
       supabase.from('fine_types').select('*').order('cost').order('name'),
       supabase.from('seasons').select('*').order('name'),
       supabase.from('matches').select('*').order('date', { ascending: false }),
@@ -44,11 +44,11 @@ export async function loadAll() {
 // ─── normalise DB rows to app shape ──────────────────────────────────────────
 const normalPlayer   = r => ({
   id: r.id,
-  name: r.name,
+  name: r.display_name ?? r.name,
   email: r.email ?? '',
   mobile: r.mobile ?? '',
   preferredAuthMethod: r.preferred_auth_method ?? 'email',
-  authUserId: r.auth_user_id ?? null,
+  authUserId: r.user_id ?? null,
 })
 const normalFineType = r => ({ id: r.id, name: r.name, cost: Number(r.cost) })
 const normalSeason = r => ({ id: r.id, name: r.name, type: r.type })
@@ -64,23 +64,25 @@ const normalSub = r => ({
 
 export async function addPlayer(player) {
   const payload = {
-    name: player.name,
-    email: player.email || null,
+    display_name: player.name,
+    email: (player.email || '').trim().toLowerCase(),
     mobile: player.mobile || null,
     preferred_auth_method: player.preferredAuthMethod || null,
   }
+  if (!(player.email || '').trim()) throw new Error('Player email is required')
   if (player.id) payload.id = player.id
 
   return normalPlayer(handle(await supabase.from('players').insert(payload).select().single()))
 }
 
 export async function updatePlayer(player) {
+  if (!(player.email || '').trim()) throw new Error('Player email is required')
   return normalPlayer(handle(await supabase.from('players').update({
-    name: player.name,
-    email: player.email || null,
+    display_name: player.name,
+    email: (player.email || '').trim().toLowerCase(),
     mobile: player.mobile || null,
     preferred_auth_method: player.preferredAuthMethod || null,
-    auth_user_id: player.authUserId || null,
+    user_id: player.authUserId || null,
   }).eq('id', player.id).select().single()))
 }
 
@@ -179,13 +181,14 @@ export async function importAll({ players, fineTypes, seasons, matches }) {
   ])
 
   // Insert in dependency order
+  if (players.some(p => !(p.email || '').trim())) throw new Error('All players must include an email address before import')
   if (players.length)   handle(await supabase.from('players').insert(players.map(p => ({
     id: p.id,
-    name: p.name,
-    email: p.email || null,
+    display_name: p.name,
+    email: (p.email || '').trim().toLowerCase(),
     mobile: p.mobile || null,
     preferred_auth_method: p.preferredAuthMethod || null,
-    auth_user_id: p.authUserId || null,
+    user_id: p.authUserId || null,
   }))))
   if (fineTypes.length) handle(await supabase.from('fine_types').insert(fineTypes.map(f => ({ id: f.id, name: f.name, cost: f.cost }))))
   if (seasons.length) handle(await supabase.from('seasons').insert(seasons.map(s => ({ id: s.id, name: s.name, type: s.type }))))
@@ -215,5 +218,5 @@ export async function findPlayerByAuth({ method, value }) {
 
 export async function attachAuthUser(playerId, authUserId) {
   if (!playerId || !authUserId) return null
-  return normalPlayer(handle(await supabase.from('players').update({ auth_user_id: authUserId }).eq('id', playerId).select().single()))
+  return normalPlayer(handle(await supabase.from('players').update({ user_id: authUserId }).eq('id', playerId).select().single()))
 }
