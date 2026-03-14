@@ -90,7 +90,8 @@ Every push to `main` auto-deploys. Your app will have a URL like `https://wh-poo
 
 The app now uses one-time passcode authentication with player records stored in `players`.
 
-- **Email OTP:** uses Supabase native `signInWithOtp` + `verifyOtp`.
+- **Email OTP:** uses Supabase native `signInWithOtp` + `verifyOtp` with `type: 'email'` (6-digit code entry in app).
+- In Supabase **Auth → Email Templates**, use `{{ .Token }}` in the template body to send the OTP code (not `{{ .ConfirmationURL }}` magic links).
 - **WhatsApp OTP:** uses Twilio via your own webhook/API endpoints.
 - Players can store `email`, `mobile` (one or both), and choose a `preferred_auth_method`.
 
