@@ -3,19 +3,13 @@
 
 create extension if not exists "pgcrypto";
 
--- ── Core domain tables ───────────────────────────────────────────────────────
-create table if not exists players (
-  id                     uuid primary key default gen_random_uuid(),
-  name                   text not null,
-  display_name           text not null,
-  email                  text not null,
-  mobile                 text unique,
-  preferred_auth_method  text not null default 'email' check (preferred_auth_method in ('email', 'whatsapp')),
-  auth_user_id           uuid,
-  user_id                uuid,
-  receive_team_notifications boolean not null default true,
-  created_at             timestamptz default now(),
-  constraint players_auth_contact_check check (email is not null)
+-- 1) Ensure core multi-team tables exist (idempotent)
+create table if not exists teams (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  join_code text not null unique,
+  created_by uuid,
+  created_at timestamptz not null default now()
 );
 
 create table if not exists team_memberships (
@@ -190,164 +184,106 @@ alter table fine_types enable row level security;
 alter table seasons enable row level security;
 alter table matches enable row level security;
 alter table match_players enable row level security;
-alter table fines        enable row level security;
-alter table subs         enable row level security;
-
--- Allow all operations for anon (unauthenticated) role
-create policy "allow all" on players      for all using (true) with check (true);
-create policy "allow all" on fine_types   for all using (true) with check (true);
-create policy "allow all" on seasons      for all using (true) with check (true);
-create policy "allow all" on matches      for all using (true) with check (true);
-create policy "allow all" on match_players for all using (true) with check (true);
-create policy "allow all" on fines        for all using (true) with check (true);
-create policy "allow all" on subs         for all using (true) with check (true);
-
-
--- Multi-team domain tables
-create table if not exists teams (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  join_code text unique not null,
-  created_by uuid null references players(id) on delete set null,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists team_memberships (
-  id uuid primary key default gen_random_uuid(),
-  team_id uuid not null references teams(id) on delete cascade,
-  player_id uuid not null references players(id) on delete cascade,
-  role text not null check (role in ('captain','admin','member')),
-  status text not null default 'active' check (status in ('active','invited','removed')),
-  joined_at timestamptz not null default now(),
-  unique(team_id, player_id)
-);
-
-create table if not exists team_invites (
-  id uuid primary key default gen_random_uuid(),
-  team_id uuid not null references teams(id) on delete cascade,
-  email text not null,
-  player_id uuid null references players(id) on delete set null,
-  invited_by_player_id uuid null references players(id) on delete set null,
-  status text not null default 'pending' check (status in ('pending','accepted','expired','cancelled')),
-  token text unique not null,
-  created_at timestamptz not null default now(),
-  expires_at timestamptz null
-);
-
+alter table fines enable row level security;
+alter table subs enable row level security;
 alter table teams enable row level security;
 alter table team_memberships enable row level security;
 alter table team_invites enable row level security;
+alter table app_users enable row level security;
 
-create policy "allow all" on teams            for all using (true) with check (true);
-create policy "allow all" on team_memberships for all using (true) with check (true);
-create policy "allow all" on team_invites     for all using (true) with check (true);
-
-
--- Add auth columns for existing projects running earlier schema versions
-alter table players add column if not exists email text;
-alter table players add column if not exists mobile text;
-alter table players add column if not exists preferred_auth_method text not null default 'email';
-alter table players add column if not exists auth_user_id uuid;
-alter table players add column if not exists display_name text;
-alter table players add column if not exists user_id uuid;
-alter table players add column if not exists receive_team_notifications boolean not null default true;
-
-update players set display_name = coalesce(display_name, name) where display_name is null;
-update players set user_id = auth_user_id where user_id is null and auth_user_id is not null;
-update players set email = concat('player-', id::text, '@placeholder.local') where email is null or btrim(email) = '';
-
-alter table players alter column display_name set not null;
-alter table players alter column email set not null;
-
-create unique index if not exists players_email_unique_idx on players (lower(email)) where email is not null;
-create unique index if not exists players_mobile_unique_idx on players (mobile) where mobile is not null;
-create unique index if not exists players_user_id_unique_idx on players (user_id) where user_id is not null;
-create index if not exists players_display_name_idx on players (display_name);
-
-create index if not exists teams_join_code_idx on teams (join_code);
-create index if not exists teams_created_by_idx on teams (created_by);
-create index if not exists team_memberships_team_id_idx on team_memberships (team_id);
-create index if not exists team_memberships_player_id_idx on team_memberships (player_id);
-create index if not exists team_invites_team_id_idx on team_invites (team_id);
-create index if not exists team_invites_player_id_idx on team_invites (player_id);
-create index if not exists team_invites_email_idx on team_invites (lower(email));
-
-create or replace function sync_player_profile_columns()
-returns trigger
-language plpgsql
-as $$
-begin
-  if new.display_name is null or btrim(new.display_name) = '' then
-    new.display_name = coalesce(new.name, 'Unknown Player');
-  end if;
-
-  if new.name is null or btrim(new.name) = '' then
-    new.name = new.display_name;
-  end if;
-
-  if new.user_id is null and new.auth_user_id is not null then
-    new.user_id = new.auth_user_id;
-  end if;
-
-  if new.auth_user_id is null and new.user_id is not null then
-    new.auth_user_id = new.user_id;
-  end if;
-
-  if new.email is null or btrim(new.email) = '' then
-    new.email = concat('player-', coalesce(new.id, gen_random_uuid())::text, '@placeholder.local');
-  end if;
-
-  return new;
-end;
-$$;
-
-drop trigger if exists players_sync_profile_columns on players;
-create trigger players_sync_profile_columns
-before insert or update on players
-for each row execute function sync_player_profile_columns();
-
-create or replace function generate_team_join_code()
-returns text
-language plpgsql
-as $$
+do $$
 declare
-  generated_code text;
-  attempt_count integer := 0;
+  t text;
 begin
+  foreach t in array array['players','fine_types','seasons','matches','match_players','fines','subs','teams','team_memberships','team_invites']
   loop
-    attempt_count := attempt_count + 1;
-    generated_code := upper(encode(gen_random_bytes(4), 'hex'));
-
-    exit when not exists (
-      select 1 from teams t where t.join_code = generated_code
-    );
-
-    if attempt_count > 10 then
-      raise exception 'Unable to generate a unique team join code';
-    end if;
+    execute format('drop policy if exists "allow all" on %I', t);
+    execute format('drop policy if exists "authenticated read/write" on %I', t);
   end loop;
 
-  return generated_code;
-end;
-$$;
+  execute 'drop policy if exists "own profile" on players';
+  execute 'drop policy if exists "team players read" on players';
+  execute 'drop policy if exists "team players write" on players';
+  execute 'drop policy if exists "team scoped read" on fine_types';
+  execute 'drop policy if exists "team scoped write" on fine_types';
+  execute 'drop policy if exists "team scoped read" on seasons';
+  execute 'drop policy if exists "team scoped write" on seasons';
+  execute 'drop policy if exists "team scoped read" on matches';
+  execute 'drop policy if exists "team scoped write" on matches';
+  execute 'drop policy if exists "team scoped read" on match_players';
+  execute 'drop policy if exists "team scoped write" on match_players';
+  execute 'drop policy if exists "team scoped read" on fines';
+  execute 'drop policy if exists "team scoped write" on fines';
+  execute 'drop policy if exists "team scoped read" on subs';
+  execute 'drop policy if exists "team scoped write" on subs';
+  execute 'drop policy if exists "team scoped read" on teams';
+  execute 'drop policy if exists "team scoped write" on teams';
+  execute 'drop policy if exists "team scoped read" on team_memberships';
+  execute 'drop policy if exists "team scoped write" on team_memberships';
+  execute 'drop policy if exists "team scoped read" on team_invites';
+  execute 'drop policy if exists "team scoped write" on team_invites';
+  execute 'drop policy if exists "app_users self" on app_users';
+end $$;
 
-create or replace function set_team_join_code()
-returns trigger
-language plpgsql
-as $$
-begin
-  if new.join_code is null or btrim(new.join_code) = '' then
-    new.join_code = generate_team_join_code();
-  else
-    new.join_code = upper(btrim(new.join_code));
-  end if;
+-- players: allow user to read own linked player row + players in their teams. Writes are self-row only.
+create policy "own profile" on players
+for select to authenticated
+using (
+  user_id = auth.uid()
+  or lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  or exists (
+    select 1
+    from team_memberships mine
+    join players me on me.id = mine.player_id
+    join team_memberships theirs on theirs.team_id = mine.team_id and theirs.player_id = players.id
+    where me.user_id = auth.uid()
+      and mine.status = 'active'
+      and theirs.status = 'active'
+  )
+);
 
-  return new;
-end;
-$$;
+create policy "team players write" on players
+for update to authenticated
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
 
-drop trigger if exists teams_set_join_code on teams;
-create trigger teams_set_join_code
-before insert or update of join_code on teams
-for each row execute function set_team_join_code();
+-- team-scoped tables
+create policy "team scoped read" on fine_types for select to authenticated using (is_member_of_team(team_id));
+create policy "team scoped write" on fine_types for all to authenticated using (is_member_of_team(team_id)) with check (is_member_of_team(team_id));
+
+create policy "team scoped read" on seasons for select to authenticated using (is_member_of_team(team_id));
+create policy "team scoped write" on seasons for all to authenticated using (is_member_of_team(team_id)) with check (is_member_of_team(team_id));
+
+create policy "team scoped read" on matches for select to authenticated using (is_member_of_team(team_id));
+create policy "team scoped write" on matches for all to authenticated using (is_member_of_team(team_id)) with check (is_member_of_team(team_id));
+
+create policy "team scoped read" on match_players for select to authenticated
+using (exists (select 1 from matches m where m.id = match_players.match_id and is_member_of_team(m.team_id)));
+create policy "team scoped write" on match_players for all to authenticated
+using (exists (select 1 from matches m where m.id = match_players.match_id and is_member_of_team(m.team_id)))
+with check (exists (select 1 from matches m where m.id = match_players.match_id and is_member_of_team(m.team_id)));
+
+create policy "team scoped read" on fines for select to authenticated
+using (exists (select 1 from matches m where m.id = fines.match_id and is_member_of_team(m.team_id)));
+create policy "team scoped write" on fines for all to authenticated
+using (exists (select 1 from matches m where m.id = fines.match_id and is_member_of_team(m.team_id)))
+with check (exists (select 1 from matches m where m.id = fines.match_id and is_member_of_team(m.team_id)));
+
+create policy "team scoped read" on subs for select to authenticated
+using (exists (select 1 from matches m where m.id = subs.match_id and is_member_of_team(m.team_id)));
+create policy "team scoped write" on subs for all to authenticated
+using (exists (select 1 from matches m where m.id = subs.match_id and is_member_of_team(m.team_id)))
+with check (exists (select 1 from matches m where m.id = subs.match_id and is_member_of_team(m.team_id)));
+
+create policy "team scoped read" on teams for select to authenticated using (is_member_of_team(id));
+create policy "team scoped write" on teams for update to authenticated using (is_admin_of_team(id)) with check (is_admin_of_team(id));
+create policy "team create" on teams for insert to authenticated with check (auth.uid() is not null);
+
+create policy "team scoped read" on team_memberships for select to authenticated using (is_member_of_team(team_id));
+create policy "team scoped write" on team_memberships for all to authenticated using (is_admin_of_team(team_id)) with check (is_admin_of_team(team_id));
+
+create policy "team scoped read" on team_invites for select to authenticated using (is_member_of_team(team_id));
+create policy "team scoped write" on team_invites for all to authenticated using (is_member_of_team(team_id)) with check (is_member_of_team(team_id));
+
+create policy "app_users self" on app_users for all to authenticated using (id = auth.uid()) with check (id = auth.uid());
 
