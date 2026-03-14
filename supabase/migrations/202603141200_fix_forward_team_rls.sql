@@ -247,6 +247,13 @@ for update to authenticated
 using (user_id = auth.uid())
 with check (user_id = auth.uid());
 
+create policy "players registration insert" on players
+for insert to authenticated
+with check (
+  user_id is null
+  or user_id = auth.uid()
+);
+
 -- team-scoped tables
 create policy "team scoped read" on fine_types for select to authenticated using (is_member_of_team(team_id));
 create policy "team scoped write" on fine_types for all to authenticated using (is_member_of_team(team_id)) with check (is_member_of_team(team_id));
@@ -286,4 +293,3 @@ create policy "team scoped read" on team_invites for select to authenticated usi
 create policy "team scoped write" on team_invites for all to authenticated using (is_member_of_team(team_id)) with check (is_member_of_team(team_id));
 
 create policy "app_users self" on app_users for all to authenticated using (id = auth.uid()) with check (id = auth.uid());
-
