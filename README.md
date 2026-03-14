@@ -37,7 +37,7 @@ npm install
 2. Paste the entire contents of [`supabase/schema.sql`](./supabase/schema.sql)
 3. Click **Run**
 
-This creates all 7 tables with the correct relationships and row-level security policies.
+This creates all required tables (including `app_users`) with the correct relationships and row-level security policies.
 
 ### 4. Get your API keys
 
@@ -125,6 +125,7 @@ matches        id, date, season_id, opponent, submitted
 match_players  match_id, player_id  (who played)
 fines          id, match_id, player_id, fine_type_id, player_name, fine_name, cost, paid
 subs           id, match_id, player_id, player_name, amount, paid
+app_users      id(auth.users), email, mobile, preferred_auth_method, player_id, role
 ```
 
 `player_name` and `fine_name` are stored directly on fines/subs so historical records survive if a player is renamed or deleted.
@@ -147,12 +148,15 @@ wh-pool-fines/
 │   ├── index.css
 │   ├── lib/
 │   │   ├── supabase.js          # Supabase client
-│   │   └── db.js                # All database operations
+│   │   ├── db.js                # Domain database operations
+│   │   ├── auth.js              # Supabase auth helpers
+│   │   └── userProfile.js       # app_users profile operations
 │   └── components/
 │       ├── Dashboard.jsx
 │       ├── MatchesTab.jsx
 │       ├── FinesTab.jsx
-│       └── SetupTab.jsx
+│       ├── SetupTab.jsx
+│       └── AuthGate.jsx
 ├── supabase/
 │   └── schema.sql               # Run this in Supabase SQL editor
 ├── .env.example                 # Copy to .env and fill in keys

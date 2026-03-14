@@ -1,10 +1,9 @@
 -- White Horse Pool Fines — Supabase Schema
 -- Run this entire file in: Supabase Dashboard → SQL Editor → New Query
 
--- Enable UUID extension
 create extension if not exists "pgcrypto";
 
--- ── Players ──────────────────────────────────────────────────────────────────
+-- ── Core domain tables ───────────────────────────────────────────────────────
 create table if not exists players (
   id                     uuid primary key default gen_random_uuid(),
   name                   text not null,
@@ -16,7 +15,6 @@ create table if not exists players (
   constraint players_auth_contact_check check (email is not null or mobile is not null)
 );
 
--- ── Fine Types ────────────────────────────────────────────────────────────────
 create table if not exists fine_types (
   id          uuid primary key default gen_random_uuid(),
   name        text not null,
@@ -24,15 +22,13 @@ create table if not exists fine_types (
   created_at  timestamptz default now()
 );
 
--- ── Seasons ───────────────────────────────────────────────────────────────────
 create table if not exists seasons (
   id          uuid primary key default gen_random_uuid(),
   name        text not null,
-  type        text not null default 'League', -- 'League' | 'Cup'
+  type        text not null default 'League',
   created_at  timestamptz default now()
 );
 
--- ── Matches ───────────────────────────────────────────────────────────────────
 create table if not exists matches (
   id          uuid primary key default gen_random_uuid(),
   date        date not null,
@@ -42,46 +38,71 @@ create table if not exists matches (
   created_at  timestamptz default now()
 );
 
--- ── Match Players (who played in each match) ──────────────────────────────────
 create table if not exists match_players (
   match_id    uuid not null references matches(id) on delete cascade,
   player_id   uuid not null references players(id) on delete cascade,
   primary key (match_id, player_id)
 );
 
--- ── Fines ─────────────────────────────────────────────────────────────────────
 create table if not exists fines (
   id            uuid primary key default gen_random_uuid(),
   match_id      uuid not null references matches(id) on delete cascade,
   player_id     uuid references players(id) on delete set null,
   fine_type_id  uuid references fine_types(id) on delete set null,
-  player_name   text not null,  -- denormalised so history survives player rename/delete
-  fine_name     text not null,  -- denormalised so history survives fine type rename/delete
+  player_name   text not null,
+  fine_name     text not null,
   cost          numeric(10,2) not null,
   paid          boolean not null default false,
   created_at    timestamptz default now()
 );
 
--- ── Subs ──────────────────────────────────────────────────────────────────────
 create table if not exists subs (
   id          uuid primary key default gen_random_uuid(),
   match_id    uuid not null references matches(id) on delete cascade,
   player_id   uuid references players(id) on delete set null,
-  player_name text not null,  -- denormalised
+  player_name text not null,
   amount      numeric(10,2) not null default 0.50,
   paid        boolean not null default false,
   created_at  timestamptz default now()
 );
 
--- ── Row Level Security ────────────────────────────────────────────────────────
--- The app uses the anon key, so we need to allow full access.
--- For a private club app this is fine. If you want auth in future,
--- replace these policies with user-scoped ones.
+-- ── Auth-linked app profile table ────────────────────────────────────────────
+create table if not exists app_users (
+  id                     uuid primary key references auth.users(id) on delete cascade,
+  email                  text,
+  mobile                 text,
+  preferred_auth_method  text not null default 'email',
+  player_id              uuid references players(id) on delete set null,
+  role                   text not null default 'member',
+  created_at             timestamptz not null default now(),
+  updated_at             timestamptz not null default now(),
+  constraint app_users_preferred_auth_method_check check (preferred_auth_method in ('email', 'whatsapp'))
+);
 
-alter table players      enable row level security;
-alter table fine_types   enable row level security;
-alter table seasons      enable row level security;
-alter table matches      enable row level security;
+create unique index if not exists app_users_email_unique_idx on app_users (lower(email)) where email is not null;
+create unique index if not exists app_users_mobile_unique_idx on app_users (mobile) where mobile is not null;
+create unique index if not exists app_users_player_unique_idx on app_users (player_id) where player_id is not null;
+
+create or replace function set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists app_users_set_updated_at on app_users;
+create trigger app_users_set_updated_at
+before update on app_users
+for each row execute function set_updated_at();
+
+-- ── RLS ──────────────────────────────────────────────────────────────────────
+alter table players enable row level security;
+alter table fine_types enable row level security;
+alter table seasons enable row level security;
+alter table matches enable row level security;
 alter table match_players enable row level security;
 alter table fines        enable row level security;
 alter table subs         enable row level security;

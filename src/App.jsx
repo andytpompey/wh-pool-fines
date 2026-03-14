@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import * as db from './lib/db'
-import SetupTab   from './components/SetupTab'
+import * as auth from './lib/auth'
+import * as userProfileDb from './lib/userProfile'
+import SetupTab from './components/SetupTab'
 import MatchesTab from './components/MatchesTab'
 import FinesTab   from './components/FinesTab'
 import Dashboard  from './components/Dashboard'
 import AuthGate   from './components/AuthGate'
 import * as auth from './lib/auth'
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-export const ADMIN_PIN  = '1234'
+export const ADMIN_PIN = '1234'
 export const SUB_AMOUNT = 0.50
 const LAST_UPDATED = import.meta.env.VITE_LAST_UPDATED
 
@@ -17,15 +18,10 @@ function formatLastUpdated(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return 'Not available'
   return date.toLocaleString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
 }
 
-// ─── Utilities ────────────────────────────────────────────────────────────────
 export function uuid() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
@@ -47,25 +43,18 @@ export function uuid() {
 
 export function formatDate(dateStr) {
   if (!dateStr) return ''
-  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
-  })
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-// ─── UI Primitives ────────────────────────────────────────────────────────────
 export function Badge({ children, color = 'green' }) {
   const colors = {
     green: 'bg-emerald-900/60 text-emerald-300 border-emerald-700',
-    red:   'bg-red-900/60 text-red-300 border-red-700',
+    red: 'bg-red-900/60 text-red-300 border-red-700',
     amber: 'bg-amber-900/60 text-amber-300 border-amber-700',
-    blue:  'bg-blue-900/60 text-blue-300 border-blue-700',
-    gray:  'bg-zinc-800 text-zinc-400 border-zinc-600',
+    blue: 'bg-blue-900/60 text-blue-300 border-blue-700',
+    gray: 'bg-zinc-800 text-zinc-400 border-zinc-600',
   }
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${colors[color]}`}>
-      {children}
-    </span>
-  )
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border ${colors[color]}`}>{children}</span>
 }
 
 export function Modal({ title, onClose, children }) {
@@ -86,10 +75,7 @@ export function Input({ label, ...props }) {
   return (
     <div className="mb-3">
       {label && <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">{label}</label>}
-      <input
-        className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 text-sm"
-        {...props}
-      />
+      <input className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 text-sm" {...props} />
     </div>
   )
 }
@@ -98,12 +84,7 @@ export function Sel({ label, children, ...props }) {
   return (
     <div className="mb-3">
       {label && <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">{label}</label>}
-      <select
-        className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 text-sm"
-        {...props}
-      >
-        {children}
-      </select>
+      <select className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 text-sm" {...props}>{children}</select>
     </div>
   )
 }
@@ -112,26 +93,17 @@ export function Btn({ children, variant = 'primary', size = 'md', className = ''
   const base = 'font-bold rounded-lg transition-all active:scale-95 inline-flex items-center justify-center gap-1 disabled:opacity-50'
   const variants = {
     primary: 'bg-amber-500 hover:bg-amber-400 text-zinc-900',
-    danger:  'bg-red-600 hover:bg-red-500 text-white',
-    ghost:   'bg-zinc-700 hover:bg-zinc-600 text-white',
+    danger: 'bg-red-600 hover:bg-red-500 text-white',
+    ghost: 'bg-zinc-700 hover:bg-zinc-600 text-white',
     success: 'bg-emerald-600 hover:bg-emerald-500 text-white',
     outline: 'border border-zinc-600 hover:border-zinc-400 text-zinc-300 hover:text-white bg-transparent',
   }
   const sizes = { sm: 'px-3 py-1.5 text-xs', md: 'px-4 py-2 text-sm', lg: 'px-5 py-3 text-base' }
-  return (
-    <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...props}>
-      {children}
-    </button>
-  )
+  return <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...props}>{children}</button>
 }
 
 function Spinner() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-      <div className="w-10 h-10 border-4 border-zinc-700 border-t-amber-500 rounded-full animate-spin" />
-      <p className="text-zinc-500 text-sm">Loading saved data...</p>
-    </div>
-  )
+  return <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4"><div className="w-10 h-10 border-4 border-zinc-700 border-t-amber-500 rounded-full animate-spin" /><p className="text-zinc-500 text-sm">Loading saved data...</p></div>
 }
 
 function ErrorScreen({ error, onRetry }) {
@@ -140,20 +112,21 @@ function ErrorScreen({ error, onRetry }) {
       <div className="text-4xl">⚠️</div>
       <p className="text-white font-bold">Failed to connect to database</p>
       <p className="text-zinc-400 text-sm">{error}</p>
-      <p className="text-zinc-500 text-xs">Check your .env file has the correct Supabase URL and anon key.</p>
       <Btn onClick={onRetry}>Retry</Btn>
     </div>
   )
 }
 
-// ─── Root App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [tab,       setTab]       = useState(0)
-  const [loading,   setLoading]   = useState(true)
-  const [error,     setError]     = useState(null)
-  const [saving,    setSaving]    = useState(false)
+  const [tab, setTab] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [players,   setPlayers]   = useState([])
+  const [authLoading, setAuthLoading] = useState(true)
+  const [session, setSession] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [players, setPlayers] = useState([])
   const [fineTypes, setFineTypes] = useState([])
   const [seasons,   setSeasons]   = useState([])
   const [matches,   setMatches]   = useState([])
@@ -169,21 +142,47 @@ export default function App() {
   const load = useCallback(() => {
     setLoading(true)
     setError(null)
-    db.loadAll()
-      .then(data => {
-        setPlayers(data.players)
-        setFineTypes(data.fineTypes)
-        setSeasons(data.seasons)
-        setMatches(data.matches)
-        setLoading(false)
-      })
-      .catch(err => {
-        setError(err.message ?? String(err))
-        setLoading(false)
-      })
+    db.loadAll().then(data => {
+      setPlayers(data.players)
+      setFineTypes(data.fineTypes)
+      setSeasons(data.seasons)
+      setMatches(data.matches)
+      setLoading(false)
+    }).catch(err => {
+      setError(err.message ?? String(err))
+      setLoading(false)
+    })
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    auth.getSession()
+      .then(currentSession => {
+        setSession(currentSession)
+      })
+      .catch(() => setSession(null))
+      .finally(() => setAuthLoading(false))
+
+    const unsubscribe = auth.onAuthStateChange(nextSession => setSession(nextSession))
+    return unsubscribe
+  }, [])
+
+  useEffect(() => {
+    if (!session?.user) {
+      setProfile(null)
+      return
+    }
+
+    userProfileDb.upsertCurrentUserProfile({
+      user: session.user,
+      preferredAuthMethod: session.user.phone ? 'whatsapp' : 'email',
+    }).then(setProfile).catch(err => {
+      console.error('Profile upsert failed', err)
+    })
+  }, [session?.user?.id])
+
+  useEffect(() => {
+    if (session) load()
+  }, [session, load])
 
 
   useEffect(() => {
@@ -206,20 +205,30 @@ export default function App() {
     try {
       await fn()
     } catch (err) {
-      const message = err?.message ?? 'Failed to save changes'
-      setSaveError(message)
+      setSaveError(err?.message ?? 'Failed to save changes')
       console.error('Save failed:', err)
     } finally {
       setSaving(false)
     }
   }
 
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut()
+      setSession(null)
+      setProfile(null)
+    } catch (err) {
+      console.error('Sign-out failed:', err)
+    }
+  }
+
   const tabLabels = ['Dashboard', 'Matches', 'Fines', 'Setup']
-  const icons     = ['📊', '🎱', '💰', '⚙️']
+  const icons = ['📊', '🎱', '💰', '⚙️']
+
+  if (authLoading) return <Spinner />
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white pb-24">
-      {/* Header */}
       <div className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur border-b border-zinc-800">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-zinc-900 font-bold text-xs">WH</div>
