@@ -46,7 +46,7 @@ export default function AuthGate({ players, setPlayers, onAuthenticated }) {
     const preferredAuthMethod = registerForm.preferredAuthMethod === 'whatsapp' ? 'whatsapp' : 'email'
 
     if (!name) return setError('Name is required.')
-    if (!email && !mobile) return setError('Register with at least email or mobile number.')
+    if (!email) return setError('Email is required for new players.')
     if (preferredAuthMethod === 'email' && !email) return setError('Default method is Email but email is missing.')
     if (preferredAuthMethod === 'whatsapp' && !mobile) return setError('Default method is WhatsApp but mobile is missing.')
 
@@ -147,7 +147,7 @@ export default function AuthGate({ players, setPlayers, onAuthenticated }) {
             {mode === 'register' ? (
               <>
                 <Input label="Name" value={registerForm.name} onChange={e => setRegisterForm(f => ({ ...f, name: e.target.value }))} placeholder="Player name" />
-                <Input label="Email (optional)" type="email" value={registerForm.email} onChange={e => setRegisterForm(f => ({ ...f, email: e.target.value }))} placeholder="name@example.com" />
+                <Input label="Email" type="email" value={registerForm.email} onChange={e => setRegisterForm(f => ({ ...f, email: e.target.value }))} placeholder="name@example.com" />
                 <Input label="Mobile (optional)" value={registerForm.mobile} onChange={e => setRegisterForm(f => ({ ...f, mobile: e.target.value }))} placeholder="+447700900123" />
                 <Sel label="Default Authentication Method" value={registerForm.preferredAuthMethod} onChange={e => setRegisterForm(f => ({ ...f, preferredAuthMethod: e.target.value }))}>
                   {methodOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
