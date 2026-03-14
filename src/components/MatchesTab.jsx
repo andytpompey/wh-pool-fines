@@ -11,7 +11,7 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
   const [pinInput,          setPinInput]           = useState('')
   const [pinError,          setPinError]           = useState('')
   const [newFine,           setNewFine]            = useState({ playerId: '', fineTypeId: '' })
-  const [activeSection,     setActiveSection]      = useState('players')
+  const [activeSection,     setActiveSection]      = useState('fines')
   const [showConfirmSubmit, setShowConfirmSubmit]  = useState(false)
 
   const season    = seasons.find(s => s.id === match.seasonId)
@@ -79,8 +79,8 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
   const grandOwed  = grandTotal - grandPaid
 
   const sections = [
-    { key: 'players', label: `Players (${playerIds.length})` },
     { key: 'fines',   label: `Fines (${match.fines.length})` },
+    { key: 'players', label: `Players (${playerIds.length})` },
     { key: 'subs',    label: `Subs (${subs.length})` },
   ]
 

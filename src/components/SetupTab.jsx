@@ -6,7 +6,7 @@ export default function SetupTab({ players, fineTypes, seasons, matches, setPlay
   const [section, setSection] = useState('players')
 
   // ── Player state ──────────────────────────────────────────────────────────
-  const [playerInput, setPlayerInput]             = useState('')
+  const [playerInput, setPlayerInput]             = useState({ name: '', email: '', mobile: '', preferredAuthMethod: 'email' })
   const [editPlayer, setEditPlayer]               = useState(null)
   const [confirmDeletePlayer, setConfirmDeletePlayer] = useState(null)
   const [playerPinInput, setPlayerPinInput]       = useState('')
@@ -32,18 +32,36 @@ export default function SetupTab({ players, fineTypes, seasons, matches, setPlay
   const [importSuccess, setImportSuccess] = useState(false)
   const [importing, setImporting]         = useState(false)
 
+
+  const normalizeAuthDetails = player => {
+    const email = player.email?.trim().toLowerCase() ?? ''
+    const mobile = player.mobile?.trim() ?? ''
+
+    if (!email && !mobile) {
+      throw new Error('Player auth needs an email, mobile number, or both.')
+    }
+
+    const preferredAuthMethod = player.preferredAuthMethod === 'whatsapp' ? 'whatsapp' : 'email'
+    if (preferredAuthMethod === 'email' && !email) throw new Error('Default method is Email, but no email is set.')
+    if (preferredAuthMethod === 'whatsapp' && !mobile) throw new Error('Default method is WhatsApp, but no mobile number is set.')
+
+    return { email, mobile, preferredAuthMethod }
+  }
+
   // ── Players ───────────────────────────────────────────────────────────────
   const addPlayer = () => withSave(async () => {
-    const name = playerInput.trim()
+    const name = playerInput.name.trim()
     if (!name) return
-    const p = await db.addPlayer({ id: uuid(), name })
+    const authDetails = normalizeAuthDetails(playerInput)
+    const p = await db.addPlayer({ id: uuid(), name, ...authDetails })
     setPlayers(prev => [...prev, p].sort((a, b) => a.name.localeCompare(b.name)))
-    setPlayerInput('')
+    setPlayerInput({ name: '', email: '', mobile: '', preferredAuthMethod: 'email' })
   })
 
   const saveEditPlayer = () => withSave(async () => {
     if (!editPlayer?.name.trim()) return
-    const updated = await db.updatePlayer(editPlayer)
+    const authDetails = normalizeAuthDetails(editPlayer)
+    const updated = await db.updatePlayer({ ...editPlayer, ...authDetails })
     setPlayers(prev => prev.map(p => p.id === updated.id ? updated : p))
     setEditPlayer(null)
   })
@@ -147,19 +165,37 @@ export default function SetupTab({ players, fineTypes, seasons, matches, setPlay
       {/* ── Players ── */}
       {section === 'players' && (
         <div>
-          <div className="flex gap-2 mb-4">
-            <input value={playerInput} onChange={e => setPlayerInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && addPlayer()}
-              placeholder="Player name..."
-              className="flex-1 bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500" />
-            <Btn onClick={addPlayer}>Add</Btn>
+          <div className="bg-zinc-800 rounded-xl p-3 mb-4">
+            <Input label="Player Name" value={playerInput.name} onChange={e => setPlayerInput(p => ({ ...p, name: e.target.value }))}
+              onKeyDown={e => e.key === 'Enter' && addPlayer()} placeholder="Player name" />
+            <Input label="Email (optional)" type="email" value={playerInput.email} onChange={e => setPlayerInput(p => ({ ...p, email: e.target.value }))}
+              placeholder="name@example.com" />
+            <Input label="Mobile (optional)" value={playerInput.mobile} onChange={e => setPlayerInput(p => ({ ...p, mobile: e.target.value }))}
+              placeholder="+447700900123" />
+            <Sel label="Default Authentication Method" value={playerInput.preferredAuthMethod} onChange={e => setPlayerInput(p => ({ ...p, preferredAuthMethod: e.target.value }))}>
+              <option value="email">Email OTP</option>
+              <option value="whatsapp">WhatsApp OTP</option>
+            </Sel>
+            <Btn onClick={addPlayer} className="w-full">Add Player</Btn>
           </div>
           <div className="space-y-2">
             {[...players].sort((a, b) => a.name.localeCompare(b.name)).map(p => (
-              <div key={p.id} className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-2">
-                <span className="text-white text-sm font-medium">🎱 {p.name}</span>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setEditPlayer({ id: p.id, name: p.name })}
+              <div key={p.id} className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-2 gap-3">
+                <div>
+                  <span className="text-white text-sm font-medium">🎱 {p.name}</span>
+                  <div className="text-xs text-zinc-400 mt-0.5">
+                    {p.email ? <span>{p.email}</span> : <span>No email</span>} · {p.mobile ? <span>{p.mobile}</span> : <span>No mobile</span>} · <span className="text-amber-400">Default: {p.preferredAuthMethod === 'whatsapp' ? 'WhatsApp' : 'Email'}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button onClick={() => setEditPlayer({
+                    id: p.id,
+                    name: p.name,
+                    email: p.email ?? '',
+                    mobile: p.mobile ?? '',
+                    preferredAuthMethod: p.preferredAuthMethod ?? 'email',
+                    authUserId: p.authUserId ?? null,
+                  })}
                     className="text-xs px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-bold">Edit</button>
                   <button onClick={() => { setConfirmDeletePlayer(p); setPlayerPinInput(''); setPlayerPinError('') }}
                     className="text-red-400 hover:text-red-300 text-xl leading-none">×</button>
@@ -183,7 +219,13 @@ export default function SetupTab({ players, fineTypes, seasons, matches, setPlay
           )}
           {editPlayer && (
             <Modal title="Edit Player" onClose={() => setEditPlayer(null)}>
-              <Input label="Player Name" value={editPlayer.name} onChange={e => setEditPlayer(p => ({ ...p, name: e.target.value }))} onKeyDown={e => e.key === 'Enter' && saveEditPlayer()} placeholder="Player name" />
+              <Input label="Player Name" value={editPlayer.name} onChange={e => setEditPlayer(p => ({ ...p, name: e.target.value }))} placeholder="Player name" />
+              <Input label="Email (optional)" type="email" value={editPlayer.email ?? ''} onChange={e => setEditPlayer(p => ({ ...p, email: e.target.value }))} placeholder="name@example.com" />
+              <Input label="Mobile (optional)" value={editPlayer.mobile ?? ''} onChange={e => setEditPlayer(p => ({ ...p, mobile: e.target.value }))} placeholder="+447700900123" />
+              <Sel label="Default Authentication Method" value={editPlayer.preferredAuthMethod ?? 'email'} onChange={e => setEditPlayer(p => ({ ...p, preferredAuthMethod: e.target.value }))}>
+                <option value="email">Email OTP</option>
+                <option value="whatsapp">WhatsApp OTP</option>
+              </Sel>
               <div className="flex gap-2 mt-1">
                 <Btn onClick={saveEditPlayer} className="flex-1">Save</Btn>
                 <Btn variant="ghost" onClick={() => setEditPlayer(null)} className="flex-1">Cancel</Btn>
