@@ -52,14 +52,44 @@ export default function AuthGate({ players, setPlayers, onAuthenticated }) {
 
     setLoading(true); setError('')
     try {
-      const player = await db.addPlayer({
-        name,
-        email,
-        mobile,
-        preferredAuthMethod,
-      })
+      const existingByEmail = email ? await db.findPlayerByAuth({ method: 'email', value: email }) : null
+      const existingByMobile = mobile ? await db.findPlayerByAuth({ method: 'whatsapp', value: mobile }) : null
 
-      setPlayers(prev => [...prev, player].sort((a, b) => a.name.localeCompare(b.name)))
+      if (existingByEmail && existingByMobile && existingByEmail.id !== existingByMobile.id) {
+        throw new Error('That email and mobile belong to different existing players. Use Sign in or contact an admin.')
+      }
+
+      let player = existingByEmail || existingByMobile
+      if (player) {
+        const merged = {
+          ...player,
+          name: name || player.name,
+          email: email || player.email,
+          mobile: mobile || player.mobile,
+          preferredAuthMethod,
+        }
+        const changed =
+          merged.name !== player.name ||
+          merged.email !== player.email ||
+          merged.mobile !== player.mobile ||
+          merged.preferredAuthMethod !== player.preferredAuthMethod
+
+        if (changed) {
+          player = await db.updatePlayer(merged)
+          setPlayers(prev => prev
+            .map(p => p.id === player.id ? player : p)
+            .sort((a, b) => a.name.localeCompare(b.name)))
+        }
+      } else {
+        player = await db.addPlayer({
+          name,
+          email,
+          mobile,
+          preferredAuthMethod,
+        })
+
+        setPlayers(prev => [...prev, player].sort((a, b) => a.name.localeCompare(b.name)))
+      }
 
       const sendMethod = method === 'whatsapp' ? (mobile ? 'whatsapp' : 'email') : (email ? 'email' : 'whatsapp')
       await sendOtpByMethod({ method: sendMethod, email, mobile })
@@ -172,6 +202,9 @@ export default function AuthGate({ players, setPlayers, onAuthenticated }) {
             <div className="mb-3 text-sm text-zinc-300">Code sent via <Badge color="blue">{methodLabel(pending.method)}</Badge></div>
             <div className="text-xs text-zinc-500 mb-3">{pending.method === 'email' ? pending.email : pending.mobile}</div>
             <Input label="One-time passcode" value={otp} onChange={e => setOtp(e.target.value)} placeholder="6-digit code" />
+            {pending.method === 'email' && (
+              <p className="text-xs text-zinc-500 mb-3">Enter the 6-digit code from your email (do not click a magic link).</p>
+            )}
             <div className="flex gap-2">
               <Btn className="flex-1" onClick={verifyOtp} disabled={loading}>{loading ? 'Verifying...' : 'Verify and Continue'}</Btn>
               <Btn className="flex-1" variant="ghost" onClick={() => { setStep('details'); setOtp(''); setPending(null) }}>Back</Btn>
