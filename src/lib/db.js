@@ -70,12 +70,14 @@ export async function addPlayer(player) {
     mobile: player.mobile || null,
     preferred_auth_method: player.preferredAuthMethod || null,
   }
+  if (!(player.email || '').trim()) throw new Error('Player email is required')
   if (player.id) payload.id = player.id
 
   return normalPlayer(handle(await supabase.from('players').insert(payload).select().single()))
 }
 
 export async function updatePlayer(player) {
+  if (!(player.email || '').trim()) throw new Error('Player email is required')
   return normalPlayer(handle(await supabase.from('players').update({
     name: player.name,
     display_name: player.name,
@@ -182,6 +184,7 @@ export async function importAll({ players, fineTypes, seasons, matches }) {
   ])
 
   // Insert in dependency order
+  if (players.some(p => !(p.email || '').trim())) throw new Error('All players must include an email address before import')
   if (players.length)   handle(await supabase.from('players').insert(players.map(p => ({
     id: p.id,
     name: p.name,
@@ -189,7 +192,7 @@ export async function importAll({ players, fineTypes, seasons, matches }) {
     email: p.email || `player-${p.id}@placeholder.local`,
     mobile: p.mobile || null,
     preferred_auth_method: p.preferredAuthMethod || null,
-    auth_user_id: p.authUserId || null,
+    user_id: p.authUserId || null,
   }))))
   if (fineTypes.length) handle(await supabase.from('fine_types').insert(fineTypes.map(f => ({ id: f.id, name: f.name, cost: f.cost }))))
   if (seasons.length) handle(await supabase.from('seasons').insert(seasons.map(s => ({ id: s.id, name: s.name, type: s.type }))))
@@ -219,5 +222,5 @@ export async function findPlayerByAuth({ method, value }) {
 
 export async function attachAuthUser(playerId, authUserId) {
   if (!playerId || !authUserId) return null
-  return normalPlayer(handle(await supabase.from('players').update({ auth_user_id: authUserId }).eq('id', playerId).select().single()))
+  return normalPlayer(handle(await supabase.from('players').update({ user_id: authUserId }).eq('id', playerId).select().single()))
 }
