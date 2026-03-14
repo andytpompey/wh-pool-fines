@@ -148,6 +148,19 @@ for each row execute function sync_player_name_columns();
 -- New writes are validated in app/server code.
 
 -- 7) Tighten RLS from permissive policies to team-aware auth checks.
+create or replace function current_player_id()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.id
+  from players p
+  where p.user_id = auth.uid()
+  limit 1;
+$$;
+
 create or replace function is_member_of_team(target_team_id uuid)
 returns boolean
 language sql
@@ -156,10 +169,9 @@ as $$
   select exists (
     select 1
     from team_memberships tm
-    join players p on p.id = tm.player_id
     where tm.team_id = target_team_id
       and tm.status = 'active'
-      and p.user_id = auth.uid()
+      and tm.player_id = current_player_id()
   );
 $$;
 
@@ -171,11 +183,10 @@ as $$
   select exists (
     select 1
     from team_memberships tm
-    join players p on p.id = tm.player_id
     where tm.team_id = target_team_id
       and tm.status = 'active'
       and tm.role in ('captain', 'admin')
-      and p.user_id = auth.uid()
+      and tm.player_id = current_player_id()
   );
 $$;
 
@@ -234,9 +245,8 @@ using (
   or exists (
     select 1
     from team_memberships mine
-    join players me on me.id = mine.player_id
     join team_memberships theirs on theirs.team_id = mine.team_id and theirs.player_id = players.id
-    where me.user_id = auth.uid()
+    where mine.player_id = current_player_id()
       and mine.status = 'active'
       and theirs.status = 'active'
   )
