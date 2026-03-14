@@ -41,7 +41,15 @@ export async function loadAll() {
   }
 }
 
-const normalPlayer = r => ({ id: r.id, name: r.name })
+// ─── normalise DB rows to app shape ──────────────────────────────────────────
+const normalPlayer   = r => ({
+  id: r.id,
+  name: r.name,
+  email: r.email ?? '',
+  mobile: r.mobile ?? '',
+  preferredAuthMethod: r.preferred_auth_method ?? 'email',
+  authUserId: r.auth_user_id ?? null,
+})
 const normalFineType = r => ({ id: r.id, name: r.name, cost: Number(r.cost) })
 const normalSeason = r => ({ id: r.id, name: r.name, type: r.type })
 const normalFine = r => ({
@@ -55,11 +63,25 @@ const normalSub = r => ({
 })
 
 export async function addPlayer(player) {
-  return normalPlayer(handle(await supabase.from('players').insert({ id: player.id, name: player.name }).select().single()))
+  const payload = {
+    name: player.name,
+    email: player.email || null,
+    mobile: player.mobile || null,
+    preferred_auth_method: player.preferredAuthMethod || null,
+  }
+  if (player.id) payload.id = player.id
+
+  return normalPlayer(handle(await supabase.from('players').insert(payload).select().single()))
 }
 
 export async function updatePlayer(player) {
-  return normalPlayer(handle(await supabase.from('players').update({ name: player.name }).eq('id', player.id).select().single()))
+  return normalPlayer(handle(await supabase.from('players').update({
+    name: player.name,
+    email: player.email || null,
+    mobile: player.mobile || null,
+    preferred_auth_method: player.preferredAuthMethod || null,
+    auth_user_id: player.authUserId || null,
+  }).eq('id', player.id).select().single()))
 }
 
 export async function deletePlayer(id) {
@@ -156,7 +178,15 @@ export async function importAll({ players, fineTypes, seasons, matches }) {
     supabase.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
   ])
 
-  if (players.length) handle(await supabase.from('players').insert(players.map(p => ({ id: p.id, name: p.name }))))
+  // Insert in dependency order
+  if (players.length)   handle(await supabase.from('players').insert(players.map(p => ({
+    id: p.id,
+    name: p.name,
+    email: p.email || null,
+    mobile: p.mobile || null,
+    preferred_auth_method: p.preferredAuthMethod || null,
+    auth_user_id: p.authUserId || null,
+  }))))
   if (fineTypes.length) handle(await supabase.from('fine_types').insert(fineTypes.map(f => ({ id: f.id, name: f.name, cost: f.cost }))))
   if (seasons.length) handle(await supabase.from('seasons').insert(seasons.map(s => ({ id: s.id, name: s.name, type: s.type }))))
 
@@ -166,4 +196,24 @@ export async function importAll({ players, fineTypes, seasons, matches }) {
     if (m.fines?.length) handle(await supabase.from('fines').insert(m.fines.map(f => ({ id: f.id, match_id: m.id, player_id: f.playerId, fine_type_id: f.fineTypeId, player_name: f.playerName, fine_name: f.fineName, cost: f.cost, paid: f.paid }))))
     if (m.subs?.length) handle(await supabase.from('subs').insert(m.subs.map(s => ({ id: s.id, match_id: m.id, player_id: s.playerId, player_name: s.playerName, amount: s.amount, paid: s.paid }))))
   }
+}
+
+
+export async function findPlayerByAuth({ method, value }) {
+  const normalized = value?.trim()
+  if (!normalized) return null
+
+  const column = method === 'whatsapp' ? 'mobile' : 'email'
+  const queryValue = method === 'email' ? normalized.toLowerCase() : normalized
+
+  const query = supabase.from('players').select('*').limit(1)
+  const row = method === 'email'
+    ? handle(await query.ilike(column, queryValue).maybeSingle())
+    : handle(await query.eq(column, queryValue).maybeSingle())
+  return row ? normalPlayer(row) : null
+}
+
+export async function attachAuthUser(playerId, authUserId) {
+  if (!playerId || !authUserId) return null
+  return normalPlayer(handle(await supabase.from('players').update({ auth_user_id: authUserId }).eq('id', playerId).select().single()))
 }

@@ -4,9 +4,10 @@ import * as auth from './lib/auth'
 import * as userProfileDb from './lib/userProfile'
 import SetupTab from './components/SetupTab'
 import MatchesTab from './components/MatchesTab'
-import FinesTab from './components/FinesTab'
-import Dashboard from './components/Dashboard'
-import AuthGate from './components/AuthGate'
+import FinesTab   from './components/FinesTab'
+import Dashboard  from './components/Dashboard'
+import AuthGate   from './components/AuthGate'
+import * as auth from './lib/auth'
 
 export const ADMIN_PIN = '1234'
 export const SUB_AMOUNT = 0.50
@@ -22,12 +23,17 @@ function formatLastUpdated(value) {
 }
 
 export function uuid() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
   if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
     return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c =>
       (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
     )
   }
+
+  // Last resort fallback for very old environments.
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = Math.random() * 16 | 0
     const v = c === 'x' ? r : (r & 0x3 | 0x8)
@@ -122,8 +128,16 @@ export default function App() {
   const [profile, setProfile] = useState(null)
   const [players, setPlayers] = useState([])
   const [fineTypes, setFineTypes] = useState([])
-  const [seasons, setSeasons] = useState([])
-  const [matches, setMatches] = useState([])
+  const [seasons,   setSeasons]   = useState([])
+  const [matches,   setMatches]   = useState([])
+  const [currentPlayer, setCurrentPlayer] = useState(() => {
+    try {
+      const raw = localStorage.getItem('wh_current_player')
+      return raw ? JSON.parse(raw) : null
+    } catch {
+      return null
+    }
+  })
 
   const load = useCallback(() => {
     setLoading(true)
@@ -170,7 +184,22 @@ export default function App() {
     if (session) load()
   }, [session, load])
 
-  const withSave = async fn => {
+
+  useEffect(() => {
+    if (currentPlayer) localStorage.setItem('wh_current_player', JSON.stringify(currentPlayer))
+    else localStorage.removeItem('wh_current_player')
+  }, [currentPlayer])
+
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut()
+    } catch (err) {
+      console.warn('Signout warning:', err)
+    }
+    setCurrentPlayer(null)
+  }
+
+  const withSave = async (fn) => {
     setSaving(true)
     setSaveError('')
     try {
@@ -207,52 +236,62 @@ export default function App() {
             <div className="font-display font-bold text-white text-lg leading-none">White Horse</div>
             <div className="text-zinc-500 text-xs">Pool Fines Tracker</div>
             <div className="text-zinc-600 text-[10px] mt-0.5">Last updated: {formatLastUpdated(LAST_UPDATED)}</div>
-            {session?.user?.email && <div className="text-zinc-400 text-[11px] mt-0.5">Signed in: {session.user.email}</div>}
+            {currentPlayer && <div className="text-zinc-400 text-[11px] mt-0.5">Signed in: {currentPlayer.name}</div>}
           </div>
-          {session && <button onClick={handleSignOut} className="text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded-full px-2 py-1">Sign out</button>}
-          {saveError ? <div className="flex items-center gap-1.5 text-xs text-red-300 bg-red-950/60 border border-red-800/70 px-2 py-1 rounded-full">Save failed</div>
-            : saving ? <div className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-950/50 border border-amber-800/50 px-2 py-1 rounded-full">Saving...</div>
-              : (!loading && !error && session) ? <div className="flex items-center gap-1.5 text-xs text-emerald-500 bg-emerald-950/50 border border-emerald-800/50 px-2 py-1 rounded-full">Saved</div>
-                : null}
+          {currentPlayer && (
+            <button onClick={handleSignOut} className="text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded-full px-2 py-1">Sign out</button>
+          )}
+          {saveError ? (
+            <div className="flex items-center gap-1.5 text-xs text-red-300 bg-red-950/60 border border-red-800/70 px-2 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 bg-red-400 rounded-full" />
+              Save failed
+            </div>
+          ) : saving ? (
+            <div className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-950/50 border border-amber-800/50 px-2 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" />
+              Saving...
+            </div>
+          ) : !loading && !error ? (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-500 bg-emerald-950/50 border border-emerald-800/50 px-2 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+              Saved
+            </div>
+          ) : null}
+        </div>
+        <div className="max-w-lg mx-auto px-4 pb-2">
+          <div className="inline-flex items-center gap-2 text-xs text-zinc-300 bg-zinc-900/80 border border-zinc-700 rounded-md px-2.5 py-1">
+            <span className="text-amber-400">🕒</span>
+            <span>Last updated: {formatLastUpdated(LAST_UPDATED)}</span>
+          </div>
         </div>
       </div>
 
-      {!session ? (
-        <AuthGate session={session} onSessionReady={setSession} />
+      {!currentPlayer ? (
+        <AuthGate players={players} setPlayers={setPlayers} onAuthenticated={setCurrentPlayer} />
       ) : (
         <>
+          {/* Content */}
           <div className="max-w-lg mx-auto px-4 pt-4">
             {loading ? <Spinner /> : error ? <ErrorScreen error={error} onRetry={load} /> : (
               <>
-                {tab === 0 && <Dashboard players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} />}
+                {tab === 0 && <Dashboard  players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} />}
                 {tab === 1 && <MatchesTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} setMatches={setMatches} withSave={withSave} />}
-                {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} />}
-                {tab === 3 && (
-                  <SetupTab
-                    players={players}
-                    fineTypes={fineTypes}
-                    seasons={seasons}
-                    matches={matches}
-                    setPlayers={setPlayers}
-                    setFineTypes={setFineTypes}
-                    setSeasons={setSeasons}
-                    setMatches={setMatches}
-                    withSave={withSave}
-                    currentUser={session.user}
-                    profile={profile}
-                    setProfile={setProfile}
-                  />
-                )}
+                {tab === 2 && <FinesTab   players={players} matches={matches} setMatches={setMatches} withSave={withSave} />}
+                {tab === 3 && <SetupTab   players={players} fineTypes={fineTypes} seasons={seasons} matches={matches}
+                                setPlayers={setPlayers} setFineTypes={setFineTypes} setSeasons={setSeasons} setMatches={setMatches} withSave={withSave} />}
               </>
             )}
           </div>
 
+          {/* Bottom nav */}
           <div className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 backdrop-blur border-t border-zinc-800">
             <div className="max-w-lg mx-auto flex">
               {tabLabels.map((t, i) => (
-                <button key={t} onClick={() => setTab(i)} className={`flex-1 py-3 flex flex-col items-center gap-0.5 transition-all ${tab === i ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                <button key={t} onClick={() => setTab(i)}
+                  className={`flex-1 py-3 flex flex-col items-center gap-0.5 transition-all ${tab === i ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>
                   <span className="text-lg">{icons[i]}</span>
                   <span className="text-xs font-bold">{t}</span>
+                  {tab === i && <div className="w-4 h-0.5 bg-amber-400 rounded-full mt-0.5" />}
                 </button>
               ))}
             </div>

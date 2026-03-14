@@ -1,56 +1,123 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Btn, Input, Sel, Badge } from '../App'
+import * as db from '../lib/db'
 import * as auth from '../lib/auth'
 
-export default function AuthGate({ session, onSessionReady }) {
+const methodLabel = method => method === 'whatsapp' ? 'WhatsApp' : 'Email'
+
+export default function AuthGate({ players, setPlayers, onAuthenticated }) {
+  const [mode, setMode] = useState('signin')
   const [method, setMethod] = useState('email')
-  const [step, setStep] = useState('contact')
-  const [contact, setContact] = useState({ email: '', phone: '' })
-  const [otp, setOtp] = useState('')
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [sentTo, setSentTo] = useState('')
+  const [error, setError] = useState('')
+  const [step, setStep] = useState('details')
+  const [otp, setOtp] = useState('')
+  const [pending, setPending] = useState(null)
 
-  useEffect(() => {
-    if (session?.user) onSessionReady(session)
-  }, [session, onSessionReady])
+  const [registerForm, setRegisterForm] = useState({
+    name: '',
+    email: '',
+    mobile: '',
+    preferredAuthMethod: 'email',
+  })
 
-  const sendOtp = async () => {
-    setError('')
-    setLoading(true)
+  const [signinForm, setSigninForm] = useState({
+    email: '',
+    mobile: '',
+  })
 
+  const methodOptions = useMemo(() => [
+    { value: 'email', label: 'Email OTP' },
+    { value: 'whatsapp', label: 'WhatsApp OTP' },
+  ], [])
+
+  const sendOtpByMethod = async ({ method, email, mobile }) => {
+    if (method === 'whatsapp') {
+      await auth.sendWhatsAppOtp(mobile)
+      return
+    }
+    await auth.sendEmailOtp(email)
+  }
+
+  const handleRegister = async () => {
+    const name = registerForm.name.trim()
+    const email = registerForm.email.trim().toLowerCase()
+    const mobile = registerForm.mobile.trim()
+    const preferredAuthMethod = registerForm.preferredAuthMethod === 'whatsapp' ? 'whatsapp' : 'email'
+
+    if (!name) return setError('Name is required.')
+    if (!email && !mobile) return setError('Register with at least email or mobile number.')
+    if (preferredAuthMethod === 'email' && !email) return setError('Default method is Email but email is missing.')
+    if (preferredAuthMethod === 'whatsapp' && !mobile) return setError('Default method is WhatsApp but mobile is missing.')
+
+    setLoading(true); setError('')
     try {
-      if (method === 'whatsapp') {
-        const phone = await auth.signInWithWhatsAppOtp(contact.phone)
-        setSentTo(phone)
-      } else {
-        const email = await auth.signInWithEmailOtp(contact.email)
-        setSentTo(email)
-      }
+      const player = await db.addPlayer({
+        name,
+        email,
+        mobile,
+        preferredAuthMethod,
+      })
+
+      setPlayers(prev => [...prev, player].sort((a, b) => a.name.localeCompare(b.name)))
+
+      const sendMethod = method === 'whatsapp' ? (mobile ? 'whatsapp' : 'email') : (email ? 'email' : 'whatsapp')
+      await sendOtpByMethod({ method: sendMethod, email, mobile })
+
+      setPending({ player, method: sendMethod, email, mobile })
       setStep('otp')
     } catch (err) {
-      setError(err?.message ?? 'Could not send your code.')
+      setError(err?.message ?? 'Registration failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSignIn = async () => {
+    const value = method === 'whatsapp' ? signinForm.mobile.trim() : signinForm.email.trim().toLowerCase()
+    if (!value) return setError(`Enter your ${method === 'whatsapp' ? 'mobile number' : 'email address'}.`)
+
+    setLoading(true); setError('')
+    try {
+      const player = await db.findPlayerByAuth({ method, value })
+      if (!player) throw new Error('No player found for that login. Register first in this app.')
+
+      const email = player.email?.trim().toLowerCase() ?? ''
+      const mobile = player.mobile?.trim() ?? ''
+
+      if (method === 'email' && !email) throw new Error('This player has no email address saved.')
+      if (method === 'whatsapp' && !mobile) throw new Error('This player has no mobile number saved.')
+
+      await sendOtpByMethod({ method, email, mobile })
+      setPending({ player, method, email, mobile })
+      setStep('otp')
+    } catch (err) {
+      setError(err?.message ?? 'Sign in failed')
     } finally {
       setLoading(false)
     }
   }
 
   const verifyOtp = async () => {
-    setError('')
-    setLoading(true)
+    if (!pending) return
+    if (!otp.trim()) return setError('Enter the one-time passcode.')
 
+    setLoading(true); setError('')
     try {
-      if (method === 'whatsapp') {
-        await auth.verifyWhatsAppOtp(contact.phone, otp)
+      if (pending.method === 'whatsapp') {
+        await auth.verifyWhatsAppOtp(pending.mobile, otp)
       } else {
-        await auth.verifyEmailOtp(contact.email, otp)
+        const data = await auth.verifyEmailOtp(pending.email, otp)
+        const authUserId = data?.user?.id
+        if (authUserId && pending.player.authUserId !== authUserId) {
+          const updated = await db.attachAuthUser(pending.player.id, authUserId)
+          pending.player = updated
+          setPlayers(prev => prev.map(p => p.id === updated.id ? updated : p))
+        }
       }
-
-      const nextSession = await auth.getSession()
-      if (!nextSession) throw new Error('Signed in but no session was returned.')
-      onSessionReady(nextSession)
+      onAuthenticated(pending.player)
     } catch (err) {
-      setError(err?.message ?? 'Could not verify your code.')
+      setError(err?.message ?? 'Code verification failed')
     } finally {
       setLoading(false)
     }
@@ -59,56 +126,62 @@ export default function AuthGate({ session, onSessionReady }) {
   return (
     <div className="min-h-screen bg-zinc-950 text-white px-4 py-8">
       <div className="max-w-lg mx-auto">
-        <h1 className="font-display text-2xl font-bold mb-1">Sign in</h1>
-        <p className="text-zinc-400 text-sm mb-5">Use a one-time passcode by email or WhatsApp.</p>
+        <h1 className="font-display text-2xl font-bold mb-1">White Horse Sign In</h1>
+        <p className="text-zinc-400 text-sm mb-5">Authenticate with one-time passcodes by email or WhatsApp.</p>
 
-        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4">
-          <Sel label="Sign-in method" value={method} onChange={e => setMethod(e.target.value)}>
-            <option value="email">Email OTP</option>
-            <option value="whatsapp">WhatsApp OTP</option>
-          </Sel>
-
-          {step === 'contact' ? (
-            <>
-              {method === 'email' ? (
-                <Input
-                  label="Email"
-                  type="email"
-                  value={contact.email}
-                  onChange={e => setContact(c => ({ ...c, email: e.target.value }))}
-                  placeholder="name@example.com"
-                />
-              ) : (
-                <Input
-                  label="Mobile number"
-                  value={contact.phone}
-                  onChange={e => setContact(c => ({ ...c, phone: e.target.value }))}
-                  placeholder="+447700900123"
-                />
-              )}
-              <Btn className="w-full" onClick={sendOtp} disabled={loading}>{loading ? 'Sending…' : 'Send code'}</Btn>
-            </>
-          ) : (
-            <>
-              <div className="mb-3 text-sm text-zinc-300">Code sent to <Badge color="blue">{sentTo}</Badge></div>
-              <Input
-                label="One-time code"
-                value={otp}
-                onChange={e => setOtp(e.target.value)}
-                placeholder="Enter your code"
-              />
-              <div className="flex gap-2">
-                <Btn className="flex-1" onClick={verifyOtp} disabled={loading}>{loading ? 'Verifying…' : 'Verify code'}</Btn>
-                <Btn variant="ghost" className="flex-1" onClick={() => { setStep('contact'); setOtp('') }}>Back</Btn>
-              </div>
-            </>
-          )}
-
-          {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-          {method === 'whatsapp' && (
-            <p className="mt-3 text-xs text-zinc-500">Enter mobile in E.164 format, for example +447700900123.</p>
-          )}
+        <div className="flex gap-1 mb-4 bg-zinc-800 rounded-xl p-1">
+          {['signin', 'register'].map(m => (
+            <button key={m} onClick={() => { setMode(m); setError(''); setStep('details') }}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold capitalize transition-all ${mode === m ? 'bg-amber-500 text-zinc-900' : 'text-zinc-400 hover:text-white'}`}>
+              {m}
+            </button>
+          ))}
         </div>
+
+        {step === 'details' && (
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4">
+            <Sel label="Authentication Method" value={method} onChange={e => setMethod(e.target.value)}>
+              {methodOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </Sel>
+
+            {mode === 'register' ? (
+              <>
+                <Input label="Name" value={registerForm.name} onChange={e => setRegisterForm(f => ({ ...f, name: e.target.value }))} placeholder="Player name" />
+                <Input label="Email (optional)" type="email" value={registerForm.email} onChange={e => setRegisterForm(f => ({ ...f, email: e.target.value }))} placeholder="name@example.com" />
+                <Input label="Mobile (optional)" value={registerForm.mobile} onChange={e => setRegisterForm(f => ({ ...f, mobile: e.target.value }))} placeholder="+447700900123" />
+                <Sel label="Default Authentication Method" value={registerForm.preferredAuthMethod} onChange={e => setRegisterForm(f => ({ ...f, preferredAuthMethod: e.target.value }))}>
+                  {methodOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </Sel>
+                <Btn className="w-full" onClick={handleRegister} disabled={loading}>{loading ? 'Working...' : 'Register and Send OTP'}</Btn>
+              </>
+            ) : (
+              <>
+                {method === 'email' ? (
+                  <Input label="Email" type="email" value={signinForm.email} onChange={e => setSigninForm(f => ({ ...f, email: e.target.value }))} placeholder="name@example.com" />
+                ) : (
+                  <Input label="Mobile" value={signinForm.mobile} onChange={e => setSigninForm(f => ({ ...f, mobile: e.target.value }))} placeholder="+447700900123" />
+                )}
+                <Btn className="w-full" onClick={handleSignIn} disabled={loading}>{loading ? 'Working...' : 'Send OTP'}</Btn>
+              </>
+            )}
+          </div>
+        )}
+
+        {step === 'otp' && pending && (
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4">
+            <div className="mb-3 text-sm text-zinc-300">Code sent via <Badge color="blue">{methodLabel(pending.method)}</Badge></div>
+            <div className="text-xs text-zinc-500 mb-3">{pending.method === 'email' ? pending.email : pending.mobile}</div>
+            <Input label="One-time passcode" value={otp} onChange={e => setOtp(e.target.value)} placeholder="6-digit code" />
+            <div className="flex gap-2">
+              <Btn className="flex-1" onClick={verifyOtp} disabled={loading}>{loading ? 'Verifying...' : 'Verify and Continue'}</Btn>
+              <Btn className="flex-1" variant="ghost" onClick={() => { setStep('details'); setOtp(''); setPending(null) }}>Back</Btn>
+            </div>
+          </div>
+        )}
+
+        {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+        <p className="mt-4 text-xs text-zinc-500">WhatsApp OTP requires Twilio webhook endpoints configured in app env.</p>
+        <p className="mt-1 text-xs text-zinc-500">Existing players: {players.length}</p>
       </div>
     </div>
   )

@@ -5,9 +5,14 @@ create extension if not exists "pgcrypto";
 
 -- ── Core domain tables ───────────────────────────────────────────────────────
 create table if not exists players (
-  id          uuid primary key default gen_random_uuid(),
-  name        text not null,
-  created_at  timestamptz default now()
+  id                     uuid primary key default gen_random_uuid(),
+  name                   text not null,
+  email                  text unique,
+  mobile                 text unique,
+  preferred_auth_method  text not null default 'email' check (preferred_auth_method in ('email', 'whatsapp')),
+  auth_user_id           uuid,
+  created_at             timestamptz default now(),
+  constraint players_auth_contact_check check (email is not null or mobile is not null)
 );
 
 create table if not exists fine_types (
@@ -99,58 +104,28 @@ alter table fine_types enable row level security;
 alter table seasons enable row level security;
 alter table matches enable row level security;
 alter table match_players enable row level security;
-alter table fines enable row level security;
-alter table subs enable row level security;
-alter table app_users enable row level security;
+alter table fines        enable row level security;
+alter table subs         enable row level security;
 
-drop policy if exists "authenticated full access players" on players;
-create policy "authenticated full access players" on players
-  for all using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+-- Allow all operations for anon (unauthenticated) role
+create policy "allow all" on players      for all using (true) with check (true);
+create policy "allow all" on fine_types   for all using (true) with check (true);
+create policy "allow all" on seasons      for all using (true) with check (true);
+create policy "allow all" on matches      for all using (true) with check (true);
+create policy "allow all" on match_players for all using (true) with check (true);
+create policy "allow all" on fines        for all using (true) with check (true);
+create policy "allow all" on subs         for all using (true) with check (true);
 
-drop policy if exists "authenticated full access fine_types" on fine_types;
-create policy "authenticated full access fine_types" on fine_types
-  for all using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
 
-drop policy if exists "authenticated full access seasons" on seasons;
-create policy "authenticated full access seasons" on seasons
-  for all using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+-- Add auth columns for existing projects running earlier schema versions
+alter table players add column if not exists email text;
+alter table players add column if not exists mobile text;
+alter table players add column if not exists preferred_auth_method text not null default 'email';
+alter table players add column if not exists auth_user_id uuid;
 
-drop policy if exists "authenticated full access matches" on matches;
-create policy "authenticated full access matches" on matches
-  for all using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
+create unique index if not exists players_email_unique_idx on players (lower(email)) where email is not null;
+create unique index if not exists players_mobile_unique_idx on players (mobile) where mobile is not null;
 
-drop policy if exists "authenticated full access match_players" on match_players;
-create policy "authenticated full access match_players" on match_players
-  for all using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
-
-drop policy if exists "authenticated full access fines" on fines;
-create policy "authenticated full access fines" on fines
-  for all using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
-
-drop policy if exists "authenticated full access subs" on subs;
-create policy "authenticated full access subs" on subs
-  for all using (auth.role() = 'authenticated')
-  with check (auth.role() = 'authenticated');
-
-drop policy if exists "app_users self select" on app_users;
-create policy "app_users self select" on app_users
-  for select using (auth.uid() = id);
-
-drop policy if exists "app_users self insert" on app_users;
-create policy "app_users self insert" on app_users
-  for insert with check (auth.uid() = id);
-
-drop policy if exists "app_users self update" on app_users;
-create policy "app_users self update" on app_users
-  for update using (auth.uid() = id)
-  with check (auth.uid() = id);
-
--- ── Optional migration notes for legacy player auth columns ──────────────────
--- If legacy auth columns exist on players (email/mobile/preferred_auth_method/auth_user_id),
--- they are intentionally ignored by app logic.
+alter table players drop constraint if exists players_preferred_auth_method_check;
+alter table players add constraint players_preferred_auth_method_check
+  check (preferred_auth_method in ('email', 'whatsapp'));
