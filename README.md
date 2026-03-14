@@ -37,7 +37,7 @@ npm install
 2. Paste the entire contents of [`supabase/schema.sql`](./supabase/schema.sql)
 3. Click **Run**
 
-This creates all 7 tables with the correct relationships and row-level security policies.
+This creates all required tables (including `app_users`) with the correct relationships and row-level security policies.
 
 ### 4. Get your API keys
 
@@ -83,6 +83,27 @@ Every push to `main` auto-deploys. Your app will have a URL like `https://wh-poo
 
 ---
 
+
+## Authentication (OTP)
+
+Authentication uses **Supabase Auth** as the single source of truth.
+
+- **Email OTP:** `signInWithOtp({ email })` then `verifyOtp({ email, token, type: 'email' })`
+- **WhatsApp OTP:** `signInWithOtp({ phone, options: { channel: 'whatsapp' } })` then `verifyOtp({ phone, token, type: 'sms' })`
+- User profile and preferences are stored in `app_users` (1:1 with `auth.users`).
+- `players` remains a pure domain table for pool players only.
+
+### Manual Supabase Auth setup
+
+These settings must be configured in Supabase Dashboard (deployment cannot do these automatically):
+
+1. **Enable Email Auth** in Authentication settings.
+2. Set email template/code flow to expose token (`{{ .Token }}`) for OTP entry.
+3. **Enable Phone Auth**.
+4. Configure **Twilio / Twilio Verify** in Supabase Auth providers.
+5. Configure WhatsApp sender in Twilio and complete Twilio onboarding requirements.
+
+
 ## Importing existing data
 
 If you have a JSON backup from the previous version of the app:
@@ -105,6 +126,7 @@ matches        id, date, season_id, opponent, submitted
 match_players  match_id, player_id  (who played)
 fines          id, match_id, player_id, fine_type_id, player_name, fine_name, cost, paid
 subs           id, match_id, player_id, player_name, amount, paid
+app_users      id(auth.users), email, mobile, preferred_auth_method, player_id, role
 ```
 
 `player_name` and `fine_name` are stored directly on fines/subs so historical records survive if a player is renamed or deleted.
@@ -127,12 +149,15 @@ wh-pool-fines/
 │   ├── index.css
 │   ├── lib/
 │   │   ├── supabase.js          # Supabase client
-│   │   └── db.js                # All database operations
+│   │   ├── db.js                # Domain database operations
+│   │   ├── auth.js              # Supabase auth helpers
+│   │   └── userProfile.js       # app_users profile operations
 │   └── components/
 │       ├── Dashboard.jsx
 │       ├── MatchesTab.jsx
 │       ├── FinesTab.jsx
-│       └── SetupTab.jsx
+│       ├── SetupTab.jsx
+│       └── AuthGate.jsx
 ├── supabase/
 │   └── schema.sql               # Run this in Supabase SQL editor
 ├── .env.example                 # Copy to .env and fill in keys

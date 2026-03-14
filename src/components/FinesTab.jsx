@@ -32,48 +32,43 @@ export default function FinesTab({ players, matches, setMatches, withSave }) {
   const paidAmt  = filtered.filter(i => i.paid).reduce((s, i) => s + i.amount, 0)
 
   const togglePaid = item => withSave(async () => {
-    let updatedMatch
-    setMatches(prev => {
-      const next = prev.map(m => {
-        if (m.id !== item.matchId) return m
-        if (item.kind === 'fine') return { ...m, fines: m.fines.map(f => f.id === item.id ? { ...f, paid: !f.paid } : f) }
-        return { ...m, subs: (m.subs ?? []).map(s => s.id === item.id ? { ...s, paid: !s.paid } : s) }
-      })
-      updatedMatch = next.find(m => m.id === item.matchId)
-      return next
-    })
+    const currentMatch = matches.find(m => m.id === item.matchId)
+    if (!currentMatch) return
+
+    const updatedMatch = item.kind === 'fine'
+      ? { ...currentMatch, fines: currentMatch.fines.map(f => f.id === item.id ? { ...f, paid: !f.paid } : f) }
+      : { ...currentMatch, subs: (currentMatch.subs ?? []).map(s => s.id === item.id ? { ...s, paid: !s.paid } : s) }
+
     if (updatedMatch) await db.updateMatch(updatedMatch)
+    setMatches(prev => prev.map(m => m.id === item.matchId ? updatedMatch : m))
   })
 
   const settleAll = playerId => withSave(async () => {
-    let updatedMatches = []
-    setMatches(prev => {
-      const next = prev.map(m => ({
-        ...m,
-        fines: m.fines.map(f => f.playerId === playerId && !f.paid ? { ...f, paid: true } : f),
-        subs:  (m.subs ?? []).map(s => s.playerId === playerId && !s.paid ? { ...s, paid: true } : s),
-      }))
-      updatedMatches = next
-      return next
-    })
+    const updatedMatches = matches.map(m => ({
+      ...m,
+      fines: m.fines.map(f => f.playerId === playerId && !f.paid ? { ...f, paid: true } : f),
+      subs:  (m.subs ?? []).map(s => s.playerId === playerId && !s.paid ? { ...s, paid: true } : s),
+    }))
+
     await Promise.all(updatedMatches.map(m => db.updateMatch(m)))
+    setMatches(updatedMatches)
     setShowSettle(null)
   })
 
   const confirmDelete = () => withSave(async () => {
     if (pinInput !== ADMIN_PIN) { setPinError('Incorrect PIN'); return }
     const item = pendingDelete
-    let updatedMatch
-    setMatches(prev => {
-      const next = prev.map(m => {
-        if (m.id !== item.matchId) return m
-        if (item.kind === 'fine') return { ...m, fines: m.fines.filter(f => f.id !== item.id) }
-        return { ...m, subs: (m.subs ?? []).filter(s => s.id !== item.id) }
-      })
-      updatedMatch = next.find(m => m.id === item.matchId)
-      return next
-    })
+    if (!item) return
+
+    const currentMatch = matches.find(m => m.id === item.matchId)
+    if (!currentMatch) return
+
+    const updatedMatch = item.kind === 'fine'
+      ? { ...currentMatch, fines: currentMatch.fines.filter(f => f.id !== item.id) }
+      : { ...currentMatch, subs: (currentMatch.subs ?? []).filter(s => s.id !== item.id) }
+
     if (updatedMatch) await db.updateMatch(updatedMatch)
+    setMatches(prev => prev.map(m => m.id === item.matchId ? updatedMatch : m))
     setPendingDelete(null); setPinInput(''); setPinError('')
   })
 
