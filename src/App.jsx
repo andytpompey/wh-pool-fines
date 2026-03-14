@@ -7,7 +7,6 @@ import MatchesTab from './components/MatchesTab'
 import FinesTab   from './components/FinesTab'
 import Dashboard  from './components/Dashboard'
 import AuthGate   from './components/AuthGate'
-import * as auth from './lib/auth'
 
 export const ADMIN_PIN = '1234'
 export const SUB_AMOUNT = 0.50
@@ -190,15 +189,6 @@ export default function App() {
     else localStorage.removeItem('wh_current_player')
   }, [currentPlayer])
 
-  const handleSignOut = async () => {
-    try {
-      await auth.signOut()
-    } catch (err) {
-      console.warn('Signout warning:', err)
-    }
-    setCurrentPlayer(null)
-  }
-
   const withSave = async (fn) => {
     setSaving(true)
     setSaveError('')
@@ -213,14 +203,18 @@ export default function App() {
   }
 
   const handleSignOut = async () => {
-    try {
-      await auth.signOut()
-      setSession(null)
-      setProfile(null)
-    } catch (err) {
-      console.error('Sign-out failed:', err)
-    }
+  try {
+    await auth.signOut()
+
+    // Clear all user state
+    setSession(null)
+    setProfile(null)
+    setCurrentPlayer(null)
+
+  } catch (err) {
+    console.error('Sign-out failed:', err)
   }
+}
 
   const tabLabels = ['Dashboard', 'Matches', 'Fines', 'Setup']
   const icons = ['📊', '🎱', '💰', '⚙️']
