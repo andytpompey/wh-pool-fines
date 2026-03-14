@@ -60,27 +60,7 @@ export default function AuthGate({ players, setPlayers, onAuthenticated }) {
       }
 
       let player = existingByEmail || existingByMobile
-      if (player) {
-        const merged = {
-          ...player,
-          name: name || player.name,
-          email: email || player.email,
-          mobile: mobile || player.mobile,
-          preferredAuthMethod,
-        }
-        const changed =
-          merged.name !== player.name ||
-          merged.email !== player.email ||
-          merged.mobile !== player.mobile ||
-          merged.preferredAuthMethod !== player.preferredAuthMethod
-
-        if (changed) {
-          player = await db.updatePlayer(merged)
-          setPlayers(prev => prev
-            .map(p => p.id === player.id ? player : p)
-            .sort((a, b) => a.name.localeCompare(b.name)))
-        }
-      } else {
+      if (!player) {
         player = await db.addPlayer({
           name,
           email,
