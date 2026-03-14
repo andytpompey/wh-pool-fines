@@ -19,7 +19,6 @@ export async function sendEmailOtp(email) {
     email: normalizedEmail,
     options: {
       shouldCreateUser: true,
-      emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : undefined,
     },
   })
 

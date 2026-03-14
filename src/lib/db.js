@@ -12,7 +12,7 @@ function handle(result) {
 export async function loadAll() {
   const [players, fineTypes, seasons, matchRows, fineRows, subRows, mpRows] =
     await Promise.all([
-      supabase.from('players').select('*').order('display_name'),
+      supabase.from('players').select('*').order('display_name', { ascending: true, nullsFirst: false }).order('name'),
       supabase.from('fine_types').select('*').order('cost').order('name'),
       supabase.from('seasons').select('*').order('name'),
       supabase.from('matches').select('*').order('date', { ascending: false }),
@@ -48,7 +48,7 @@ const normalPlayer   = r => ({
   email: r.email ?? '',
   mobile: r.mobile ?? '',
   preferredAuthMethod: r.preferred_auth_method ?? 'email',
-  authUserId: r.user_id ?? null,
+  authUserId: r.user_id ?? r.auth_user_id ?? null,
 })
 const normalFineType = r => ({ id: r.id, name: r.name, cost: Number(r.cost) })
 const normalSeason = r => ({ id: r.id, name: r.name, type: r.type })
@@ -64,8 +64,9 @@ const normalSub = r => ({
 
 export async function addPlayer(player) {
   const payload = {
+    name: player.name,
     display_name: player.name,
-    email: (player.email || '').trim().toLowerCase(),
+    email: player.email || `player-${crypto.randomUUID()}@placeholder.local`,
     mobile: player.mobile || null,
     preferred_auth_method: player.preferredAuthMethod || null,
   }
@@ -78,10 +79,12 @@ export async function addPlayer(player) {
 export async function updatePlayer(player) {
   if (!(player.email || '').trim()) throw new Error('Player email is required')
   return normalPlayer(handle(await supabase.from('players').update({
+    name: player.name,
     display_name: player.name,
-    email: (player.email || '').trim().toLowerCase(),
+    email: player.email || `player-${crypto.randomUUID()}@placeholder.local`,
     mobile: player.mobile || null,
     preferred_auth_method: player.preferredAuthMethod || null,
+    auth_user_id: player.authUserId || null,
     user_id: player.authUserId || null,
   }).eq('id', player.id).select().single()))
 }
@@ -184,8 +187,9 @@ export async function importAll({ players, fineTypes, seasons, matches }) {
   if (players.some(p => !(p.email || '').trim())) throw new Error('All players must include an email address before import')
   if (players.length)   handle(await supabase.from('players').insert(players.map(p => ({
     id: p.id,
+    name: p.name,
     display_name: p.name,
-    email: (p.email || '').trim().toLowerCase(),
+    email: p.email || `player-${p.id}@placeholder.local`,
     mobile: p.mobile || null,
     preferred_auth_method: p.preferredAuthMethod || null,
     user_id: p.authUserId || null,
