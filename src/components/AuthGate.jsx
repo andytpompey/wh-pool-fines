@@ -202,6 +202,9 @@ export default function AuthGate({ players, setPlayers, onAuthenticated }) {
             <div className="mb-3 text-sm text-zinc-300">Code sent via <Badge color="blue">{methodLabel(pending.method)}</Badge></div>
             <div className="text-xs text-zinc-500 mb-3">{pending.method === 'email' ? pending.email : pending.mobile}</div>
             <Input label="One-time passcode" value={otp} onChange={e => setOtp(e.target.value)} placeholder="6-digit code" />
+            {pending.method === 'email' && (
+              <p className="text-xs text-zinc-500 mb-3">Enter the 6-digit code from your email (do not click a magic link).</p>
+            )}
             <div className="flex gap-2">
               <Btn className="flex-1" onClick={verifyOtp} disabled={loading}>{loading ? 'Verifying...' : 'Verify and Continue'}</Btn>
               <Btn className="flex-1" variant="ghost" onClick={() => { setStep('details'); setOtp(''); setPending(null) }}>Back</Btn>
