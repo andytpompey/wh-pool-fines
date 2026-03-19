@@ -230,7 +230,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white pb-24">
-      <div className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur border-b border-zinc-800">
+      <div className="bg-zinc-950/95 border-b border-zinc-800">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-zinc-900 font-bold text-xs">WH</div>
           <div className="flex-1">
@@ -264,7 +264,7 @@ export default function App() {
             <img
               src={APP_BANNER_PATHS[bannerPathIndex]}
               alt="Roo Bin banner"
-              className="w-full rounded-xl border border-zinc-800"
+              className="h-28 sm:h-36 w-full rounded-xl border border-zinc-800 object-cover object-center"
               onError={() => {
                 if (bannerPathIndex < APP_BANNER_PATHS.length - 1) {
                   setBannerPathIndex(prev => prev + 1)
