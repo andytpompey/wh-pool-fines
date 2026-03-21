@@ -6,11 +6,11 @@ export default function SetupTab({
   players, fineTypes, seasons, matches,
   setPlayers, setFineTypes, setSeasons, setMatches,
   withSave, currentUser, profile, setProfile, currentTeamId, currentTeam, currentTeamRole,
-  onOpenProfile, onOpenTeams, onSignOut,
+  onOpenProfile, onOpenTeams, onOpenTeamManagement, onSignOut,
 }) {
   const [section, setSection] = useState('hub')
   const canManageTeam = currentTeamRole === 'captain' || currentTeamRole === 'admin'
-  const sections = canManageTeam ? ['hub', 'players', 'fines', 'seasons', 'account', 'data'] : ['hub', 'account']
+  const sections = canManageTeam ? ['hub', 'fines', 'seasons', 'account', 'data'] : ['hub', 'account']
 
   // ── Player state ──────────────────────────────────────────────────────────
   const [playerInput, setPlayerInput]             = useState({ name: '', email: '', mobile: '', preferredAuthMethod: 'email' })
@@ -168,7 +168,7 @@ export default function SetupTab({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
             <Btn onClick={onOpenProfile} className="w-full">Profile</Btn>
-            <Btn variant="outline" onClick={onOpenTeams} className="w-full">Teams</Btn>
+            <Btn variant="outline" onClick={currentTeam ? onOpenTeamManagement : onOpenTeams} className="w-full">{currentTeam ? 'Team Management' : 'Teams'}</Btn>
             <Btn variant="ghost" onClick={onSignOut} className="w-full">Sign out</Btn>
           </div>
         </div>
@@ -176,7 +176,7 @@ export default function SetupTab({
         {currentTeam && (
           <div className="bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
             Team setup tools below still edit team-scoped seasons and fine types for <span className="text-white font-bold">{currentTeam.name}</span>.
-            <span className="block mt-1">Player management remains available here for now until roster-specific admin screens are rebuilt.</span>
+            <span className="block mt-1">Roster and invite management now live in Team Management to avoid duplicate controls.</span>
           </div>
         )}
       </div>

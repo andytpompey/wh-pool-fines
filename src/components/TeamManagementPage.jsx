@@ -35,6 +35,10 @@ export default function TeamManagementPage({
   onRefresh,
   onInvitePlayer,
   onUpdateMemberRole,
+  onSavePlayerDetails,
+  onRemoveMember,
+  onRevokeInvite,
+  onResendInvite,
   onAddFineType,
   onUpdateFineType,
   onDeleteFineType,
@@ -100,9 +104,12 @@ export default function TeamManagementPage({
         <PlayersTab
           members={members}
           membership={membership}
+          canManageTeam={canManageTeam}
           canManageRoles={canManageRoles}
           saving={saving}
           onUpdateMemberRole={onUpdateMemberRole}
+          onSavePlayerDetails={onSavePlayerDetails}
+          onRemoveMember={onRemoveMember}
         />
       )}
 
@@ -114,6 +121,8 @@ export default function TeamManagementPage({
           canManageTeam={canManageTeam}
           saving={saving}
           onInvitePlayer={onInvitePlayer}
+          onRevokeInvite={onRevokeInvite}
+          onResendInvite={onResendInvite}
         />
       )}
 
@@ -142,7 +151,15 @@ export default function TeamManagementPage({
   )
 }
 
-function PlayersTab({ members, membership, canManageRoles, saving, onUpdateMemberRole }) {
+function PlayersTab({ members, membership, canManageTeam, canManageRoles, saving, onUpdateMemberRole, onSavePlayerDetails, onRemoveMember }) {
+  const [selectedMember, setSelectedMember] = useState(null)
+  const [status, setStatus] = useState({ error: '', success: '' })
+
+  useEffect(() => {
+    setSelectedMember(null)
+    setStatus({ error: '', success: '' })
+  }, [membership?.playerId])
+
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -152,6 +169,9 @@ function PlayersTab({ members, membership, canManageRoles, saving, onUpdateMembe
         </div>
         <Badge color="blue">{members.length}</Badge>
       </div>
+
+      {status.error && <p className="mb-3 text-sm text-red-400">{status.error}</p>}
+      {status.success && <p className="mb-3 text-sm text-emerald-400">{status.success}</p>}
 
       <div className="space-y-2">
         {!members.length ? (
@@ -170,24 +190,43 @@ function PlayersTab({ members, membership, canManageRoles, saving, onUpdateMembe
             return true
           })
 
+          const contactSummary = [member.email, member.mobile].filter(Boolean).join(' · ') || 'No email or mobile saved'
+
           return (
-            <div key={member.id} className="rounded-xl border border-zinc-800 bg-zinc-800/80 px-3 py-3 flex items-center justify-between gap-3">
+            <button
+              key={member.id}
+              type="button"
+              onClick={() => {
+                setSelectedMember(member)
+                setStatus({ error: '', success: '' })
+              }}
+              className={`w-full rounded-xl border px-3 py-3 flex items-center justify-between gap-3 text-left transition ${selectedMember?.id === member.id ? 'border-amber-500 bg-zinc-800' : 'border-zinc-800 bg-zinc-800/80 hover:border-zinc-700'}`}
+            >
               <div>
                 <p className="text-sm font-medium text-white">{member.playerName || 'Unknown player'}{isSelf ? ' (You)' : ''}</p>
-                <p className="text-xs text-zinc-500">{member.email || 'No email saved'}</p>
+                <p className="text-xs text-zinc-400 mt-1">{teamModel.getRoleLabel(member.role)}</p>
+                <p className="text-xs text-zinc-500 mt-1">{contactSummary}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
                 <Badge color="amber">{teamModel.getRoleLabel(member.role)}</Badge>
                 {!!roleOptions.length && (
                   <select
                     className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-white"
                     defaultValue=""
                     disabled={saving}
+                    onClick={event => event.stopPropagation()}
                     onChange={async event => {
                       const nextRole = event.target.value
                       event.target.value = ''
                       if (!nextRole) return
-                      await onUpdateMemberRole(member, nextRole)
+                      setStatus({ error: '', success: '' })
+                      try {
+                        await onUpdateMemberRole(member, nextRole)
+                        setSelectedMember(current => current?.id === member.id ? { ...current, role: nextRole } : current)
+                        setStatus({ error: '', success: `${member.playerName || 'Player'} role updated.` })
+                      } catch (err) {
+                        setStatus({ error: err?.message ?? 'Failed to update player role.', success: '' })
+                      }
                     }}
                   >
                     <option value="">Role actions</option>
@@ -195,15 +234,142 @@ function PlayersTab({ members, membership, canManageRoles, saving, onUpdateMembe
                   </select>
                 )}
               </div>
-            </div>
+            </button>
           )
         })}
+      </div>
+
+      {selectedMember && (
+        <PlayerDetailsPanel
+          key={selectedMember.id}
+          member={selectedMember}
+          membership={membership}
+          canManageTeam={canManageTeam}
+          canManageRoles={canManageRoles}
+          saving={saving}
+          onClose={() => setSelectedMember(null)}
+          onSave={async payload => {
+            setStatus({ error: '', success: '' })
+            try {
+              await onSavePlayerDetails(payload)
+              setStatus({ error: '', success: `${payload.displayName} details updated.` })
+            } catch (err) {
+              setStatus({ error: err?.message ?? 'Failed to save player details.', success: '' })
+              throw err
+            }
+          }}
+          onRemove={async memberToRemove => {
+            setStatus({ error: '', success: '' })
+            try {
+              await onRemoveMember(memberToRemove)
+              setSelectedMember(null)
+              setStatus({ error: '', success: `${memberToRemove.playerName || 'Player'} removed from the team.` })
+            } catch (err) {
+              setStatus({ error: err?.message ?? 'Failed to remove player from team.', success: '' })
+              throw err
+            }
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function PlayerDetailsPanel({ member, membership, canManageTeam, canManageRoles, saving, onClose, onSave, onRemove }) {
+  const [form, setForm] = useState({
+    displayName: member.playerName || '',
+    email: member.email || '',
+    mobile: member.mobile || '',
+    role: member.role || 'member',
+  })
+  const [error, setError] = useState('')
+  const [confirmingRemoval, setConfirmingRemoval] = useState(false)
+  const canEditPlayer = canManageTeam || member.playerId === membership?.playerId
+  const canRemove = canManageTeam && member.role !== 'captain' && member.playerId !== membership?.playerId
+
+  useEffect(() => {
+    setForm({
+      displayName: member.playerName || '',
+      email: member.email || '',
+      mobile: member.mobile || '',
+      role: member.role || 'member',
+    })
+    setError('')
+    setConfirmingRemoval(false)
+  }, [member])
+
+  return (
+    <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-950/80 p-4">
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div>
+          <h4 className="font-bold text-white">Player details</h4>
+          <p className="text-xs text-zinc-400">Edit this team member inside the current team context.</p>
+        </div>
+        <Btn variant="outline" size="sm" onClick={onClose}>Close</Btn>
+      </div>
+
+      {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
+
+      <Input label="Display name" value={form.displayName} onChange={event => setForm(current => ({ ...current, displayName: event.target.value }))} disabled={saving || !canEditPlayer} />
+      <Input label="Email" type="email" value={form.email} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} disabled={saving || !canEditPlayer} />
+      <Input label="Mobile" value={form.mobile} onChange={event => setForm(current => ({ ...current, mobile: event.target.value }))} disabled={saving || !canEditPlayer} />
+      <Sel
+        label="Role in team"
+        value={form.role}
+        disabled={!canManageRoles || saving}
+        onChange={event => setForm(current => ({ ...current, role: event.target.value }))}
+      >
+        <option value="captain">Captain</option>
+        <option value="admin">Vice-captain</option>
+        <option value="member">Player</option>
+      </Sel>
+      {!canManageRoles && <p className="text-xs text-zinc-500 -mt-2 mb-3">Only the captain can change team roles.</p>}
+      {!canEditPlayer && <p className="text-xs text-zinc-500 -mt-2 mb-3">Only captains, vice-captains, or the selected player can edit these details.</p>}
+
+      <div className="flex flex-wrap gap-2">
+        <Btn
+          disabled={saving || !canEditPlayer || !form.displayName.trim() || !form.email.trim()}
+          onClick={async () => {
+            try {
+              await onSave({
+                membershipId: member.id,
+                playerId: member.playerId,
+                currentRole: member.role,
+                ...form,
+              })
+            } catch (err) {
+              setError(err?.message ?? 'Failed to save player details.')
+            }
+          }}
+        >
+          {saving ? 'Saving...' : 'Save player'}
+        </Btn>
+        {canRemove && (
+          <>
+            {!confirmingRemoval ? (
+              <Btn variant="danger" onClick={() => setConfirmingRemoval(true)} disabled={saving}>Remove from team</Btn>
+            ) : (
+              <>
+                <Btn variant="danger" onClick={async () => {
+                  try {
+                    await onRemove(member)
+                  } catch (err) {
+                    setError(err?.message ?? 'Failed to remove player from team.')
+                  }
+                }} disabled={saving}>
+                  Confirm remove
+                </Btn>
+                <Btn variant="outline" onClick={() => setConfirmingRemoval(false)} disabled={saving}>Cancel</Btn>
+              </>
+            )}
+          </>
+        )}
       </div>
     </div>
   )
 }
 
-function InvitesTab({ team, membership, invites, canManageTeam, saving, onInvitePlayer }) {
+function InvitesTab({ team, membership, invites, canManageTeam, saving, onInvitePlayer, onRevokeInvite, onResendInvite }) {
   const [form, setForm] = useState({ displayName: '', email: '' })
   const [status, setStatus] = useState({ error: '', success: '', info: [] })
 
@@ -268,11 +434,47 @@ function InvitesTab({ team, membership, invites, canManageTeam, saving, onInvite
             <div key={invite.id} className="rounded-xl border border-zinc-800 bg-zinc-800/80 px-3 py-3 flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-white">{invite.playerName || invite.email}</p>
-                <p className="text-xs text-zinc-500">{invite.email}{invite.invitedAt ? ` · invited ${new Date(invite.invitedAt).toLocaleDateString('en-GB')}` : ''}</p>
+                <p className="text-xs text-zinc-500">{invite.email}{invite.invitedAt ? ` · sent ${new Date(invite.invitedAt).toLocaleDateString('en-GB')}` : ''}</p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap justify-end">
                 <Badge color="gray">{teamModel.getRoleLabel(invite.role)}</Badge>
-                <Badge color="blue">pending</Badge>
+                <Badge color="blue">{invite.status || 'pending'}</Badge>
+                {canManageTeam && (
+                  <>
+                    <Btn
+                      size="sm"
+                      variant="outline"
+                      disabled={saving}
+                      onClick={async () => {
+                        setStatus({ error: '', success: '', info: [] })
+                        try {
+                          const result = await onResendInvite(invite)
+                          setStatus({ error: '', success: result?.message ?? `Invite resent to ${invite.email}.`, info: [] })
+                        } catch (err) {
+                          setStatus({ error: err?.message ?? 'Failed to resend invite.', success: '', info: [] })
+                        }
+                      }}
+                    >
+                      Resend
+                    </Btn>
+                    <Btn
+                      size="sm"
+                      variant="danger"
+                      disabled={saving}
+                      onClick={async () => {
+                        setStatus({ error: '', success: '', info: [] })
+                        try {
+                          await onRevokeInvite(invite)
+                          setStatus({ error: '', success: `Invite revoked for ${invite.email}.`, info: [] })
+                        } catch (err) {
+                          setStatus({ error: err?.message ?? 'Failed to revoke invite.', success: '', info: [] })
+                        }
+                      }}
+                    >
+                      Revoke
+                    </Btn>
+                  </>
+                )}
               </div>
             </div>
           ))}
