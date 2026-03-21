@@ -1,0 +1,473 @@
+import { useEffect, useMemo, useState } from 'react'
+import { ADMIN_PIN, Badge, Btn, Input, Modal, Sel } from '../App'
+import * as teamModel from '../lib/teamModel'
+
+const TABS = [
+  { id: 'players', label: 'Players' },
+  { id: 'invites', label: 'Invites' },
+  { id: 'fines', label: 'Fines' },
+  { id: 'seasons', label: 'Seasons' },
+]
+
+function SummaryCard({ label, value, accent = 'text-white' }) {
+  return (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-800/70 px-3 py-3">
+      <p className="text-zinc-400 text-xs uppercase tracking-wider">{label}</p>
+      <p className={`text-xl font-bold mt-1 ${accent}`}>{value}</p>
+    </div>
+  )
+}
+
+function EmptyState({ children }) {
+  return <p className="text-sm text-zinc-400 py-6 text-center">{children}</p>
+}
+
+export default function TeamManagementPage({
+  team,
+  membership,
+  members,
+  invites,
+  fineTypes,
+  seasons,
+  saving,
+  onBackToTeams,
+  onOpenApp,
+  onRefresh,
+  onInvitePlayer,
+  onUpdateMemberRole,
+  onAddFineType,
+  onUpdateFineType,
+  onDeleteFineType,
+  onAddSeason,
+  onUpdateSeason,
+  onDeleteSeason,
+}) {
+  const [activeTab, setActiveTab] = useState('players')
+  const canManageTeam = teamModel.canManageTeam(membership?.role)
+  const canManageRoles = teamModel.canCaptainManageRoles(membership?.role)
+
+  useEffect(() => {
+    setActiveTab('players')
+  }, [team?.id])
+
+  if (!team || !membership) {
+    return (
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
+        Team not found.
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Btn variant="outline" size="sm" onClick={onBackToTeams}>← My Teams</Btn>
+        <Btn size="sm" onClick={onOpenApp}>Open app</Btn>
+        <Btn variant="outline" size="sm" onClick={onRefresh}>Refresh</Btn>
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Team Management</p>
+            <h2 className="font-display text-2xl font-bold text-white mt-1">{team.name}</h2>
+            <p className="text-sm text-zinc-400 mt-1">Team-scoped administration for players, invites, fine types, and seasons.</p>
+          </div>
+          <Badge color={canManageTeam ? 'amber' : 'gray'}>{teamModel.getRoleLabel(membership.role)}</Badge>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mt-4 sm:grid-cols-4">
+          <SummaryCard label="Team" value={team.name} />
+          <SummaryCard label="Your role" value={teamModel.getRoleLabel(membership.role)} accent="text-amber-400" />
+          <SummaryCard label="Active members" value={members.length} />
+          <SummaryCard label="Pending invites" value={invites.length} accent={invites.length ? 'text-blue-400' : 'text-white'} />
+        </div>
+      </div>
+
+      <div className="flex gap-1 bg-zinc-800 rounded-xl p-1 overflow-x-auto">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex-1 min-w-fit px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === tab.id ? 'bg-amber-500 text-zinc-900' : 'text-zinc-400 hover:text-white'}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'players' && (
+        <PlayersTab
+          members={members}
+          membership={membership}
+          canManageRoles={canManageRoles}
+          saving={saving}
+          onUpdateMemberRole={onUpdateMemberRole}
+        />
+      )}
+
+      {activeTab === 'invites' && (
+        <InvitesTab
+          team={team}
+          membership={membership}
+          invites={invites}
+          canManageTeam={canManageTeam}
+          saving={saving}
+          onInvitePlayer={onInvitePlayer}
+        />
+      )}
+
+      {activeTab === 'fines' && (
+        <FineTypesTab
+          fineTypes={fineTypes}
+          canManageTeam={canManageTeam}
+          saving={saving}
+          onAddFineType={onAddFineType}
+          onUpdateFineType={onUpdateFineType}
+          onDeleteFineType={onDeleteFineType}
+        />
+      )}
+
+      {activeTab === 'seasons' && (
+        <SeasonsTab
+          seasons={seasons}
+          canManageTeam={canManageTeam}
+          saving={saving}
+          onAddSeason={onAddSeason}
+          onUpdateSeason={onUpdateSeason}
+          onDeleteSeason={onDeleteSeason}
+        />
+      )}
+    </div>
+  )
+}
+
+function PlayersTab({ members, membership, canManageRoles, saving, onUpdateMemberRole }) {
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div>
+          <h3 className="font-bold text-white">Players</h3>
+          <p className="text-xs text-zinc-400">Roster and role visibility for the selected team.</p>
+        </div>
+        <Badge color="blue">{members.length}</Badge>
+      </div>
+
+      <div className="space-y-2">
+        {!members.length ? (
+          <EmptyState>No active members yet.</EmptyState>
+        ) : members.map(member => {
+          const isSelf = member.playerId === membership?.playerId
+          const roleOptions = [
+            { value: 'admin', label: 'Promote to Vice-captain' },
+            { value: 'member', label: 'Demote to Player' },
+            { value: 'captain', label: 'Transfer Captaincy' },
+          ].filter(option => {
+            if (!canManageRoles) return false
+            if (member.role === option.value) return false
+            if (member.role === 'captain' && option.value !== 'captain') return false
+            if (isSelf && option.value !== 'captain') return false
+            return true
+          })
+
+          return (
+            <div key={member.id} className="rounded-xl border border-zinc-800 bg-zinc-800/80 px-3 py-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-white">{member.playerName || 'Unknown player'}{isSelf ? ' (You)' : ''}</p>
+                <p className="text-xs text-zinc-500">{member.email || 'No email saved'}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge color="amber">{teamModel.getRoleLabel(member.role)}</Badge>
+                {!!roleOptions.length && (
+                  <select
+                    className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-white"
+                    defaultValue=""
+                    disabled={saving}
+                    onChange={async event => {
+                      const nextRole = event.target.value
+                      event.target.value = ''
+                      if (!nextRole) return
+                      await onUpdateMemberRole(member, nextRole)
+                    }}
+                  >
+                    <option value="">Role actions</option>
+                    {roleOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function InvitesTab({ team, membership, invites, canManageTeam, saving, onInvitePlayer }) {
+  const [form, setForm] = useState({ displayName: '', email: '' })
+  const [status, setStatus] = useState({ error: '', success: '', info: [] })
+
+  useEffect(() => {
+    setForm({ displayName: '', email: '' })
+    setStatus({ error: '', success: '', info: [] })
+  }, [team?.id])
+
+  const submit = async event => {
+    event.preventDefault()
+    setStatus({ error: '', success: '', info: [] })
+
+    try {
+      const result = await onInvitePlayer({
+        displayName: form.displayName.trim(),
+        email: form.email.trim(),
+      })
+      setStatus({ error: '', success: result.message, info: result.notes ?? [] })
+      setForm({ displayName: '', email: '' })
+    } catch (err) {
+      setStatus({ error: err?.message ?? 'Failed to invite player.', success: '', info: [] })
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <form onSubmit={submit} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 className="font-bold text-white">Invite player by email</h3>
+            <p className="text-xs text-zinc-400">Invites stay scoped to {team.name} and keep current permission rules.</p>
+          </div>
+          <Badge color={canManageTeam ? 'green' : 'red'}>{canManageTeam ? 'Can invite' : 'View only'}</Badge>
+        </div>
+        <Input label="Display name" value={form.displayName} onChange={event => setForm(current => ({ ...current, displayName: event.target.value }))} placeholder="Player display name" disabled={!canManageTeam || saving} />
+        <Input label="Email" type="email" required value={form.email} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} placeholder="player@example.com" disabled={!canManageTeam || saving} />
+        {!canManageTeam && <p className="mb-3 text-sm text-zinc-400">Only captains and admins can send invites.</p>}
+        {status.error && <p className="mb-3 text-sm text-red-400">{status.error}</p>}
+        {status.success && <p className="mb-2 text-sm text-emerald-400">{status.success}</p>}
+        {!!status.info.length && (
+          <ul className="mb-3 space-y-1 text-xs text-zinc-400">
+            {status.info.map(note => <li key={note}>• {note}</li>)}
+          </ul>
+        )}
+        <Btn type="submit" disabled={!canManageTeam || saving || !form.displayName.trim() || !form.email.trim()}>
+          {saving ? 'Inviting...' : 'Invite player'}
+        </Btn>
+      </form>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 className="font-bold text-white">Pending invites</h3>
+            <p className="text-xs text-zinc-400">Outstanding invitations for this team only.</p>
+          </div>
+          <Badge color="blue">{invites.length}</Badge>
+        </div>
+        <div className="space-y-2">
+          {!invites.length ? (
+            <EmptyState>No pending invites.</EmptyState>
+          ) : invites.map(invite => (
+            <div key={invite.id} className="rounded-xl border border-zinc-800 bg-zinc-800/80 px-3 py-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-white">{invite.playerName || invite.email}</p>
+                <p className="text-xs text-zinc-500">{invite.email}{invite.invitedAt ? ` · invited ${new Date(invite.invitedAt).toLocaleDateString('en-GB')}` : ''}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge color="gray">{teamModel.getRoleLabel(invite.role)}</Badge>
+                <Badge color="blue">pending</Badge>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900/70 p-4 text-sm text-zinc-400">
+        Your access for this team is <span className="text-white font-bold">{teamModel.getRoleLabel(membership.role)}</span>.
+      </div>
+    </div>
+  )
+}
+
+function FineTypesTab({ fineTypes, canManageTeam, saving, onAddFineType, onUpdateFineType, onDeleteFineType }) {
+  const [fineInput, setFineInput] = useState({ name: '', cost: '' })
+  const [editFineType, setEditFineType] = useState(null)
+  const [confirmDeleteFine, setConfirmDeleteFine] = useState(null)
+  const [finePinInput, setFinePinInput] = useState('')
+  const [finePinError, setFinePinError] = useState('')
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 className="font-bold text-white">Fine types</h3>
+            <p className="text-xs text-zinc-400">Manage fine definitions used by matches and reports for this team.</p>
+          </div>
+          <Badge color={canManageTeam ? 'green' : 'red'}>{canManageTeam ? 'Editable' : 'View only'}</Badge>
+        </div>
+        <Input label="Fine name" value={fineInput.name} onChange={event => setFineInput(current => ({ ...current, name: event.target.value }))} disabled={!canManageTeam || saving} />
+        <Input label="Cost (£)" type="number" step="0.10" min="0" value={fineInput.cost} onChange={event => setFineInput(current => ({ ...current, cost: event.target.value }))} disabled={!canManageTeam || saving} />
+        <Btn
+          onClick={async () => {
+            await onAddFineType(fineInput)
+            setFineInput({ name: '', cost: '' })
+          }}
+          disabled={!canManageTeam || saving || !fineInput.name.trim() || !fineInput.cost}
+        >
+          Add fine type
+        </Btn>
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="space-y-2">
+          {!fineTypes.length ? (
+            <EmptyState>No fine types configured yet.</EmptyState>
+          ) : [...fineTypes].sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name)).map(fineType => (
+            <div key={fineType.id} className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-3 gap-3">
+              <div>
+                <span className="text-white text-sm font-medium">{fineType.name}</span>
+                <span className="text-amber-400 text-xs font-bold ml-2">£{fineType.cost.toFixed(2)}</span>
+              </div>
+              {canManageTeam && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <button onClick={() => setEditFineType({ id: fineType.id, name: fineType.name, cost: String(fineType.cost) })} className="text-xs px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-bold">Edit</button>
+                  <button onClick={() => { setConfirmDeleteFine(fineType); setFinePinInput(''); setFinePinError('') }} className="text-red-400 hover:text-red-300 text-xl leading-none">×</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {confirmDeleteFine && (
+        <Modal title="Delete Fine Type" onClose={() => setConfirmDeleteFine(null)}>
+          <p className="text-zinc-400 text-sm mb-3">Delete <strong className="text-white">{confirmDeleteFine.name}</strong>? Enter admin PIN to confirm.</p>
+          <Input label="Admin PIN" type="password" value={finePinInput} onChange={event => setFinePinInput(event.target.value)} />
+          {finePinError && <p className="text-red-400 text-sm mb-2">{finePinError}</p>}
+          <div className="flex gap-2">
+            <Btn variant="danger" className="flex-1" onClick={async () => {
+              if (finePinInput !== ADMIN_PIN) {
+                setFinePinError('Incorrect PIN')
+                return
+              }
+              await onDeleteFineType(confirmDeleteFine)
+              setConfirmDeleteFine(null)
+              setFinePinInput('')
+              setFinePinError('')
+            }}>Delete Fine Type</Btn>
+            <Btn variant="ghost" className="flex-1" onClick={() => setConfirmDeleteFine(null)}>Cancel</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {editFineType && (
+        <Modal title="Edit Fine Type" onClose={() => setEditFineType(null)}>
+          <Input label="Fine name" value={editFineType.name} onChange={event => setEditFineType(current => ({ ...current, name: event.target.value }))} />
+          <Input label="Cost (£)" type="number" step="0.10" min="0" value={editFineType.cost} onChange={event => setEditFineType(current => ({ ...current, cost: event.target.value }))} />
+          <div className="flex gap-2 mt-1">
+            <Btn className="flex-1" onClick={async () => {
+              await onUpdateFineType(editFineType)
+              setEditFineType(null)
+            }}>Save</Btn>
+            <Btn variant="ghost" className="flex-1" onClick={() => setEditFineType(null)}>Cancel</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+function SeasonsTab({ seasons, canManageTeam, saving, onAddSeason, onUpdateSeason, onDeleteSeason }) {
+  const [seasonInput, setSeasonInput] = useState({ name: '', type: 'League' })
+  const [editSeason, setEditSeason] = useState(null)
+  const [confirmDeleteSeason, setConfirmDeleteSeason] = useState(null)
+  const [deletePinInput, setDeletePinInput] = useState('')
+  const [deletePinError, setDeletePinError] = useState('')
+
+  const seasonCountLabel = useMemo(() => `${seasons.length} ${seasons.length === 1 ? 'season' : 'seasons'}`, [seasons.length])
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 className="font-bold text-white">Seasons</h3>
+            <p className="text-xs text-zinc-400">Configure season groupings for team matches and reporting.</p>
+          </div>
+          <Badge color={canManageTeam ? 'green' : 'red'}>{canManageTeam ? seasonCountLabel : 'View only'}</Badge>
+        </div>
+        <Input label="Season name" value={seasonInput.name} onChange={event => setSeasonInput(current => ({ ...current, name: event.target.value }))} disabled={!canManageTeam || saving} />
+        <Sel label="Type" value={seasonInput.type} onChange={event => setSeasonInput(current => ({ ...current, type: event.target.value }))} disabled={!canManageTeam || saving}>
+          <option value="League">League</option>
+          <option value="Cup">Cup</option>
+        </Sel>
+        <Btn
+          onClick={async () => {
+            await onAddSeason(seasonInput)
+            setSeasonInput({ name: '', type: 'League' })
+          }}
+          disabled={!canManageTeam || saving || !seasonInput.name.trim()}
+        >
+          Add season
+        </Btn>
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="space-y-2">
+          {!seasons.length ? (
+            <EmptyState>No seasons configured yet.</EmptyState>
+          ) : [...seasons].sort((a, b) => a.name.localeCompare(b.name)).map(season => (
+            <div key={season.id} className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-3 gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-white text-sm font-medium">{season.name}</span>
+                <Badge color={season.type === 'Cup' ? 'amber' : 'blue'}>{season.type}</Badge>
+              </div>
+              {canManageTeam && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <button onClick={() => setEditSeason({ ...season })} className="text-xs px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-bold">Edit</button>
+                  <button onClick={() => { setConfirmDeleteSeason(season); setDeletePinInput(''); setDeletePinError('') }} className="text-red-400 hover:text-red-300 text-xl leading-none">×</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {confirmDeleteSeason && (
+        <Modal title="Delete Season" onClose={() => setConfirmDeleteSeason(null)}>
+          <p className="text-zinc-400 text-sm mb-3">Delete <strong className="text-white">{confirmDeleteSeason.name}</strong>? Enter admin PIN to confirm.</p>
+          <Input label="Admin PIN" type="password" value={deletePinInput} onChange={event => setDeletePinInput(event.target.value)} />
+          {deletePinError && <p className="text-red-400 text-sm mb-2">{deletePinError}</p>}
+          <div className="flex gap-2">
+            <Btn variant="danger" className="flex-1" onClick={async () => {
+              if (deletePinInput !== ADMIN_PIN) {
+                setDeletePinError('Incorrect PIN')
+                return
+              }
+              await onDeleteSeason(confirmDeleteSeason)
+              setConfirmDeleteSeason(null)
+              setDeletePinInput('')
+              setDeletePinError('')
+            }}>Delete Season</Btn>
+            <Btn variant="ghost" className="flex-1" onClick={() => setConfirmDeleteSeason(null)}>Cancel</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {editSeason && (
+        <Modal title="Edit Season" onClose={() => setEditSeason(null)}>
+          <Input label="Season name" value={editSeason.name} onChange={event => setEditSeason(current => ({ ...current, name: event.target.value }))} />
+          <Sel label="Type" value={editSeason.type} onChange={event => setEditSeason(current => ({ ...current, type: event.target.value }))}>
+            <option value="League">League</option>
+            <option value="Cup">Cup</option>
+          </Sel>
+          <div className="flex gap-2 mt-1">
+            <Btn className="flex-1" onClick={async () => {
+              await onUpdateSeason(editSeason)
+              setEditSeason(null)
+            }}>Save</Btn>
+            <Btn variant="ghost" className="flex-1" onClick={() => setEditSeason(null)}>Cancel</Btn>
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}
