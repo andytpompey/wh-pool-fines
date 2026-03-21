@@ -13,8 +13,9 @@ export async function loadAll({ teamId } = {}) {
   if (!teamId) {
     return { players: [], fineTypes: [], seasons: [], matches: [] }
   }
-  const [players, fineTypes, seasons, matchRows, fineRows, subRows, mpRows] =
+  const [playerMembershipRows, players, fineTypes, seasons, matchRows, fineRows, subRows, mpRows] =
     await Promise.all([
+      supabase.from('team_memberships').select('player_id').eq('team_id', teamId).eq('status', 'active'),
       supabase.from('players').select('*').order('display_name', { ascending: true, nullsFirst: false }).order('name'),
       supabase.from('fine_types').select('*').eq('team_id', teamId).order('cost').order('name'),
       supabase.from('seasons').select('*').eq('team_id', teamId).order('name'),
@@ -24,9 +25,11 @@ export async function loadAll({ teamId } = {}) {
       supabase.from('match_players').select('*'),
     ])
 
-  ;[players, fineTypes, seasons, matchRows, fineRows, subRows, mpRows].forEach(r => {
+  ;[playerMembershipRows, players, fineTypes, seasons, matchRows, fineRows, subRows, mpRows].forEach(r => {
     if (r.error) throw r.error
   })
+
+  const teamPlayerIds = new Set((playerMembershipRows.data ?? []).map(row => row.player_id))
 
   const matches = matchRows.data.map(m => ({
     ...m,
@@ -38,7 +41,7 @@ export async function loadAll({ teamId } = {}) {
   }))
 
   return {
-    players: players.data.map(normalPlayer),
+    players: players.data.map(normalPlayer).filter(player => teamPlayerIds.has(player.id)),
     fineTypes: fineTypes.data.map(normalFineType),
     seasons: seasons.data.map(normalSeason),
     matches,
@@ -228,7 +231,17 @@ export async function findPlayerByAuth({ method, value }) {
 
 export async function attachAuthUser(playerId, authUserId) {
   if (!playerId || !authUserId) return null
-  return normalPlayer(handle(await supabase.from('players').update({ user_id: authUserId }).eq('id', playerId).select().single()))
+  return normalPlayer(handle(await supabase.from('players').update({ user_id: authUserId, auth_user_id: authUserId }).eq('id', playerId).select().single()))
+}
+
+export async function linkPlayerToAuthUser({ playerId, authUserId }) {
+  if (!playerId || !authUserId) throw new Error('playerId and authUserId are required')
+  return normalPlayer(handle(await supabase
+    .from('players')
+    .update({ user_id: authUserId, auth_user_id: authUserId })
+    .eq('id', playerId)
+    .select()
+    .single()))
 }
 
 export async function findPlayerByEmail(email) {

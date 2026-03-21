@@ -120,9 +120,14 @@ export default function AuthGate({ players, setPlayers, onAuthenticated }) {
         const data = await auth.verifyEmailOtp(pending.email, otp)
         const authUserId = data?.user?.id
         if (authUserId && pending.player.authUserId !== authUserId) {
-          const updated = await db.attachAuthUser(pending.player.id, authUserId)
+          const claimedPlayer = pending.email ? await db.findPlayerByEmail(pending.email) : null
+          const playerToLink = claimedPlayer?.id ?? pending.player.id
+          const updated = await db.linkPlayerToAuthUser({ playerId: playerToLink, authUserId })
           pending.player = updated
-          setPlayers(prev => prev.map(p => p.id === updated.id ? updated : p))
+          setPlayers(prev => {
+            const withoutPending = prev.filter(p => p.id !== pending.player.id && p.id !== updated.id)
+            return [...withoutPending, updated].sort((a, b) => a.name.localeCompare(b.name))
+          })
         }
       }
       onAuthenticated(pending.player)

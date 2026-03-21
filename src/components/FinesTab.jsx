@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { Badge, Modal, Input, Btn, ADMIN_PIN, formatDate } from '../App'
 import * as db from '../lib/db'
 
-export default function FinesTab({ players, matches, setMatches, withSave, currentTeamId }) {
+export default function FinesTab({ players, matches, setMatches, withSave, currentTeamId, currentTeamRole }) {
   const [filterPlayer, setFilterPlayer] = useState('all')
+  const canManageFines = currentTeamRole === 'captain' || currentTeamRole === 'admin'
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterType,   setFilterType]   = useState('all')
   const [showSettle,   setShowSettle]   = useState(null)
@@ -32,6 +33,7 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
   const paidAmt  = filtered.filter(i => i.paid).reduce((s, i) => s + i.amount, 0)
 
   const togglePaid = item => withSave(async () => {
+    if (!canManageFines) return
     const currentMatch = matches.find(m => m.id === item.matchId)
     if (!currentMatch) return
 
@@ -44,6 +46,7 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
   })
 
   const settleAll = playerId => withSave(async () => {
+    if (!canManageFines) return
     const updatedMatches = matches.map(m => ({
       ...m,
       fines: m.fines.map(f => f.playerId === playerId && !f.paid ? { ...f, paid: true } : f),
@@ -56,6 +59,7 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
   })
 
   const confirmDelete = () => withSave(async () => {
+    if (!canManageFines) return
     if (pinInput !== ADMIN_PIN) { setPinError('Incorrect PIN'); return }
     const item = pendingDelete
     if (!item) return
@@ -87,7 +91,7 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
   return (
     <div>
       <div className="mb-4 bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
-        Fines and subs reflect the selected team through its matches.
+        Fines and subs reflect the selected team through its matches. {canManageFines ? 'Captains and vice-captains can update payment state.' : 'Players can view balances only.'}
       </div>
       {/* Player balances */}
       {playerSummaries.length > 0 && (
@@ -105,7 +109,7 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
                     <div className={`font-bold text-sm ${p.outstanding > 0 ? 'text-red-400' : 'text-emerald-400'}`}>£{p.outstanding.toFixed(2)}</div>
                     <div className="text-xs text-zinc-500">owed</div>
                   </div>
-                  {p.outstanding > 0 && <Btn size="sm" variant="success" onClick={() => setShowSettle(p)}>Settle</Btn>}
+                  {canManageFines && p.outstanding > 0 && <Btn size="sm" variant="success" onClick={() => setShowSettle(p)}>Settle</Btn>}
                 </div>
               </div>
             ))}
@@ -163,14 +167,14 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
                 </div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <button onClick={() => togglePaid(item)}
+                {canManageFines && <button onClick={() => togglePaid(item)}
                   className={`text-xs px-2.5 py-1.5 rounded-lg font-bold transition-all ${item.paid ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300' : 'bg-emerald-700 hover:bg-emerald-600 text-white'}`}>
                   {item.paid ? 'Unpay' : 'Pay'}
-                </button>
-                <button onClick={() => { setPendingDelete(item); setPinInput(''); setPinError('') }}
+                </button>}
+                {canManageFines && <button onClick={() => { setPendingDelete(item); setPinInput(''); setPinError('') }}
                   className="text-xs px-2.5 py-1.5 rounded-lg font-bold bg-red-900/50 hover:bg-red-800 text-red-300 transition-all">
                   Del
-                </button>
+                </button>}
               </div>
             </div>
           </div>
