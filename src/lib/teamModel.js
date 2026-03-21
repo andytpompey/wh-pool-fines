@@ -34,12 +34,34 @@ export async function addTeamMembership({ teamId, playerId, role = 'member', sta
     .single())
 }
 
+export async function getTeamMembership({ teamId, playerId }) {
+  if (!teamId || !playerId) return null
+  const row = handle(await supabase
+    .from('team_memberships')
+    .select('*')
+    .eq('team_id', teamId)
+    .eq('player_id', playerId)
+    .limit(1)
+    .maybeSingle())
+  return row ?? null
+}
+
 export async function listTeamMemberships(teamId) {
   return handle(await supabase
     .from('team_memberships')
     .select('*')
     .eq('team_id', teamId)
     .order('joined_at'))
+}
+
+export async function listPendingTeamInvites(teamId) {
+  if (!teamId) return []
+  return handle(await supabase
+    .from('team_invites')
+    .select('*')
+    .eq('team_id', teamId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false }))
 }
 
 export async function createTeamInvite({
@@ -62,6 +84,46 @@ export async function createTeamInvite({
     })
     .select('*')
     .single())
+}
+
+export async function upsertPendingTeamInvite({
+  teamId,
+  email,
+  token,
+  playerId = null,
+  invitedByPlayerId = null,
+  expiresAt = null,
+}) {
+  const normalizedEmail = email?.trim().toLowerCase()
+  if (!teamId) throw new Error('Team is required.')
+  if (!normalizedEmail) throw new Error('Email is required.')
+
+  const existing = handle(await supabase
+    .from('team_invites')
+    .select('*')
+    .eq('team_id', teamId)
+    .ilike('email', normalizedEmail)
+    .eq('status', 'pending')
+    .limit(1)
+    .maybeSingle())
+
+  if (existing) {
+    return handle(await supabase
+      .from('team_invites')
+      .update({
+        email: normalizedEmail,
+        token,
+        player_id: playerId,
+        invited_by_player_id: invitedByPlayerId,
+        expires_at: expiresAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+      .select('*')
+      .single())
+  }
+
+  return createTeamInvite({ teamId, email: normalizedEmail, token, playerId, invitedByPlayerId, expiresAt })
 }
 
 export async function getPendingInviteByToken(token) {
@@ -112,4 +174,3 @@ export async function getTeamMembershipCount(teamId) {
   if (error) throw error
   return count ?? 0
 }
-
