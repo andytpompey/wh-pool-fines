@@ -10,7 +10,7 @@ export default function SetupTab({
 }) {
   const [section, setSection] = useState('hub')
   const canManageTeam = currentTeamRole === 'captain' || currentTeamRole === 'admin'
-  const sections = canManageTeam ? ['hub', 'fines', 'seasons', 'account', 'data'] : ['hub', 'account']
+  const sections = canManageTeam ? ['hub', 'account', 'data'] : ['hub', 'account']
 
   // ── Player state ──────────────────────────────────────────────────────────
   const [playerInput, setPlayerInput]             = useState({ name: '', email: '', mobile: '', preferredAuthMethod: 'email' })
@@ -175,8 +175,8 @@ export default function SetupTab({
 
         {currentTeam && (
           <div className="bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
-            Team setup tools below still edit team-scoped seasons and fine types for <span className="text-white font-bold">{currentTeam.name}</span>.
-            <span className="block mt-1">Roster and invite management now live in Team Management to avoid duplicate controls.</span>
+            Team-specific seasons and fine types now live in Team Management for <span className="text-white font-bold">{currentTeam.name}</span>.
+            <span className="block mt-1">Use the selected team page for roster, invites, fines, and seasons so setup no longer duplicates those controls.</span>
           </div>
         )}
       </div>
@@ -202,7 +202,7 @@ export default function SetupTab({
           )}
           {canManageTeam && (
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-400">
-              Captains and vice-captains can use the tabs below to manage players, fine types, seasons, account preferences, and data import/export without changing match-day screens.
+              Captains and vice-captains can use Team Management for team configuration, while this area stays focused on account access and data import/export.
             </div>
           )}
         </div>
@@ -275,49 +275,27 @@ export default function SetupTab({
         </div>
       )}
 
-      {section === 'fines' && (
-        <div>
-          <div className="bg-zinc-800 rounded-xl p-3 mb-4">
-            <Input label="Fine Name" value={fineInput.name} onChange={e => setFineInput(f => ({ ...f, name: e.target.value }))} />
-            <Input label="Cost (£)" type="number" step="0.10" min="0" value={fineInput.cost} onChange={e => setFineInput(f => ({ ...f, cost: e.target.value }))} />
-            <Btn onClick={addFine} className="w-full">Add Fine Type</Btn>
+      {section === 'account' && (
+        <div className="space-y-3">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
+            Profile access, team switching, and sign-out stay here. Team-specific configuration now lives inside Team Management.
           </div>
-          <div className="space-y-2">
-            {[...fineTypes].sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name)).map(f => (
-              <div key={f.id} className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-2">
-                <div><span className="text-white text-sm font-medium">{f.name}</span><span className="text-amber-400 text-xs font-bold ml-2">£{f.cost.toFixed(2)}</span></div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setEditFineType({ id: f.id, name: f.name, cost: String(f.cost) })} className="text-xs px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-bold">Edit</button>
-                  <button onClick={() => { setConfirmDeleteFine(f); setFinePinInput(''); setFinePinError('') }} className="text-red-400 hover:text-red-300 text-xl leading-none">×</button>
-                </div>
+          {currentTeam && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Fines</p>
+                <h3 className="text-white font-bold mt-1">Manage fine types from the team</h3>
+                <p className="text-sm text-zinc-400 mt-2">Add, edit, and remove {currentTeam.name}&apos;s fine types from Team Management → Fines.</p>
+                <Btn variant="outline" className="mt-3 w-full" onClick={onOpenTeamManagement}>Open Team Management</Btn>
               </div>
-            ))}
-          </div>
-          {confirmDeleteFine && <Modal title="Delete Fine Type" onClose={() => setConfirmDeleteFine(null)}><Input label="Admin PIN" type="password" value={finePinInput} onChange={e => setFinePinInput(e.target.value)} />{finePinError && <p className="text-red-400 text-sm mb-2">{finePinError}</p>}<div className="flex gap-2"><Btn variant="danger" className="flex-1" onClick={confirmFineDelete}>Delete Fine Type</Btn><Btn variant="ghost" className="flex-1" onClick={() => setConfirmDeleteFine(null)}>Cancel</Btn></div></Modal>}
-          {editFineType && <Modal title="Edit Fine Type" onClose={() => setEditFineType(null)}><Input label="Fine Name" value={editFineType.name} onChange={e => setEditFineType(f => ({ ...f, name: e.target.value }))} /><Input label="Cost (£)" type="number" step="0.10" min="0" value={editFineType.cost} onChange={e => setEditFineType(f => ({ ...f, cost: e.target.value }))} /><div className="flex gap-2 mt-1"><Btn onClick={saveEditFineType} className="flex-1">Save</Btn><Btn variant="ghost" onClick={() => setEditFineType(null)} className="flex-1">Cancel</Btn></div></Modal>}
-        </div>
-      )}
-
-      {section === 'seasons' && (
-        <div>
-          <div className="bg-zinc-800 rounded-xl p-3 mb-4">
-            <Input label="Season Name" value={seasonInput.name} onChange={e => setSeasonInput(s => ({ ...s, name: e.target.value }))} />
-            <Sel label="Type" value={seasonInput.type} onChange={e => setSeasonInput(s => ({ ...s, type: e.target.value }))}><option value="League">League</option><option value="Cup">Cup</option></Sel>
-            <Btn onClick={addSeason} className="w-full">Add Season</Btn>
-          </div>
-          <div className="space-y-2">
-            {[...seasons].sort((a, b) => a.name.localeCompare(b.name)).map(s => (
-              <div key={s.id} className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-2">
-                <span className="text-white text-sm font-medium">{s.name} ({s.type})</span>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setEditSeason({ ...s })} className="text-xs px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-bold">Edit</button>
-                  <button onClick={() => { setConfirmDeleteSeason(s); setDeletePinInput(''); setDeletePinError('') }} className="text-red-400 hover:text-red-300 text-xl leading-none">×</button>
-                </div>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Seasons</p>
+                <h3 className="text-white font-bold mt-1">Manage seasons from the team</h3>
+                <p className="text-sm text-zinc-400 mt-2">Create and edit {currentTeam.name}&apos;s seasons from Team Management → Seasons.</p>
+                <Btn variant="outline" className="mt-3 w-full" onClick={onOpenTeamManagement}>Open Team Management</Btn>
               </div>
-            ))}
-          </div>
-          {confirmDeleteSeason && <Modal title="Delete Season" onClose={() => setConfirmDeleteSeason(null)}><Input label="Admin PIN" type="password" value={deletePinInput} onChange={e => setDeletePinInput(e.target.value)} />{deletePinError && <p className="text-red-400 text-sm mb-2">{deletePinError}</p>}<div className="flex gap-2"><Btn variant="danger" className="flex-1" onClick={confirmSeasonDelete}>Delete Season</Btn><Btn variant="ghost" className="flex-1" onClick={() => setConfirmDeleteSeason(null)}>Cancel</Btn></div></Modal>}
-          {editSeason && <Modal title="Edit Season" onClose={() => setEditSeason(null)}><Input label="Season Name" value={editSeason.name} onChange={e => setEditSeason(s => ({ ...s, name: e.target.value }))} /><Sel label="Type" value={editSeason.type} onChange={e => setEditSeason(s => ({ ...s, type: e.target.value }))}><option value="League">League</option><option value="Cup">Cup</option></Sel><div className="flex gap-2 mt-1"><Btn onClick={saveEditSeason} className="flex-1">Save</Btn><Btn variant="ghost" onClick={() => setEditSeason(null)} className="flex-1">Cancel</Btn></div></Modal>}
+            </div>
+          )}
         </div>
       )}
 
