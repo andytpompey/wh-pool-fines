@@ -100,3 +100,16 @@ export async function listMembershipsForPlayer(playerId) {
 
   return (rows ?? []).map(normaliseMembership).filter(membership => membership.team)
 }
+
+export async function getTeamMembershipCount(teamId) {
+  if (!teamId) return 0
+  const { count, error } = await supabase
+    .from('team_memberships')
+    .select('*', { count: 'exact', head: true })
+    .eq('team_id', teamId)
+    .eq('status', 'active')
+
+  if (error) throw error
+  return count ?? 0
+}
+
