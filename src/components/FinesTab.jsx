@@ -88,15 +88,29 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
     return { ...p, total, paid, outstanding: total - paid, count: pf.length, subCount: ps.length, finesOwed: fTot - fPaid, subsOwed: sTot - sPaid }
   }).filter(p => p.total > 0)
 
+  const nextOutstandingPlayer = playerSummaries.filter(player => player.outstanding > 0).sort((a, b) => b.outstanding - a.outstanding)[0] ?? null
+
   return (
     <div>
-      <div className="mb-4 bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
-        Fines and subs reflect the selected team through its matches. {canManageFines ? 'Captains and vice-captains can update payment state.' : 'Players can view balances only.'}
+      <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Fines</p>
+            <h2 className="mt-1 text-lg font-bold text-white">Balances and payments</h2>
+            <p className="mt-1 text-xs text-zinc-400">Review fines and subs for the selected team. {canManageFines ? 'Settle balances from here when payments come in.' : 'View-only access keeps balances visible without admin controls.'}</p>
+          </div>
+          {canManageFines && nextOutstandingPlayer ? (
+            <Btn size="sm" variant="success" onClick={() => setShowSettle(nextOutstandingPlayer)}>Settle</Btn>
+          ) : (
+            <Badge color={canManageFines ? 'green' : 'gray'}>{canManageFines ? 'Ready' : 'View only'}</Badge>
+          )}
+        </div>
       </div>
+
       {/* Player balances */}
       {playerSummaries.length > 0 && (
-        <div className="mb-5">
-          <h3 className="font-bold text-zinc-400 text-xs uppercase tracking-wider mb-2">Player Balances</h3>
+        <div className="mb-4">
+          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Player balances</h3>
           <div className="space-y-2">
             {playerSummaries.map(p => (
               <div key={p.id} className="bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 flex items-center justify-between">
@@ -131,7 +145,7 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
           <option value="outstanding">Outstanding</option>
         </select>
       </div>
-      <div className="flex gap-1 mb-4 bg-zinc-800 rounded-xl p-1">
+      <div className="flex gap-1 mb-3 bg-zinc-800 rounded-xl p-1">
         {[['all','All'],['fines','Fines'],['subs','Subs']].map(([v, label]) => (
           <button key={v} onClick={() => setFilterType(v)}
             className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${filterType === v ? 'bg-amber-500 text-zinc-900' : 'text-zinc-400 hover:text-white'}`}>
@@ -141,7 +155,7 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
       </div>
 
       {/* Totals */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-3">
         {[['Total', `£${totalAmt.toFixed(2)}`, 'text-white'], ['Paid', `£${paidAmt.toFixed(2)}`, 'text-emerald-400'], ['Owed', `£${(totalAmt - paidAmt).toFixed(2)}`, 'text-red-400']].map(([l, v, c]) => (
           <div key={l} className="bg-zinc-800 rounded-xl p-2.5 text-center">
             <div className={`font-bold text-base ${c}`}>{v}</div>
@@ -173,13 +187,13 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
                 </button>}
                 {canManageFines && <button onClick={() => { setPendingDelete(item); setPinInput(''); setPinError('') }}
                   className="text-xs px-2.5 py-1.5 rounded-lg font-bold bg-red-900/50 hover:bg-red-800 text-red-300 transition-all">
-                  Del
+                  Delete
                 </button>}
               </div>
             </div>
           </div>
         ))}
-        {!filtered.length && <p className="text-zinc-500 text-sm text-center py-8">No items match current filter</p>}
+        {!filtered.length && <p className="text-zinc-500 text-sm text-center py-8">No balances match the current filter.</p>}
       </div>
 
       {/* Delete PIN modal */}

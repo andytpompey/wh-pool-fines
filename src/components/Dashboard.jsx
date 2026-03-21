@@ -54,8 +54,18 @@ export default function Dashboard({ players, fineTypes, seasons, matches }) {
 
   return (
     <div>
-      {/* Season filter */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Dashboard</p>
+            <h2 className="mt-1 text-lg font-bold text-white">Season overview</h2>
+            <p className="mt-1 text-xs text-zinc-400">Track totals and balances for the selected team without leaving match-day views.</p>
+          </div>
+          <Badge color={seasonFilter === 'all' ? 'gray' : 'blue'}>{seasonFilter === 'all' ? 'All seasons' : seasons.find(season => season.id === seasonFilter)?.name ?? 'Season filter'}</Badge>
+        </div>
+      </div>
+
+      <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
         {[{ id: 'all', name: 'All Seasons' }, ...seasons].map(s => (
           <button key={s.id} onClick={() => setSeasonFilter(s.id)}
             className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${seasonFilter === s.id ? 'bg-amber-500 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
@@ -65,7 +75,7 @@ export default function Dashboard({ players, fineTypes, seasons, matches }) {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-2 mb-4">
+      <div className="grid grid-cols-2 gap-2 mb-3">
         <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-3">
           <div className="font-display font-bold text-2xl text-white">£{totalAll.toFixed(2)}</div>
           <div className="text-zinc-500 text-xs mt-0.5">{allFines.length} fines · {allSubs.length} subs</div>
@@ -89,7 +99,7 @@ export default function Dashboard({ players, fineTypes, seasons, matches }) {
       </div>
 
       {/* View toggle */}
-      <div className="flex gap-1 mb-4 bg-zinc-800 rounded-xl p-1">
+      <div className="flex gap-1 mb-3 bg-zinc-800 rounded-xl p-1">
         {[['players', 'By Player'], ['fineTypes', 'By Fine'], ['seasons', 'By Season']].map(([v, label]) => (
           <button key={v} onClick={() => setView(v)}
             className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${view === v ? 'bg-amber-500 text-zinc-900' : 'text-zinc-400 hover:text-white'}`}>
