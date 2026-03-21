@@ -231,35 +231,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zinc-950 text-white pb-24">
       <div className="bg-zinc-950/95 border-b border-zinc-800">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-zinc-900 font-bold text-xs shrink-0">WH</div>
-          <div className="flex-1 min-w-0">
-            <div className="font-display font-bold text-white text-lg leading-none">White Horse</div>
-            <div className="text-zinc-500 text-xs">Pool Fines Tracker</div>
-          </div>
-          {saveError ? (
-            <div className="flex items-center gap-1.5 text-xs text-red-300 bg-red-950/60 border border-red-800/70 px-2 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 bg-red-400 rounded-full" />
-              Save failed
-            </div>
-          ) : saving ? (
-            <div className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-950/50 border border-amber-800/50 px-2 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse" />
-              Saving...
-            </div>
-          ) : !loading && !error ? (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-500 bg-emerald-950/50 border border-emerald-800/50 px-2 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-              Saved
-            </div>
-          ) : null}
-        </div>
         {showBanner && (
-          <div className="max-w-lg mx-auto px-4 pb-3">
+          <div className="max-w-lg mx-auto">
             <img
               src={APP_BANNER_PATHS[bannerPathIndex]}
               alt="Roo Bin banner"
-              className="h-36 sm:h-44 w-full rounded-xl border border-zinc-800 bg-zinc-950 object-contain object-center"
+              className="h-36 sm:h-44 w-full bg-zinc-950 object-contain object-center"
               onError={() => {
                 if (bannerPathIndex < APP_BANNER_PATHS.length - 1) {
                   setBannerPathIndex(prev => prev + 1)
