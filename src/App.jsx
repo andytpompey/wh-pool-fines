@@ -1153,11 +1153,11 @@ export default function App() {
                 {tab === 1 && <MatchesTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
                 {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
                 {isMoreMenuOpen && (
-                  <SetupTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches}
-                            setPlayers={setPlayers} setFineTypes={setFineTypes} setSeasons={setSeasons} setMatches={setMatches}
-                            currentTeam={currentTeamMembership?.team} currentTeamRole={currentTeamMembership?.role}
-                            onOpenTeamManagement={() => { setIsMoreMenuOpen(false); navigate(`/teams/${currentTeamId}`) }}
-                            onOpenProfile={() => { setIsMoreMenuOpen(false); navigate('/profile') }} onOpenTeams={() => { setIsMoreMenuOpen(false); navigate('/teams') }} onSignOut={() => { setIsMoreMenuOpen(false); handleSignOut() }} onClose={() => setIsMoreMenuOpen(false)} />
+                  <SetupTab
+                    onOpenProfile={() => { setIsMoreMenuOpen(false); navigate('/profile') }}
+                    onOpenTeams={() => { setIsMoreMenuOpen(false); navigate('/teams') }}
+                    onClose={() => setIsMoreMenuOpen(false)}
+                  />
                 )}
               </>
             )}
