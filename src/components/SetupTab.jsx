@@ -5,12 +5,12 @@ import * as db from '../lib/db'
 export default function SetupTab({
   players, fineTypes, seasons, matches,
   setPlayers, setFineTypes, setSeasons, setMatches,
-  withSave, currentTeamId, currentTeam, currentTeamRole,
-  onOpenProfile, onOpenTeams,
+  withSave, currentUser, profile, setProfile, currentTeamId, currentTeam, currentTeamRole,
+  onOpenProfile, onOpenTeams, onSignOut,
 }) {
   const [section, setSection] = useState('hub')
   const canManageTeam = currentTeamRole === 'captain' || currentTeamRole === 'admin'
-  const sections = canManageTeam ? ['hub', 'players', 'fines', 'seasons', 'data'] : ['hub']
+  const sections = canManageTeam ? ['hub', 'players', 'fines', 'seasons', 'account', 'data'] : ['hub', 'account']
 
   // ── Player state ──────────────────────────────────────────────────────────
   const [playerInput, setPlayerInput]             = useState({ name: '', email: '', mobile: '', preferredAuthMethod: 'email' })
@@ -166,9 +166,10 @@ export default function SetupTab({
               </div>
             )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
             <Btn onClick={onOpenProfile} className="w-full">Profile</Btn>
             <Btn variant="outline" onClick={onOpenTeams} className="w-full">Teams</Btn>
+            <Btn variant="ghost" onClick={onSignOut} className="w-full">Sign out</Btn>
           </div>
         </div>
 
@@ -201,7 +202,7 @@ export default function SetupTab({
           )}
           {canManageTeam && (
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-400">
-              Captains and vice-captains can use the tabs below to manage players, fine types, seasons, and data import/export without changing match-day screens.
+              Captains and vice-captains can use the tabs below to manage players, fine types, seasons, account preferences, and data import/export without changing match-day screens.
             </div>
           )}
         </div>

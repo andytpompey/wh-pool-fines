@@ -1127,8 +1127,8 @@ export default function App() {
                 {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
                 {tab === 3 && <SetupTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches}
                                 setPlayers={setPlayers} setFineTypes={setFineTypes} setSeasons={setSeasons} setMatches={setMatches} withSave={withSave}
-                                currentTeamId={currentTeamId} currentTeam={currentTeamMembership?.team} currentTeamRole={currentTeamMembership?.role}
-                                onOpenProfile={() => navigate('/profile')} onOpenTeams={() => navigate('/teams')} />}
+                                currentUser={session?.user} profile={profile} setProfile={setProfile} currentTeamId={currentTeamId} currentTeam={currentTeamMembership?.team} currentTeamRole={currentTeamMembership?.role}
+                                onOpenProfile={() => navigate('/profile')} onOpenTeams={() => navigate('/teams')} onSignOut={handleSignOut} />}
               </>
             )}
           </div>
