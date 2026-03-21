@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import * as db from './lib/db'
 import * as auth from './lib/auth'
+import * as teamModel from './lib/teamModel'
+import * as userProfileDb from './lib/userProfile'
 import { resolveCurrentTeamContext } from './lib/currentTeam'
 import { resolveAuthenticatedPlayerContext } from './lib/memberships'
 import SetupTab from './components/SetupTab'
@@ -31,6 +33,8 @@ function formatLastUpdated(value) {
 function getRoute() {
   const path = window.location.pathname || '/'
   if (path === '/teams') return { name: 'teams', teamId: null }
+  if (path === '/profile') return { name: 'profile', teamId: null }
+  if (path === '/teams/new') return { name: 'create-team', teamId: null }
   const match = path.match(/^\/teams\/([^/]+)$/)
   if (match) return { name: 'team', teamId: decodeURIComponent(match[1]) }
   return { name: 'app', teamId: null }
@@ -58,6 +62,10 @@ export function uuid() {
     const v = c === 'x' ? r : (r & 0x3 | 0x8)
     return v.toString(16)
   })
+}
+
+function generateJoinCode() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase()
 }
 
 export function formatDate(dateStr) {
@@ -136,7 +144,7 @@ function ErrorScreen({ error, onRetry }) {
   )
 }
 
-function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam, onViewTeams }) {
+function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam, onViewTeams, onViewProfile }) {
   if (!memberships.length) return null
 
   return (
@@ -146,7 +154,10 @@ function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam, onViewTeams })
           <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Current team</p>
           <p className="text-sm text-white">Switch context safely without leaving the app.</p>
         </div>
-        <Btn size="sm" variant="outline" onClick={onViewTeams}>My Teams</Btn>
+        <div className="flex gap-2">
+          <Btn size="sm" variant="outline" onClick={onViewProfile}>Profile</Btn>
+          <Btn size="sm" variant="outline" onClick={onViewTeams}>My Teams</Btn>
+        </div>
       </div>
       <select
         value={currentTeamId ?? ''}
@@ -163,12 +174,15 @@ function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam, onViewTeams })
   )
 }
 
-function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam }) {
+function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam, onCreateTeam }) {
   return (
     <div className="space-y-3">
-      <div>
-        <h2 className="font-display text-2xl font-bold text-white">My Teams</h2>
-        <p className="text-sm text-zinc-400">Choose a team to enter, or switch your app-wide team context.</p>
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl font-bold text-white">My Teams</h2>
+          <p className="text-sm text-zinc-400">Choose a team to enter, or switch your app-wide team context.</p>
+        </div>
+        <Btn size="sm" onClick={onCreateTeam}>Create team</Btn>
       </div>
       {!memberships.length && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
@@ -200,7 +214,7 @@ function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam }) {
   )
 }
 
-function TeamOverview({ team, onOpenApp, onBackToTeams, membershipCount }) {
+function TeamOverview({ team, membership, onOpenApp, onBackToTeams }) {
   if (!team) {
     return (
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
@@ -222,12 +236,116 @@ function TeamOverview({ team, onOpenApp, onBackToTeams, membershipCount }) {
         </div>
         <div className="space-y-1 text-sm text-zinc-400">
           <p>Join code: <span className="text-white font-medium">{team.joinCode || 'Not available'}</span></p>
-          <p>Members visible in your profile: <span className="text-white font-medium">{membershipCount}</span></p>
+          <p>Member count: <span className="text-white font-medium">{team.memberCount ?? 0}</span></p>
+          <p>Your role: <span className="text-white font-medium capitalize">{membership?.role ?? 'unknown'}</span></p>
         </div>
-        <p className="text-xs text-zinc-500 mt-4">
-          Existing dashboard, matches, fines, and setup screens continue to use this selected team where team scoping exists.
-        </p>
       </div>
+    </div>
+  )
+}
+
+function PlayerProfilePage({ profile, memberships, onSaveProfile, onCreateTeam, saving }) {
+  const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
+  const [receiveTeamNotifications, setReceiveTeamNotifications] = useState(Boolean(profile?.receiveTeamNotifications))
+  const [status, setStatus] = useState({ error: '', success: '' })
+
+  useEffect(() => {
+    setDisplayName(profile?.displayName ?? '')
+    setReceiveTeamNotifications(Boolean(profile?.receiveTeamNotifications))
+  }, [profile?.displayName, profile?.receiveTeamNotifications])
+
+  const submit = async event => {
+    event.preventDefault()
+    setStatus({ error: '', success: '' })
+    try {
+      await onSaveProfile({ displayName: displayName.trim(), receiveTeamNotifications })
+      setStatus({ error: '', success: 'Profile updated.' })
+    } catch (err) {
+      setStatus({ error: err?.message ?? 'Failed to save profile.', success: '' })
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl font-bold text-white">Player Profile</h2>
+          <p className="text-sm text-zinc-400">Manage the player record linked to your signed-in account.</p>
+        </div>
+        <Btn size="sm" onClick={onCreateTeam}>Create team</Btn>
+      </div>
+
+      <form onSubmit={submit} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <Input label="Display name" value={displayName} onChange={event => setDisplayName(event.target.value)} placeholder="How your name should appear" />
+        <div className="mb-3">
+          <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Email</label>
+          <div className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-300">{profile?.email || 'No email on account'}</div>
+        </div>
+        <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-3 mb-3">
+          <div>
+            <p className="text-sm font-medium text-white">Receive team notifications</p>
+            <p className="text-xs text-zinc-400">Use this preference for team-level reminders and updates later.</p>
+          </div>
+          <input type="checkbox" checked={receiveTeamNotifications} onChange={event => setReceiveTeamNotifications(event.target.checked)} className="h-4 w-4" />
+        </label>
+        {status.error && <p className="mb-3 text-sm text-red-400">{status.error}</p>}
+        {status.success && <p className="mb-3 text-sm text-emerald-400">{status.success}</p>}
+        <Btn type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</Btn>
+      </form>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 className="font-bold text-white">Team memberships</h3>
+            <p className="text-xs text-zinc-400">Your current active memberships across teams.</p>
+          </div>
+          <Badge color="blue">{memberships.length}</Badge>
+        </div>
+        <div className="space-y-2">
+          {memberships.length === 0 ? (
+            <p className="text-sm text-zinc-400">You are not on a team yet. Create one to get started.</p>
+          ) : memberships.map(membership => (
+            <div key={membership.team.id} className="rounded-xl border border-zinc-800 bg-zinc-800/80 px-3 py-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium text-white">{membership.team.name}</p>
+                  <p className="text-xs text-zinc-500">Join code {membership.team.joinCode || 'N/A'} · {membership.team.memberCount ?? 0} members</p>
+                </div>
+                <Badge color="amber">{membership.role}</Badge>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CreateTeamPage({ onCreateTeam, saving }) {
+  const [name, setName] = useState('')
+  const [error, setError] = useState('')
+
+  const submit = async event => {
+    event.preventDefault()
+    setError('')
+    try {
+      await onCreateTeam(name.trim())
+    } catch (err) {
+      setError(err?.message ?? 'Failed to create team')
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="font-display text-2xl font-bold text-white">Create Team</h2>
+        <p className="text-sm text-zinc-400">Create a new team and become its captain automatically.</p>
+      </div>
+      <form onSubmit={submit} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <Input label="Team name" value={name} onChange={event => setName(event.target.value)} placeholder="White Horse A" />
+        {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
+        <Btn type="submit" disabled={saving || !name.trim()}>{saving ? 'Creating...' : 'Create team'}</Btn>
+      </form>
     </div>
   )
 }
@@ -284,13 +402,37 @@ export default function App() {
     auth.getSession()
       .then(currentSession => {
         setSession(currentSession)
+        if (currentSession?.user) setCurrentPlayer({ id: currentSession.user.id })
       })
       .catch(() => setSession(null))
       .finally(() => setAuthLoading(false))
 
-    const unsubscribe = auth.onAuthStateChange(nextSession => setSession(nextSession))
+    const unsubscribe = auth.onAuthStateChange(nextSession => {
+      setSession(nextSession)
+      setCurrentPlayer(nextSession?.user ? { id: nextSession.user.id } : null)
+    })
     return unsubscribe
   }, [])
+
+  const refreshMemberContext = useCallback(async (user = session?.user, nextRoute = route) => {
+    if (!user) return
+    const context = await resolveAuthenticatedPlayerContext({ user })
+    setProfile(context.profile)
+    setMemberContext(context)
+
+    const resolvedTeamId = resolveCurrentTeamContext({
+      routeTeamId: nextRoute.teamId,
+      storedTeamId: localStorage.getItem(TEAM_STORAGE_KEY),
+      memberships: context.memberships,
+    })
+    setCurrentTeamId(resolvedTeamId)
+
+    if (nextRoute.name === 'team' && resolvedTeamId && nextRoute.teamId !== resolvedTeamId) {
+      navigate(`/teams/${resolvedTeamId}`, { replace: true })
+    }
+
+    return context
+  }, [route, session?.user])
 
   useEffect(() => {
     let cancelled = false
@@ -365,14 +507,47 @@ export default function App() {
     setSaving(true)
     setSaveError('')
     try {
-      await fn()
+      return await fn()
     } catch (err) {
       setSaveError(err?.message ?? 'Failed to save changes')
       console.error('Save failed:', err)
+      throw err
     } finally {
       setSaving(false)
     }
   }
+
+  const handleSaveProfile = useCallback((updates) => withSave(async () => {
+    if (!session?.user?.id) throw new Error('You must be signed in.')
+    const updated = await userProfileDb.updateCurrentUserProfile(session.user.id, updates)
+    setProfile(updated)
+    setMemberContext(context => ({ ...context, profile: updated }))
+    setPlayers(prev => prev.map(player => player.id === updated.playerId ? { ...player, name: updated.displayName, email: updated.email, authUserId: session.user.id } : player))
+    return updated
+  }), [session?.user?.id, players])
+
+  const handleCreateTeam = useCallback((teamName) => withSave(async () => {
+    if (!session?.user) throw new Error('You must be signed in.')
+    if (!teamName?.trim()) throw new Error('Team name is required.')
+
+    const player = await userProfileDb.ensureCurrentUserPlayer({ user: session.user })
+    let joinCode = ''
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const candidate = generateJoinCode()
+      const existing = await teamModel.getTeamByJoinCode(candidate)
+      if (!existing) {
+        joinCode = candidate
+        break
+      }
+    }
+    if (!joinCode) throw new Error('Could not generate a unique join code. Please try again.')
+
+    const team = await teamModel.createTeam({ name: teamName.trim(), createdBy: player.id, joinCode })
+    await teamModel.addTeamMembership({ teamId: team.id, playerId: player.id, role: 'captain', status: 'active' })
+    const context = await refreshMemberContext(session.user, { name: 'team', teamId: team.id })
+    setProfile(context?.profile ?? profile)
+    navigate(`/teams/${team.id}`)
+  }), [refreshMemberContext, session?.user, profile])
 
   const handleSignOut = async () => {
     try {
@@ -418,9 +593,14 @@ export default function App() {
             <span>Last updated: {formatLastUpdated(LAST_UPDATED)}</span>
           </div>
           {currentPlayer && (
-            <button onClick={handleSignOut} className="text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded-full px-3 py-1.5 whitespace-nowrap">
-              Sign out
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => navigate('/profile')} className="text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded-full px-3 py-1.5 whitespace-nowrap">
+                Profile
+              </button>
+              <button onClick={handleSignOut} className="text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded-full px-3 py-1.5 whitespace-nowrap">
+                Sign out
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -436,11 +616,25 @@ export default function App() {
               currentTeamId={currentTeamId}
               onSwitchTeam={teamId => switchTeam(teamId, route.name === 'team' ? 'team' : 'app')}
               onViewTeams={() => navigate('/teams')}
+              onViewProfile={() => navigate('/profile')}
             />
 
-            {!currentTeamId ? (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
-                No current team is available for this account yet.
+            {route.name === 'profile' ? (
+              <PlayerProfilePage
+                profile={profile}
+                memberships={memberContext.memberships}
+                onSaveProfile={handleSaveProfile}
+                onCreateTeam={() => navigate('/teams/new')}
+                saving={saving}
+              />
+            ) : route.name === 'create-team' ? (
+              <CreateTeamPage onCreateTeam={handleCreateTeam} saving={saving} />
+            ) : !currentTeamId ? (
+              <div className="space-y-3">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
+                  No current team is available for this account yet.
+                </div>
+                <Btn onClick={() => navigate('/teams/new')}>Create your first team</Btn>
               </div>
             ) : loading ? <Spinner /> : error ? <ErrorScreen error={error} onRetry={() => load(currentTeamId)} /> : route.name === 'teams' ? (
               <TeamsIndex
@@ -448,11 +642,12 @@ export default function App() {
                 currentTeamId={currentTeamId}
                 onSwitchTeam={teamId => switchTeam(teamId, 'app')}
                 onOpenTeam={teamId => switchTeam(teamId, 'team')}
+                onCreateTeam={() => navigate('/teams/new')}
               />
             ) : route.name === 'team' ? (
               <TeamOverview
                 team={currentTeamMembership?.team}
-                membershipCount={memberContext.memberships.length}
+                membership={currentTeamMembership}
                 onOpenApp={() => navigate('/')}
                 onBackToTeams={() => navigate('/teams')}
               />
