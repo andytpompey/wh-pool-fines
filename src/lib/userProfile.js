@@ -84,21 +84,18 @@ export async function ensureCurrentUserPlayer({ user }) {
 export async function updateCurrentUserProfile(userId, updates) {
   if (!userId) throw new Error('Authenticated user is required')
 
-  const existing = handle(await supabase.from('players').select('*').eq('user_id', userId).maybeSingle())
+  let existing = handle(await supabase.from('players').select('*').eq('user_id', userId).maybeSingle())
   if (!existing) return null
 
   if ('playerId' in updates) {
     const targetPlayerId = updates.playerId || null
-    if (existing?.id && existing.id !== targetPlayerId) {
+    if (existing?.id !== targetPlayerId) {
       await handle(await supabase.from('players').update({ user_id: null, auth_user_id: null }).eq('id', existing.id))
-    }
 
-    if (targetPlayerId) {
-      const row = handle(await supabase.from('players').update({ user_id: userId, auth_user_id: userId }).eq('id', targetPlayerId).select().single())
-      return normaliseProfile(row)
-    }
+      if (!targetPlayerId) return null
 
-    return null
+      existing = handle(await supabase.from('players').update({ user_id: userId, auth_user_id: userId }).eq('id', targetPlayerId).select().single())
+    }
   }
 
   const payload = {}

@@ -146,7 +146,7 @@ function ErrorScreen({ error, onRetry }) {
   )
 }
 
-function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam, onViewTeams, onViewProfile }) {
+function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam }) {
   if (!memberships.length) return null
 
   return (
@@ -156,10 +156,7 @@ function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam, onViewTeams, o
           <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Current team</p>
           <p className="text-sm text-white">Switch context safely without leaving the app.</p>
         </div>
-        <div className="flex gap-2">
-          <Btn size="sm" variant="outline" onClick={onViewProfile}>Profile</Btn>
-          <Btn size="sm" variant="outline" onClick={onViewTeams}>My Teams</Btn>
-        </div>
+        <Badge color="blue">Info only</Badge>
       </div>
       <select
         value={currentTeamId ?? ''}
@@ -478,21 +475,40 @@ function JoinTeamPage({ onJoinTeam, onCreateTeam, saving }) {
   )
 }
 
-function PlayerProfilePage({ profile, memberships, onSaveProfile, onCreateTeam, onJoinTeam, saving }) {
+function PlayerProfilePage({ profile, currentUser, players, memberships, onSaveProfile, onCreateTeam, onJoinTeam, onSignOut, saving }) {
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
+  const [preferredAuthMethod, setPreferredAuthMethod] = useState(profile?.preferredAuthMethod ?? 'email')
+  const [linkedPlayerId, setLinkedPlayerId] = useState(profile?.playerId ?? '')
   const [receiveTeamNotifications, setReceiveTeamNotifications] = useState(Boolean(profile?.receiveTeamNotifications))
   const [status, setStatus] = useState({ error: '', success: '' })
 
   useEffect(() => {
     setDisplayName(profile?.displayName ?? '')
+    setPreferredAuthMethod(profile?.preferredAuthMethod ?? 'email')
+    setLinkedPlayerId(profile?.playerId ?? '')
     setReceiveTeamNotifications(Boolean(profile?.receiveTeamNotifications))
-  }, [profile?.displayName, profile?.receiveTeamNotifications])
+  }, [profile?.displayName, profile?.preferredAuthMethod, profile?.playerId, profile?.receiveTeamNotifications])
 
   const submit = async event => {
     event.preventDefault()
     setStatus({ error: '', success: '' })
+
+    if (preferredAuthMethod === 'email' && !profile?.email) {
+      setStatus({ error: 'Your account has no email. Use WhatsApp as default, or add email in Supabase Auth.', success: '' })
+      return
+    }
+    if (preferredAuthMethod === 'whatsapp' && !profile?.mobile) {
+      setStatus({ error: 'Your account has no mobile number. Use Email as default, or add mobile in Supabase Auth.', success: '' })
+      return
+    }
+
     try {
-      await onSaveProfile({ displayName: displayName.trim(), receiveTeamNotifications })
+      await onSaveProfile({
+        displayName: displayName.trim(),
+        preferredAuthMethod,
+        playerId: linkedPlayerId || profile?.playerId || null,
+        receiveTeamNotifications,
+      })
       setStatus({ error: '', success: 'Profile updated.' })
     } catch (err) {
       setStatus({ error: err?.message ?? 'Failed to save profile.', success: '' })
@@ -503,8 +519,8 @@ function PlayerProfilePage({ profile, memberships, onSaveProfile, onCreateTeam, 
     <div className="space-y-4">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h2 className="font-display text-2xl font-bold text-white">Player Profile</h2>
-          <p className="text-sm text-zinc-400">Manage the player record linked to your signed-in account.</p>
+          <h2 className="font-display text-2xl font-bold text-white">Profile</h2>
+          <p className="text-sm text-zinc-400">Manage personal account settings for the signed-in user.</p>
         </div>
         <div className="flex gap-2">
           <Btn size="sm" variant="outline" onClick={onJoinTeam}>Join team</Btn>
@@ -512,22 +528,47 @@ function PlayerProfilePage({ profile, memberships, onSaveProfile, onCreateTeam, 
         </div>
       </div>
 
-      <form onSubmit={submit} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-        <Input label="Display name" value={displayName} onChange={event => setDisplayName(event.target.value)} placeholder="How your name should appear" />
-        <div className="mb-3">
-          <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Email</label>
-          <div className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-300">{profile?.email || 'No email on account'}</div>
-        </div>
-        <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-3 mb-3">
-          <div>
-            <p className="text-sm font-medium text-white">Receive team notifications</p>
-            <p className="text-xs text-zinc-400">Use this preference for team-level reminders and updates later.</p>
+      <form onSubmit={submit} className="space-y-4">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <h3 className="font-bold text-white mb-3">Personal details</h3>
+          <Input label="Display name" value={displayName} onChange={event => setDisplayName(event.target.value)} placeholder="How your name should appear" />
+          <p className="text-xs text-zinc-400 mb-3">Signed in as <span className="text-zinc-200">{currentUser?.email || currentUser?.phone || currentUser?.id}</span></p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Email</label>
+              <div className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-300">{profile?.email || 'No email on account'}</div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Mobile</label>
+              <div className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-300">{profile?.mobile || 'No mobile on account'}</div>
+            </div>
           </div>
-          <input type="checkbox" checked={receiveTeamNotifications} onChange={event => setReceiveTeamNotifications(event.target.checked)} className="h-4 w-4" />
-        </label>
-        {status.error && <p className="mb-3 text-sm text-red-400">{status.error}</p>}
-        {status.success && <p className="mb-3 text-sm text-emerald-400">{status.success}</p>}
-        <Btn type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</Btn>
+        </div>
+
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <h3 className="font-bold text-white mb-3">Preferences</h3>
+          <Sel label="Preferred authentication method" value={preferredAuthMethod} onChange={event => setPreferredAuthMethod(event.target.value)}>
+            <option value="email">Email OTP</option>
+            <option value="whatsapp">WhatsApp OTP</option>
+          </Sel>
+          <Sel label="Linked player (optional)" value={linkedPlayerId} onChange={event => setLinkedPlayerId(event.target.value)}>
+            <option value="">No linked player</option>
+            {players.map(player => <option key={player.id} value={player.id}>{player.name}</option>)}
+          </Sel>
+          <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-3">
+            <div>
+              <p className="text-sm font-medium text-white">Receive team notifications</p>
+              <p className="text-xs text-zinc-400">Use this preference for team-level reminders and updates later.</p>
+            </div>
+            <input type="checkbox" checked={receiveTeamNotifications} onChange={event => setReceiveTeamNotifications(event.target.checked)} className="h-4 w-4" />
+          </label>
+          {status.error && <p className="mt-3 text-sm text-red-400">{status.error}</p>}
+          {status.success && <p className="mt-3 text-sm text-emerald-400">{status.success}</p>}
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <Btn type="submit" disabled={saving} className="sm:flex-1">{saving ? 'Saving...' : 'Save profile'}</Btn>
+            <Btn type="button" variant="ghost" onClick={onSignOut} className="sm:flex-1">Sign out</Btn>
+          </div>
+        </div>
       </form>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
@@ -803,9 +844,11 @@ export default function App() {
     const updated = await userProfileDb.updateCurrentUserProfile(session.user.id, updates)
     setProfile(updated)
     setMemberContext(context => ({ ...context, profile: updated }))
-    setPlayers(prev => prev.map(player => player.id === updated.playerId ? { ...player, name: updated.displayName, email: updated.email, authUserId: session.user.id } : player))
+    if (updated?.playerId) {
+      setPlayers(prev => prev.map(player => player.id === updated.playerId ? { ...player, name: updated.displayName, email: updated.email, authUserId: session.user.id } : player))
+    }
     return updated
-  }), [session?.user?.id, players])
+  }), [session?.user?.id])
 
   const handleCreateTeam = useCallback((teamName) => withSave(async () => {
     if (!session?.user) throw new Error('You must be signed in.')
@@ -977,8 +1020,8 @@ export default function App() {
     await Promise.all([loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
   }), [currentTeamId, currentTeamMembership, loadTeamRoster, refreshMemberContext, session?.user, teamRoster.members])
 
-  const tabLabels = ['Dashboard', 'Matches', 'Fines', 'Setup']
-  const icons = ['📊', '🎱', '💰', '⚙️']
+  const tabLabels = ['Dashboard', 'Matches', 'Fines', 'More']
+  const icons = ['📊', '🎱', '💰', '➕']
 
   if (authLoading) return <Spinner />
 
@@ -1007,13 +1050,8 @@ export default function App() {
             <span>Last updated: {formatLastUpdated(LAST_UPDATED)}</span>
           </div>
           {currentPlayer && (
-            <div className="flex items-center gap-2">
-              <button onClick={() => navigate('/profile')} className="text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded-full px-3 py-1.5 whitespace-nowrap">
-                Profile
-              </button>
-              <button onClick={handleSignOut} className="text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded-full px-3 py-1.5 whitespace-nowrap">
-                Sign out
-              </button>
+            <div className="text-xs text-zinc-500">
+              {profile?.displayName || currentPlayer.name}
             </div>
           )}
         </div>
@@ -1029,17 +1067,18 @@ export default function App() {
               memberships={memberContext.memberships}
               currentTeamId={currentTeamId}
               onSwitchTeam={teamId => switchTeam(teamId, route.name === 'team' ? 'team' : 'app')}
-              onViewTeams={() => navigate('/teams')}
-              onViewProfile={() => navigate('/profile')}
             />
 
             {route.name === 'profile' ? (
               <PlayerProfilePage
                 profile={profile}
+                currentUser={session?.user}
+                players={players}
                 memberships={memberContext.memberships}
                 onSaveProfile={handleSaveProfile}
                 onCreateTeam={() => navigate('/teams/new')}
                 onJoinTeam={() => navigate('/teams/join')}
+                onSignOut={handleSignOut}
                 saving={saving}
               />
             ) : route.name === 'create-team' ? (
@@ -1086,10 +1125,10 @@ export default function App() {
                 {tab === 0 && <Dashboard players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} currentTeam={currentTeamMembership?.team} />}
                 {tab === 1 && <MatchesTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
                 {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
-                {tab === 3 && canManageTeam(currentTeamMembership?.role) && <SetupTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches}
+                {tab === 3 && <SetupTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches}
                                 setPlayers={setPlayers} setFineTypes={setFineTypes} setSeasons={setSeasons} setMatches={setMatches} withSave={withSave}
-                                currentUser={session?.user} profile={profile} setProfile={setProfile} currentTeamId={currentTeamId} currentTeam={currentTeamMembership?.team} currentTeamRole={currentTeamMembership?.role} />}
-                {tab === 3 && !canManageTeam(currentTeamMembership?.role) && <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-400">Only captains and vice-captains can access team setup tools.</div>}
+                                currentTeamId={currentTeamId} currentTeam={currentTeamMembership?.team} currentTeamRole={currentTeamMembership?.role}
+                                onOpenProfile={() => navigate('/profile')} onOpenTeams={() => navigate('/teams')} />}
               </>
             )}
           </div>

@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Modal, Input, Sel, Btn, ADMIN_PIN, uuid } from '../App'
 import * as db from '../lib/db'
-import * as userProfileDb from '../lib/userProfile'
 
 export default function SetupTab({
   players, fineTypes, seasons, matches,
   setPlayers, setFineTypes, setSeasons, setMatches,
-  withSave, currentUser, profile, setProfile, currentTeamId, currentTeam, currentTeamRole,
+  withSave, currentTeamId, currentTeam, currentTeamRole,
+  onOpenProfile, onOpenTeams,
 }) {
-  const [section, setSection] = useState('players')
+  const [section, setSection] = useState('hub')
   const canManageTeam = currentTeamRole === 'captain' || currentTeamRole === 'admin'
+  const sections = canManageTeam ? ['hub', 'players', 'fines', 'seasons', 'data'] : ['hub']
 
   // ── Player state ──────────────────────────────────────────────────────────
   const [playerInput, setPlayerInput]             = useState({ name: '', email: '', mobile: '', preferredAuthMethod: 'email' })
@@ -34,23 +35,6 @@ export default function SetupTab({
   const [importError, setImportError] = useState('')
   const [importSuccess, setImportSuccess] = useState(false)
   const [importing, setImporting] = useState(false)
-
-  const [accountForm, setAccountForm] = useState({
-    preferredAuthMethod: profile?.preferredAuthMethod ?? 'email',
-    playerId: profile?.playerId ?? '',
-  })
-  const [accountError, setAccountError] = useState('')
-  const [accountSaved, setAccountSaved] = useState(false)
-
-
-  useEffect(() => {
-    setAccountForm({
-      preferredAuthMethod: profile?.preferredAuthMethod ?? 'email',
-      playerId: profile?.playerId ?? '',
-    })
-  }, [profile?.preferredAuthMethod, profile?.playerId])
-
-
 
   const normalizeAuthDetails = player => {
     const email = player.email?.trim().toLowerCase() ?? ''
@@ -165,47 +149,63 @@ export default function SetupTab({
     URL.revokeObjectURL(url)
   }
 
-  const saveAccount = () => withSave(async () => {
-    if (!currentUser?.id || !profile) return
-    setAccountError('')
-    setAccountSaved(false)
-
-    if (accountForm.preferredAuthMethod === 'email' && !profile.email) {
-      setAccountError('Your account has no email. Use WhatsApp as default, or add email in Supabase Auth.')
-      return
-    }
-    if (accountForm.preferredAuthMethod === 'whatsapp' && !profile.mobile) {
-      setAccountError('Your account has no mobile number. Use Email as default, or add mobile in Supabase Auth.')
-      return
-    }
-
-    const updated = await userProfileDb.updateCurrentUserProfile(currentUser.id, {
-      preferredAuthMethod: accountForm.preferredAuthMethod,
-      playerId: accountForm.playerId || null,
-      currentEmail: profile.email,
-      currentMobile: profile.mobile,
-    })
-    setProfile(updated)
-    setAccountSaved(true)
-  })
-
   return (
     <div>
-      {currentTeam && (
-        <div className="mb-4 bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
-          Setup is editing team-scoped seasons and fine types for <span className="text-white font-bold">{currentTeam.name}</span>.
-          <span className="block mt-1">TODO: player management is still global until roster-specific team admin screens are rebuilt.</span>
+      <div className="space-y-4">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">More</p>
+              <h2 className="font-display text-2xl font-bold text-white mt-1">Account & team hub</h2>
+              <p className="text-sm text-zinc-400 mt-1">Access profile, team management, and other non-match actions from one place.</p>
+            </div>
+            {currentTeam && (
+              <div className="text-right text-xs text-zinc-500">
+                <div>Current team</div>
+                <div className="text-white font-bold mt-1">{currentTeam.name}</div>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+            <Btn onClick={onOpenProfile} className="w-full">Profile</Btn>
+            <Btn variant="outline" onClick={onOpenTeams} className="w-full">Teams</Btn>
+          </div>
         </div>
-      )}
 
-      <div className="flex gap-1 mb-4 bg-zinc-800 rounded-xl p-1">
-        {['players', 'fines', 'seasons', 'account', 'data'].map(s => (
+        {currentTeam && (
+          <div className="bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
+            Team setup tools below still edit team-scoped seasons and fine types for <span className="text-white font-bold">{currentTeam.name}</span>.
+            <span className="block mt-1">Player management remains available here for now until roster-specific admin screens are rebuilt.</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-1 mb-4 mt-4 bg-zinc-800 rounded-xl p-1 overflow-x-auto">
+        {sections.map(s => (
           <button key={s} onClick={() => setSection(s)}
             className={`flex-1 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${section === s ? 'bg-amber-500 text-zinc-900' : 'text-zinc-400 hover:text-white'}`}>
             {s}
           </button>
         ))}
       </div>
+
+      {section === 'hub' && (
+        <div className="space-y-3">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
+            Use this area for account access, team switching, and setup tools that are outside the day-to-day Dashboard, Matches, and Fines workflow.
+          </div>
+          {!canManageTeam && (
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-400">
+              Team setup tools are limited to captains and vice-captains, but your Profile and Teams pages are available above.
+            </div>
+          )}
+          {canManageTeam && (
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-400">
+              Captains and vice-captains can use the tabs below to manage players, fine types, seasons, and data import/export without changing match-day screens.
+            </div>
+          )}
+        </div>
+      )}
 
       {section === 'players' && (
         <div>
@@ -317,26 +317,6 @@ export default function SetupTab({
           </div>
           {confirmDeleteSeason && <Modal title="Delete Season" onClose={() => setConfirmDeleteSeason(null)}><Input label="Admin PIN" type="password" value={deletePinInput} onChange={e => setDeletePinInput(e.target.value)} />{deletePinError && <p className="text-red-400 text-sm mb-2">{deletePinError}</p>}<div className="flex gap-2"><Btn variant="danger" className="flex-1" onClick={confirmSeasonDelete}>Delete Season</Btn><Btn variant="ghost" className="flex-1" onClick={() => setConfirmDeleteSeason(null)}>Cancel</Btn></div></Modal>}
           {editSeason && <Modal title="Edit Season" onClose={() => setEditSeason(null)}><Input label="Season Name" value={editSeason.name} onChange={e => setEditSeason(s => ({ ...s, name: e.target.value }))} /><Sel label="Type" value={editSeason.type} onChange={e => setEditSeason(s => ({ ...s, type: e.target.value }))}><option value="League">League</option><option value="Cup">Cup</option></Sel><div className="flex gap-2 mt-1"><Btn onClick={saveEditSeason} className="flex-1">Save</Btn><Btn variant="ghost" onClick={() => setEditSeason(null)} className="flex-1">Cancel</Btn></div></Modal>}
-        </div>
-      )}
-
-      {section === 'account' && (
-        <div className="bg-zinc-800 rounded-xl p-4">
-          <h3 className="font-bold text-white mb-3">My account</h3>
-          <p className="text-xs text-zinc-400 mb-2">Signed in as: <span className="text-zinc-200">{currentUser?.email || currentUser?.phone || currentUser?.id}</span></p>
-          <Input label="Email (from Supabase Auth)" value={profile?.email ?? ''} disabled />
-          <Input label="Mobile (from Supabase Auth)" value={profile?.mobile ?? ''} disabled />
-          <Sel label="Default authentication method" value={accountForm.preferredAuthMethod} onChange={e => setAccountForm(f => ({ ...f, preferredAuthMethod: e.target.value }))}>
-            <option value="email">Email OTP</option>
-            <option value="whatsapp">WhatsApp OTP</option>
-          </Sel>
-          <Sel label="Linked player (optional)" value={accountForm.playerId} onChange={e => setAccountForm(f => ({ ...f, playerId: e.target.value }))}>
-            <option value="">No linked player</option>
-            {[...players].sort((a, b) => a.name.localeCompare(b.name)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </Sel>
-          {accountError && <p className="text-sm text-red-400 mb-2">{accountError}</p>}
-          {accountSaved && <p className="text-sm text-emerald-400 mb-2">Account saved.</p>}
-          <Btn onClick={saveAccount} className="w-full">Save account settings</Btn>
         </div>
       )}
 
