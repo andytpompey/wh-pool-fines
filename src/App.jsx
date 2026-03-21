@@ -11,6 +11,7 @@ import MatchesTab from './components/MatchesTab'
 import FinesTab   from './components/FinesTab'
 import Dashboard  from './components/Dashboard'
 import AuthGate   from './components/AuthGate'
+import TeamManagementPage from './components/TeamManagementPage'
 
 export const ADMIN_PIN = '1234'
 export const SUB_AMOUNT = 0.50
@@ -275,224 +276,14 @@ function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam, onCr
   )
 }
 
-function TeamOverview({ team, membership, onOpenApp, onBackToTeams }) {
-  if (!team) {
-    return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
-        Team not found.
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-        <Btn variant="outline" size="sm" onClick={onBackToTeams}>← My Teams</Btn>
-        <Btn size="sm" onClick={onOpenApp}>Open app</Btn>
-      </div>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <h2 className="font-display text-2xl font-bold text-white">{team.name}</h2>
-          <Badge color="amber">Current team</Badge>
-        </div>
-        <div className="space-y-1 text-sm text-zinc-400">
-          <p>Join code: <span className="text-white font-medium">{team.joinCode || 'Not available'}</span></p>
-          <p>Member count: <span className="text-white font-medium">{team.memberCount ?? 0}</span></p>
-          <p>Your role: <span className="text-white font-medium">{teamModel.getRoleLabel(membership?.role)}</span></p>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function normaliseEmail(email) {
-  return email?.trim().toLowerCase() ?? ''
+  return email?.trim().toLowerCase() ?? ""
 }
 
 function canManageTeam(role) {
   return teamModel.canManageTeam(role)
 }
-
-function TeamMembersPage({
-  team,
-  membership,
-  members,
-  invites,
-  onBackToTeams,
-  onOpenApp,
-  onRefresh,
-  onInvitePlayer,
-  onUpdateMemberRole,
-  saving,
-}) {
-  const canInvite = teamModel.canManageTeam(membership?.role)
-  const canManageRoles = teamModel.canCaptainManageRoles(membership?.role)
-  const [form, setForm] = useState({ displayName: '', email: '' })
-  const [status, setStatus] = useState({ error: '', success: '', info: [] })
-
-  useEffect(() => {
-    setStatus({ error: '', success: '', info: [] })
-  }, [team?.id])
-
-  const submit = async event => {
-    event.preventDefault()
-    setStatus({ error: '', success: '', info: [] })
-    try {
-      const result = await onInvitePlayer({
-        displayName: form.displayName.trim(),
-        email: form.email.trim(),
-      })
-      setStatus({
-        error: '',
-        success: result.message,
-        info: result.notes ?? [],
-      })
-      setForm({ displayName: '', email: '' })
-    } catch (err) {
-      setStatus({ error: err?.message ?? 'Failed to invite player.', success: '', info: [] })
-    }
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-        <Btn variant="outline" size="sm" onClick={onBackToTeams}>← My Teams</Btn>
-        <Btn size="sm" onClick={onOpenApp}>Open app</Btn>
-        <Btn variant="outline" size="sm" onClick={onRefresh}>Refresh</Btn>
-      </div>
-
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <div>
-            <h2 className="font-display text-2xl font-bold text-white">{team?.name || 'Team'}</h2>
-            <p className="text-sm text-zinc-400">Manage members and pending invites for this team.</p>
-          </div>
-          <Badge color={canInvite ? 'amber' : 'gray'}>{teamModel.getRoleLabel(membership?.role)}</Badge>
-        </div>
-        <div className="grid grid-cols-3 gap-2 text-sm">
-          <div className="rounded-xl border border-zinc-800 bg-zinc-800/70 px-3 py-3">
-            <p className="text-zinc-400 text-xs uppercase tracking-wider">Active members</p>
-            <p className="text-xl font-bold text-white">{members.length}</p>
-          </div>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-800/70 px-3 py-3">
-            <p className="text-zinc-400 text-xs uppercase tracking-wider">Pending invites</p>
-            <p className="text-xl font-bold text-white">{invites.length}</p>
-          </div>
-          <div className="rounded-xl border border-zinc-800 bg-zinc-800/70 px-3 py-3">
-            <p className="text-zinc-400 text-xs uppercase tracking-wider">Your access</p>
-            <p className="text-xl font-bold text-white">{teamModel.getRoleLabel(membership?.role)}</p>
-          </div>
-        </div>
-      </div>
-
-      <form onSubmit={submit} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <div>
-            <h3 className="font-bold text-white">Invite player by email</h3>
-            <p className="text-xs text-zinc-400">Captains and admins can add a player to this team without requiring account signup.</p>
-          </div>
-          <Badge color={canInvite ? 'green' : 'red'}>{canInvite ? 'Can invite' : 'View only'}</Badge>
-        </div>
-        <Input label="Display name" value={form.displayName} onChange={event => setForm(current => ({ ...current, displayName: event.target.value }))} placeholder="Player display name" disabled={!canInvite || saving} />
-        <Input label="Email" type="email" required value={form.email} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} placeholder="player@example.com" disabled={!canInvite || saving} />
-        {!canInvite && <p className="mb-3 text-sm text-zinc-400">Only captains and admins can send invites.</p>}
-        {status.error && <p className="mb-3 text-sm text-red-400">{status.error}</p>}
-        {status.success && <p className="mb-2 text-sm text-emerald-400">{status.success}</p>}
-        {!!status.info.length && (
-          <ul className="mb-3 space-y-1 text-xs text-zinc-400">
-            {status.info.map(note => <li key={note}>• {note}</li>)}
-          </ul>
-        )}
-        <Btn type="submit" disabled={!canInvite || saving || !form.displayName.trim() || !form.email.trim()}>
-          {saving ? 'Inviting...' : 'Invite player'}
-        </Btn>
-      </form>
-
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <div>
-            <h3 className="font-bold text-white">Active members</h3>
-            <p className="text-xs text-zinc-400">Current team roster with role visibility.</p>
-          </div>
-          <Badge color="blue">{members.length}</Badge>
-        </div>
-        <div className="space-y-2">
-          {!members.length ? (
-            <p className="text-sm text-zinc-400">No active members yet.</p>
-          ) : members.map(member => {
-            const isSelf = member.playerId === membership?.playerId
-            const roleOptions = [
-              { value: 'admin', label: 'Promote to Vice-captain' },
-              { value: 'member', label: 'Demote to Player' },
-              { value: 'captain', label: 'Transfer Captaincy' },
-            ].filter(option => {
-              if (!canManageRoles) return false
-              if (member.role === option.value) return false
-              if (member.role === 'captain' && option.value !== 'captain') return false
-              if (isSelf && option.value !== 'captain') return false
-              return true
-            })
-
-            return (
-              <div key={member.id} className="rounded-xl border border-zinc-800 bg-zinc-800/80 px-3 py-3 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-white">{member.playerName || 'Unknown player'}{isSelf ? ' (You)' : ''}</p>
-                  <p className="text-xs text-zinc-500">{member.email || 'No email saved'}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge color="amber">{teamModel.getRoleLabel(member.role)}</Badge>
-                  {!!roleOptions.length && (
-                    <select
-                      className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-white"
-                      defaultValue=""
-                      disabled={saving}
-                      onChange={async event => {
-                        const nextRole = event.target.value
-                        event.target.value = ''
-                        if (!nextRole) return
-                        await onUpdateMemberRole(member, nextRole)
-                      }}
-                    >
-                      <option value="">Role actions</option>
-                      {roleOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <div>
-            <h3 className="font-bold text-white">Pending invites</h3>
-            <p className="text-xs text-zinc-400">Outstanding email invites awaiting acceptance or future wiring.</p>
-          </div>
-          <Badge color="blue">{invites.length}</Badge>
-        </div>
-        <div className="space-y-2">
-          {!invites.length ? (
-            <p className="text-sm text-zinc-400">No pending invites.</p>
-          ) : invites.map(invite => (
-            <div key={invite.id} className="rounded-xl border border-zinc-800 bg-zinc-800/80 px-3 py-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-white">{invite.playerName || invite.email}</p>
-                <p className="text-xs text-zinc-500">{normaliseEmail(invite.email)}{invite.invitedAt ? ` · invited ${new Date(invite.invitedAt).toLocaleDateString('en-GB')}` : ''}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge color="gray">{teamModel.getRoleLabel(invite.role)}</Badge>
-                <Badge color="blue">pending</Badge>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 
 function JoinTeamPage({ onJoinTeam, onCreateTeam, saving }) {
   const [joinCode, setJoinCode] = useState('')
@@ -1079,6 +870,64 @@ export default function App() {
     await Promise.all([loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
   }), [currentTeamId, currentTeamMembership, loadTeamRoster, refreshMemberContext, session?.user, teamRoster.members])
 
+  const handleAddFineType = useCallback((payload) => withSave(async () => {
+    if (!currentTeamId) throw new Error('Select a team first.')
+    if (!canManageTeam(currentTeamMembership?.role)) throw new Error('Only captains and admins can manage fine types.')
+    if (!payload?.name?.trim()) throw new Error('Fine name is required.')
+    const cost = Number(payload.cost)
+    if (Number.isNaN(cost) || cost < 0) throw new Error('Enter a valid fine cost.')
+
+    const created = await db.addFineType({ id: uuid(), name: payload.name.trim(), cost, teamId: currentTeamId })
+    setFineTypes(prev => [...prev, created].sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name)))
+    return created
+  }), [currentTeamId, currentTeamMembership?.role])
+
+  const handleUpdateFineType = useCallback((payload) => withSave(async () => {
+    if (!currentTeamId) throw new Error('Select a team first.')
+    if (!canManageTeam(currentTeamMembership?.role)) throw new Error('Only captains and admins can manage fine types.')
+    if (!payload?.name?.trim()) throw new Error('Fine name is required.')
+    const cost = Number(payload.cost)
+    if (Number.isNaN(cost) || cost < 0) throw new Error('Enter a valid fine cost.')
+
+    const updated = await db.updateFineType({ ...payload, name: payload.name.trim(), cost, teamId: currentTeamId })
+    setFineTypes(prev => prev.map(item => item.id === updated.id ? updated : item).sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name)))
+    return updated
+  }), [currentTeamId, currentTeamMembership?.role])
+
+  const handleDeleteFineType = useCallback((fineType) => withSave(async () => {
+    if (!currentTeamId) throw new Error('Select a team first.')
+    if (!canManageTeam(currentTeamMembership?.role)) throw new Error('Only captains and admins can manage fine types.')
+    await db.deleteFineType(fineType.id)
+    setFineTypes(prev => prev.filter(item => item.id !== fineType.id))
+  }), [currentTeamId, currentTeamMembership?.role])
+
+  const handleAddSeason = useCallback((payload) => withSave(async () => {
+    if (!currentTeamId) throw new Error('Select a team first.')
+    if (!canManageTeam(currentTeamMembership?.role)) throw new Error('Only captains and admins can manage seasons.')
+    if (!payload?.name?.trim()) throw new Error('Season name is required.')
+
+    const created = await db.addSeason({ id: uuid(), name: payload.name.trim(), type: payload.type || 'League', teamId: currentTeamId })
+    setSeasons(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
+    return created
+  }), [currentTeamId, currentTeamMembership?.role])
+
+  const handleUpdateSeason = useCallback((payload) => withSave(async () => {
+    if (!currentTeamId) throw new Error('Select a team first.')
+    if (!canManageTeam(currentTeamMembership?.role)) throw new Error('Only captains and admins can manage seasons.')
+    if (!payload?.name?.trim()) throw new Error('Season name is required.')
+
+    const updated = await db.updateSeason({ ...payload, name: payload.name.trim(), type: payload.type || 'League', teamId: currentTeamId })
+    setSeasons(prev => prev.map(item => item.id === updated.id ? updated : item).sort((a, b) => a.name.localeCompare(b.name)))
+    return updated
+  }), [currentTeamId, currentTeamMembership?.role])
+
+  const handleDeleteSeason = useCallback((season) => withSave(async () => {
+    if (!currentTeamId) throw new Error('Select a team first.')
+    if (!canManageTeam(currentTeamMembership?.role)) throw new Error('Only captains and admins can manage seasons.')
+    await db.deleteSeason(season.id)
+    setSeasons(prev => prev.filter(item => item.id !== season.id))
+  }), [currentTeamId, currentTeamMembership?.role])
+
   const tabLabels = ['Dashboard', 'Matches', 'Fines', 'More']
   const icons = ['📊', '🎱', '💰', '➕']
 
@@ -1165,16 +1014,26 @@ export default function App() {
                 </div>
               </div>
             ) : loading ? <Spinner /> : error ? <ErrorScreen error={error} onRetry={() => load(currentTeamId)} /> : route.name === 'team' ? (
-              <TeamMembersPage
+              <TeamManagementPage
                 team={currentTeamMembership?.team}
                 membership={currentTeamMembership}
                 members={teamRoster.members}
                 invites={teamRoster.invites}
+                fineTypes={fineTypes}
+                seasons={seasons}
                 onOpenApp={() => navigate('/')}
                 onBackToTeams={() => navigate('/teams')}
-                onRefresh={() => loadTeamRoster(currentTeamId)}
+                onRefresh={async () => {
+                  await Promise.all([load(currentTeamId), loadTeamRoster(currentTeamId)])
+                }}
                 onInvitePlayer={handleInvitePlayer}
                 onUpdateMemberRole={handleUpdateMemberRole}
+                onAddFineType={handleAddFineType}
+                onUpdateFineType={handleUpdateFineType}
+                onDeleteFineType={handleDeleteFineType}
+                onAddSeason={handleAddSeason}
+                onUpdateSeason={handleUpdateSeason}
+                onDeleteSeason={handleDeleteSeason}
                 saving={saving}
               />
             ) : (
