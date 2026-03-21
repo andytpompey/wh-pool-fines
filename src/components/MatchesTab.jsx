@@ -86,16 +86,16 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
 
   return (
     <div>
-      <div className="mb-4 bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
-        Matches are scoped to the selected team. TODO: match players still reference global player profiles until roster screens are team-aware.
-      </div>
-      <div className="flex items-center gap-3 mb-4">
-        <button onClick={onBack} className="text-amber-400 hover:text-amber-300 font-bold text-sm">← Back</button>
-        <div className="flex-1">
-          <h2 className="font-display font-bold text-white text-lg">{formatDate(match.date)}</h2>
-          {match.opponent && <p className="text-zinc-400 text-xs">vs {match.opponent}</p>}
+      <div className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="text-amber-400 hover:text-amber-300 font-bold text-sm">← Back</button>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Match</p>
+            <h2 className="font-display font-bold text-white text-lg">{formatDate(match.date)}</h2>
+            {match.opponent && <p className="text-zinc-400 text-xs truncate">vs {match.opponent}</p>}
+          </div>
+          {readonly ? <Badge color="green">Submitted</Badge> : <Badge color="amber">Draft</Badge>}
         </div>
-        {readonly ? <Badge color="green">Submitted</Badge> : <Badge color="amber">Draft</Badge>}
       </div>
 
       {season && <div className="mb-3"><Badge color={season.type === 'Cup' ? 'amber' : 'blue'}>{season.name} · {season.type}</Badge></div>}
@@ -337,12 +337,15 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
 
   return (
     <div>
-      <div className="mb-4 bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
-        Matches are scoped to the selected team. TODO: match players still reference global player profiles until roster screens are team-aware.
-      </div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-display text-lg font-bold text-white">Matches</h2>
-        <Btn onClick={() => setShowNew(true)}>+ New Match</Btn>
+      <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Matches</p>
+            <h2 className="mt-1 text-lg font-bold text-white">Match log</h2>
+            <p className="mt-1 text-xs text-zinc-400">Create new matches and open past match sheets for the selected team.</p>
+          </div>
+          <Btn size="sm" onClick={() => setShowNew(true)}>New match</Btn>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -369,7 +372,7 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
             </button>
           )
         })}
-        {!matches.length && <p className="text-zinc-500 text-sm text-center py-12">No matches yet — create one to get started</p>}
+        {!matches.length && <p className="text-zinc-500 text-sm text-center py-12">No matches yet. Create your first match to get started.</p>}
       </div>
 
       {showNew && (

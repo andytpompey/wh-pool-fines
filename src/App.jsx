@@ -150,19 +150,18 @@ function ErrorScreen({ error, onRetry }) {
 function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam }) {
   if (!memberships.length) return null
 
+  const currentMembership = memberships.find(membership => membership.team.id === currentTeamId) ?? memberships[0]
+
   return (
-    <div className="bg-zinc-900/80 border border-zinc-800 rounded-xl p-3 mb-4">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Current team</p>
-          <p className="text-sm text-white">Switch context safely without leaving the app.</p>
-        </div>
-        <Badge color="blue">Info only</Badge>
+    <div className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2.5">
+      <div className="flex items-center gap-2 mb-2">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Team</p>
+        {currentMembership && <Badge color="amber">{teamModel.getRoleLabel(currentMembership.role)}</Badge>}
       </div>
       <select
         value={currentTeamId ?? ''}
         onChange={event => onSwitchTeam(event.target.value)}
-        className="w-full bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 text-sm"
+        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500 text-sm"
       >
         {memberships.map(membership => (
           <option key={membership.team.id} value={membership.team.id}>
@@ -1040,7 +1039,7 @@ export default function App() {
             <img
               src={APP_BANNER_PATHS[bannerPathIndex]}
               alt="Roo Bin banner"
-              className="h-36 sm:h-44 w-full bg-zinc-950 object-contain object-center"
+              className="h-28 sm:h-36 w-full bg-zinc-950 object-contain object-center"
               onError={() => {
                 if (bannerPathIndex < APP_BANNER_PATHS.length - 1) {
                   setBannerPathIndex(prev => prev + 1)
@@ -1051,8 +1050,8 @@ export default function App() {
             />
           </div>
         )}
-        <div className="max-w-lg mx-auto px-4 pb-3 flex items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-2 text-xs text-zinc-300 bg-zinc-900/80 border border-zinc-700 rounded-md px-2.5 py-1">
+        <div className="max-w-lg mx-auto px-4 pb-2.5 flex items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-2 text-[11px] text-zinc-300 bg-zinc-900/80 border border-zinc-700 rounded-md px-2.5 py-1">
             <span className="text-amber-400">🕒</span>
             <span>Last updated: {formatLastUpdated(LAST_UPDATED)}</span>
           </div>
@@ -1068,7 +1067,7 @@ export default function App() {
         <AuthGate players={players} setPlayers={setPlayers} onAuthenticated={setCurrentPlayer} />
       ) : (
         <>
-          <div className="max-w-lg mx-auto px-4 pt-4">
+          <div className="max-w-lg mx-auto px-4 pt-3">
             {!!saveError && <div className="mb-3 text-sm text-red-400 bg-red-950/40 border border-red-800/50 rounded-xl px-3 py-2">{saveError}</div>}
             <TeamSwitcher
               memberships={memberContext.memberships}
@@ -1141,9 +1140,6 @@ export default function App() {
               />
             ) : (
               <>
-                <div className="mb-4 bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
-                  Working in <span className="text-white font-bold">{currentTeamMembership?.team.name ?? 'Selected team'}</span>.
-                </div>
                 {tab === 0 && <Dashboard players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} currentTeam={currentTeamMembership?.team} />}
                 {tab === 1 && <MatchesTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
                 {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
