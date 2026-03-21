@@ -5,12 +5,40 @@ function handle(result) {
   return result.data
 }
 
+export const ROLE_LABELS = {
+  captain: 'Captain',
+  admin: 'Vice-captain',
+  member: 'Player',
+}
+
+export function getRoleLabel(role) {
+  return ROLE_LABELS[role] ?? 'Player'
+}
+
+export function canManageTeam(role) {
+  return role === 'captain' || role === 'admin'
+}
+
+export function canCaptainManageRoles(role) {
+  return role === 'captain'
+}
+
 export async function createTeam({ name, createdBy, joinCode = null }) {
   return handle(await supabase
     .from('teams')
     .insert({ name, created_by: createdBy ?? null, join_code: joinCode })
     .select('*')
     .single())
+}
+
+export async function getTeamById(teamId) {
+  if (!teamId) return null
+  const row = handle(await supabase
+    .from('teams')
+    .select('*')
+    .eq('id', teamId)
+    .maybeSingle())
+  return row ?? null
 }
 
 export async function getTeamByJoinCode(joinCode) {
@@ -30,6 +58,19 @@ export async function addTeamMembership({ teamId, playerId, role = 'member', sta
       { team_id: teamId, player_id: playerId, role, status },
       { onConflict: 'team_id,player_id' },
     )
+    .select('*')
+    .single())
+}
+
+export async function updateTeamMembership({ membershipId, role, status }) {
+  if (!membershipId) throw new Error('Membership is required.')
+  const payload = {}
+  if (role) payload.role = role
+  if (status) payload.status = status
+  return handle(await supabase
+    .from('team_memberships')
+    .update(payload)
+    .eq('id', membershipId)
     .select('*')
     .single())
 }
@@ -116,7 +157,6 @@ export async function upsertPendingTeamInvite({
         player_id: playerId,
         invited_by_player_id: invitedByPlayerId,
         expires_at: expiresAt,
-        updated_at: new Date().toISOString(),
       })
       .eq('id', existing.id)
       .select('*')
@@ -124,6 +164,32 @@ export async function upsertPendingTeamInvite({
   }
 
   return createTeamInvite({ teamId, email: normalizedEmail, token, playerId, invitedByPlayerId, expiresAt })
+}
+
+export async function acceptTeamInvite({ teamId, email, playerId = null }) {
+  const normalizedEmail = email?.trim().toLowerCase()
+  if (!teamId || !normalizedEmail) return null
+
+  const existing = handle(await supabase
+    .from('team_invites')
+    .select('*')
+    .eq('team_id', teamId)
+    .ilike('email', normalizedEmail)
+    .eq('status', 'pending')
+    .limit(1)
+    .maybeSingle())
+
+  if (!existing) return null
+
+  return handle(await supabase
+    .from('team_invites')
+    .update({
+      status: 'accepted',
+      player_id: playerId ?? existing.player_id,
+    })
+    .eq('id', existing.id)
+    .select('*')
+    .single())
 }
 
 export async function getPendingInviteByToken(token) {
@@ -136,7 +202,6 @@ export async function getPendingInviteByToken(token) {
     .maybeSingle())
   return row ?? null
 }
-
 
 const normaliseMembership = row => ({
   id: row.id,

@@ -6,9 +6,10 @@ import * as userProfileDb from '../lib/userProfile'
 export default function SetupTab({
   players, fineTypes, seasons, matches,
   setPlayers, setFineTypes, setSeasons, setMatches,
-  withSave, currentUser, profile, setProfile, currentTeamId, currentTeam,
+  withSave, currentUser, profile, setProfile, currentTeamId, currentTeam, currentTeamRole,
 }) {
   const [section, setSection] = useState('players')
+  const canManageTeam = currentTeamRole === 'captain' || currentTeamRole === 'admin'
 
   // ── Player state ──────────────────────────────────────────────────────────
   const [playerInput, setPlayerInput]             = useState({ name: '', email: '', mobile: '', preferredAuthMethod: 'email' })

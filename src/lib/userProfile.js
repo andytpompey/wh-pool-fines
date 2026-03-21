@@ -52,7 +52,7 @@ export async function upsertCurrentUserProfile({ user }) {
 
   const playerMatch = await findPlayerMatchForUser({ email, mobile })
   if (playerMatch) {
-    const row = handle(await supabase.from('players').update({ user_id: user.id }).eq('id', playerMatch.id).select().single())
+    const row = handle(await supabase.from('players').update({ user_id: user.id, auth_user_id: user.id }).eq('id', playerMatch.id).select().single())
     return normaliseProfile(row)
   }
 
@@ -90,11 +90,11 @@ export async function updateCurrentUserProfile(userId, updates) {
   if ('playerId' in updates) {
     const targetPlayerId = updates.playerId || null
     if (existing?.id && existing.id !== targetPlayerId) {
-      await handle(await supabase.from('players').update({ user_id: null }).eq('id', existing.id))
+      await handle(await supabase.from('players').update({ user_id: null, auth_user_id: null }).eq('id', existing.id))
     }
 
     if (targetPlayerId) {
-      const row = handle(await supabase.from('players').update({ user_id: userId }).eq('id', targetPlayerId).select().single())
+      const row = handle(await supabase.from('players').update({ user_id: userId, auth_user_id: userId }).eq('id', targetPlayerId).select().single())
       return normaliseProfile(row)
     }
 

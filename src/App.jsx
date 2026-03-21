@@ -36,6 +36,7 @@ function getRoute() {
   if (path === '/teams') return { name: 'teams', teamId: null }
   if (path === '/profile') return { name: 'profile', teamId: null }
   if (path === '/teams/new') return { name: 'create-team', teamId: null }
+  if (path === '/teams/join') return { name: 'join-team', teamId: null }
   const match = path.match(/^\/teams\/([^/]+)$/)
   if (match) return { name: 'team', teamId: decodeURIComponent(match[1]) }
   return { name: 'app', teamId: null }
@@ -167,7 +168,7 @@ function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam, onViewTeams, o
       >
         {memberships.map(membership => (
           <option key={membership.team.id} value={membership.team.id}>
-            {membership.team.name} · {membership.role}
+            {membership.team.name} · {teamModel.getRoleLabel(membership.role)}
           </option>
         ))}
       </select>
@@ -175,7 +176,7 @@ function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam, onViewTeams, o
   )
 }
 
-function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam, onCreateTeam }) {
+function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam, onCreateTeam, onJoinTeam }) {
   return (
     <div className="space-y-3">
       <div className="flex items-end justify-between gap-3">
@@ -183,7 +184,10 @@ function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam, onCr
           <h2 className="font-display text-2xl font-bold text-white">My Teams</h2>
           <p className="text-sm text-zinc-400">Choose a team to enter, or switch your app-wide team context.</p>
         </div>
-        <Btn size="sm" onClick={onCreateTeam}>Create team</Btn>
+        <div className="flex gap-2">
+          <Btn size="sm" variant="outline" onClick={onJoinTeam}>Join team</Btn>
+          <Btn size="sm" onClick={onCreateTeam}>Create team</Btn>
+        </div>
       </div>
       {!memberships.length && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
@@ -199,7 +203,7 @@ function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam, onCr
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-bold text-white">{membership.team.name}</h3>
                   {isCurrent && <Badge color="amber">Current</Badge>}
-                  <Badge color="blue">{membership.role}</Badge>
+                  <Badge color="blue">{teamModel.getRoleLabel(membership.role)}</Badge>
                 </div>
                 <p className="text-xs text-zinc-500 mt-1">Joined {new Date(membership.joinedAt).toLocaleDateString('en-GB')}</p>
               </div>
@@ -238,7 +242,7 @@ function TeamOverview({ team, membership, onOpenApp, onBackToTeams }) {
         <div className="space-y-1 text-sm text-zinc-400">
           <p>Join code: <span className="text-white font-medium">{team.joinCode || 'Not available'}</span></p>
           <p>Member count: <span className="text-white font-medium">{team.memberCount ?? 0}</span></p>
-          <p>Your role: <span className="text-white font-medium capitalize">{membership?.role ?? 'unknown'}</span></p>
+          <p>Your role: <span className="text-white font-medium">{teamModel.getRoleLabel(membership?.role)}</span></p>
         </div>
       </div>
     </div>
@@ -247,6 +251,10 @@ function TeamOverview({ team, membership, onOpenApp, onBackToTeams }) {
 
 function normaliseEmail(email) {
   return email?.trim().toLowerCase() ?? ''
+}
+
+function canManageTeam(role) {
+  return teamModel.canManageTeam(role)
 }
 
 function TeamMembersPage({
@@ -258,9 +266,11 @@ function TeamMembersPage({
   onOpenApp,
   onRefresh,
   onInvitePlayer,
+  onUpdateMemberRole,
   saving,
 }) {
-  const canInvite = membership?.role === 'captain' || membership?.role === 'admin'
+  const canInvite = teamModel.canManageTeam(membership?.role)
+  const canManageRoles = teamModel.canCaptainManageRoles(membership?.role)
   const [form, setForm] = useState({ displayName: '', email: '' })
   const [status, setStatus] = useState({ error: '', success: '', info: [] })
 
@@ -301,7 +311,7 @@ function TeamMembersPage({
             <h2 className="font-display text-2xl font-bold text-white">{team?.name || 'Team'}</h2>
             <p className="text-sm text-zinc-400">Manage members and pending invites for this team.</p>
           </div>
-          <Badge color={canInvite ? 'amber' : 'gray'}>{membership?.role || 'member'}</Badge>
+          <Badge color={canInvite ? 'amber' : 'gray'}>{teamModel.getRoleLabel(membership?.role)}</Badge>
         </div>
         <div className="grid grid-cols-3 gap-2 text-sm">
           <div className="rounded-xl border border-zinc-800 bg-zinc-800/70 px-3 py-3">
@@ -314,7 +324,7 @@ function TeamMembersPage({
           </div>
           <div className="rounded-xl border border-zinc-800 bg-zinc-800/70 px-3 py-3">
             <p className="text-zinc-400 text-xs uppercase tracking-wider">Your access</p>
-            <p className="text-xl font-bold text-white capitalize">{membership?.role || 'member'}</p>
+            <p className="text-xl font-bold text-white">{teamModel.getRoleLabel(membership?.role)}</p>
           </div>
         </div>
       </div>
@@ -353,15 +363,48 @@ function TeamMembersPage({
         <div className="space-y-2">
           {!members.length ? (
             <p className="text-sm text-zinc-400">No active members yet.</p>
-          ) : members.map(member => (
-            <div key={member.id} className="rounded-xl border border-zinc-800 bg-zinc-800/80 px-3 py-3 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-white">{member.playerName || 'Unknown player'}</p>
-                <p className="text-xs text-zinc-500">{member.email || 'No email saved'}</p>
+          ) : members.map(member => {
+            const isSelf = member.playerId === membership?.playerId
+            const roleOptions = [
+              { value: 'admin', label: 'Promote to Vice-captain' },
+              { value: 'member', label: 'Demote to Player' },
+              { value: 'captain', label: 'Transfer Captaincy' },
+            ].filter(option => {
+              if (!canManageRoles) return false
+              if (member.role === option.value) return false
+              if (member.role === 'captain' && option.value !== 'captain') return false
+              if (isSelf && option.value !== 'captain') return false
+              return true
+            })
+
+            return (
+              <div key={member.id} className="rounded-xl border border-zinc-800 bg-zinc-800/80 px-3 py-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-white">{member.playerName || 'Unknown player'}{isSelf ? ' (You)' : ''}</p>
+                  <p className="text-xs text-zinc-500">{member.email || 'No email saved'}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge color="amber">{teamModel.getRoleLabel(member.role)}</Badge>
+                  {!!roleOptions.length && (
+                    <select
+                      className="bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1.5 text-xs text-white"
+                      defaultValue=""
+                      disabled={saving}
+                      onChange={async event => {
+                        const nextRole = event.target.value
+                        event.target.value = ''
+                        if (!nextRole) return
+                        await onUpdateMemberRole(member, nextRole)
+                      }}
+                    >
+                      <option value="">Role actions</option>
+                      {roleOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  )}
+                </div>
               </div>
-              <Badge color="amber">{member.role}</Badge>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
@@ -383,7 +426,7 @@ function TeamMembersPage({
                 <p className="text-xs text-zinc-500">{normaliseEmail(invite.email)}{invite.invitedAt ? ` · invited ${new Date(invite.invitedAt).toLocaleDateString('en-GB')}` : ''}</p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge color="gray">{invite.role}</Badge>
+                <Badge color="gray">{teamModel.getRoleLabel(invite.role)}</Badge>
                 <Badge color="blue">pending</Badge>
               </div>
             </div>
@@ -394,7 +437,48 @@ function TeamMembersPage({
   )
 }
 
-function PlayerProfilePage({ profile, memberships, onSaveProfile, onCreateTeam, saving }) {
+
+function JoinTeamPage({ onJoinTeam, onCreateTeam, saving }) {
+  const [joinCode, setJoinCode] = useState('')
+  const [status, setStatus] = useState({ error: '', success: '', teamName: '' })
+
+  const submit = async event => {
+    event.preventDefault()
+    setStatus({ error: '', success: '', teamName: '' })
+    try {
+      const result = await onJoinTeam(joinCode)
+      setStatus({ error: '', success: result.message, teamName: result.team.name })
+      setJoinCode('')
+    } catch (err) {
+      setStatus({ error: err?.message ?? 'Failed to join team.', success: '', teamName: '' })
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-2xl font-bold text-white">Join Team</h2>
+          <p className="text-sm text-zinc-400">Enter a team join code to join immediately as a Player.</p>
+        </div>
+        <Btn size="sm" variant="outline" onClick={onCreateTeam}>Create team</Btn>
+      </div>
+      <form onSubmit={submit} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <Input label="Team join code" value={joinCode} onChange={event => setJoinCode(event.target.value.toUpperCase())} placeholder="AB12CD34" maxLength={16} />
+        {status.error && <p className="mb-3 text-sm text-red-400">{status.error}</p>}
+        {status.success && (
+          <div className="mb-3 rounded-xl border border-emerald-800/60 bg-emerald-950/40 px-3 py-3">
+            <p className="text-sm text-emerald-300">{status.success}</p>
+            {status.teamName && <p className="text-xs text-emerald-200/80 mt-1">Team: {status.teamName}</p>}
+          </div>
+        )}
+        <Btn type="submit" disabled={saving || !joinCode.trim()}>{saving ? 'Joining...' : 'Join team'}</Btn>
+      </form>
+    </div>
+  )
+}
+
+function PlayerProfilePage({ profile, memberships, onSaveProfile, onCreateTeam, onJoinTeam, saving }) {
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
   const [receiveTeamNotifications, setReceiveTeamNotifications] = useState(Boolean(profile?.receiveTeamNotifications))
   const [status, setStatus] = useState({ error: '', success: '' })
@@ -422,7 +506,10 @@ function PlayerProfilePage({ profile, memberships, onSaveProfile, onCreateTeam, 
           <h2 className="font-display text-2xl font-bold text-white">Player Profile</h2>
           <p className="text-sm text-zinc-400">Manage the player record linked to your signed-in account.</p>
         </div>
-        <Btn size="sm" onClick={onCreateTeam}>Create team</Btn>
+        <div className="flex gap-2">
+          <Btn size="sm" variant="outline" onClick={onJoinTeam}>Join team</Btn>
+          <Btn size="sm" onClick={onCreateTeam}>Create team</Btn>
+        </div>
       </div>
 
       <form onSubmit={submit} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
@@ -461,7 +548,7 @@ function PlayerProfilePage({ profile, memberships, onSaveProfile, onCreateTeam, 
                   <p className="text-sm font-medium text-white">{membership.team.name}</p>
                   <p className="text-xs text-zinc-500">Join code {membership.team.joinCode || 'N/A'} · {membership.team.memberCount ?? 0} members</p>
                 </div>
-                <Badge color="amber">{membership.role}</Badge>
+                <Badge color="amber">{teamModel.getRoleLabel(membership.role)}</Badge>
               </div>
             </div>
           ))}
@@ -832,6 +919,64 @@ export default function App() {
     }
   }), [currentTeamId, currentTeamMembership, loadTeamRoster, memberContext.player?.id, refreshMemberContext, session?.user])
 
+
+  const handleJoinTeam = useCallback((joinCode) => withSave(async () => {
+    if (!session?.user) throw new Error('You must be signed in.')
+    const normalizedJoinCode = joinCode?.trim().toUpperCase()
+    if (!normalizedJoinCode) throw new Error('Enter a team join code.')
+
+    const player = await userProfileDb.ensureCurrentUserPlayer({ user: session.user })
+    const team = await teamModel.getTeamByJoinCode(normalizedJoinCode)
+    if (!team) throw new Error('That join code is invalid. Check the code and try again.')
+
+    const existingMembership = await teamModel.getTeamMembership({ teamId: team.id, playerId: player.id })
+    if (existingMembership?.status === 'active') {
+      await teamModel.acceptTeamInvite({ teamId: team.id, email: player.email, playerId: player.id })
+      await refreshMemberContext(session.user, { name: 'team', teamId: team.id })
+      await loadTeamRoster(team.id)
+      return {
+        team,
+        message: `You already belong to ${team.name}. Nothing changed.`,
+      }
+    }
+
+    await teamModel.addTeamMembership({ teamId: team.id, playerId: player.id, role: 'member', status: 'active' })
+    if (player.email) {
+      await teamModel.acceptTeamInvite({ teamId: team.id, email: player.email, playerId: player.id })
+    }
+    await refreshMemberContext(session.user, { name: 'team', teamId: team.id })
+    await loadTeamRoster(team.id)
+    navigate(`/teams/${team.id}`)
+
+    return {
+      team,
+      message: `You joined ${team.name} successfully.`,
+    }
+  }), [loadTeamRoster, refreshMemberContext, session?.user])
+
+  const handleUpdateMemberRole = useCallback((member, nextRole) => withSave(async () => {
+    if (!currentTeamId) throw new Error('Select a team first.')
+    if (currentTeamMembership?.role !== 'captain') throw new Error('Only the captain can change team roles.')
+    if (!member?.id) throw new Error('Member is required.')
+    if (!['captain', 'admin', 'member'].includes(nextRole)) throw new Error('Invalid role.')
+
+    if (member.playerId === currentTeamMembership.playerId && nextRole !== 'captain') {
+      throw new Error('Captain cannot remove their own captaincy without transferring it first.')
+    }
+    if (nextRole === 'captain') {
+      await teamModel.updateTeamMembership({ membershipId: member.id, role: 'captain' })
+      const currentCaptain = teamRoster.members.find(entry => entry.playerId === currentTeamMembership.playerId)
+      if (currentCaptain) {
+        await teamModel.updateTeamMembership({ membershipId: currentCaptain.id, role: 'member' })
+      }
+    } else {
+      if (member.role === 'captain') throw new Error('Transfer captaincy instead of demoting the captain directly.')
+      await teamModel.updateTeamMembership({ membershipId: member.id, role: nextRole })
+    }
+
+    await Promise.all([loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
+  }), [currentTeamId, currentTeamMembership, loadTeamRoster, refreshMemberContext, session?.user, teamRoster.members])
+
   const tabLabels = ['Dashboard', 'Matches', 'Fines', 'Setup']
   const icons = ['📊', '🎱', '💰', '⚙️']
 
@@ -894,16 +1039,22 @@ export default function App() {
                 memberships={memberContext.memberships}
                 onSaveProfile={handleSaveProfile}
                 onCreateTeam={() => navigate('/teams/new')}
+                onJoinTeam={() => navigate('/teams/join')}
                 saving={saving}
               />
             ) : route.name === 'create-team' ? (
               <CreateTeamPage onCreateTeam={handleCreateTeam} saving={saving} />
+            ) : route.name === 'join-team' ? (
+              <JoinTeamPage onJoinTeam={handleJoinTeam} onCreateTeam={() => navigate('/teams/new')} saving={saving} />
             ) : !currentTeamId ? (
               <div className="space-y-3">
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
                   No current team is available for this account yet.
                 </div>
-                <Btn onClick={() => navigate('/teams/new')}>Create your first team</Btn>
+                <div className="flex gap-2">
+                  <Btn variant="outline" onClick={() => navigate('/teams/join')}>Join a team</Btn>
+                  <Btn onClick={() => navigate('/teams/new')}>Create your first team</Btn>
+                </div>
               </div>
             ) : loading ? <Spinner /> : error ? <ErrorScreen error={error} onRetry={() => load(currentTeamId)} /> : route.name === 'teams' ? (
               <TeamsIndex
@@ -912,6 +1063,7 @@ export default function App() {
                 onSwitchTeam={teamId => switchTeam(teamId, 'app')}
                 onOpenTeam={teamId => switchTeam(teamId, 'team')}
                 onCreateTeam={() => navigate('/teams/new')}
+                onJoinTeam={() => navigate('/teams/join')}
               />
             ) : route.name === 'team' ? (
               <TeamMembersPage
@@ -923,6 +1075,7 @@ export default function App() {
                 onBackToTeams={() => navigate('/teams')}
                 onRefresh={() => loadTeamRoster(currentTeamId)}
                 onInvitePlayer={handleInvitePlayer}
+                onUpdateMemberRole={handleUpdateMemberRole}
                 saving={saving}
               />
             ) : (
@@ -931,11 +1084,12 @@ export default function App() {
                   Working in <span className="text-white font-bold">{currentTeamMembership?.team.name ?? 'Selected team'}</span>.
                 </div>
                 {tab === 0 && <Dashboard players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} currentTeam={currentTeamMembership?.team} />}
-                {tab === 1 && <MatchesTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} />}
-                {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} />}
-                {tab === 3 && <SetupTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches}
+                {tab === 1 && <MatchesTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
+                {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
+                {tab === 3 && canManageTeam(currentTeamMembership?.role) && <SetupTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches}
                                 setPlayers={setPlayers} setFineTypes={setFineTypes} setSeasons={setSeasons} setMatches={setMatches} withSave={withSave}
-                                currentUser={session?.user} profile={profile} setProfile={setProfile} currentTeamId={currentTeamId} currentTeam={currentTeamMembership?.team} />}
+                                currentUser={session?.user} profile={profile} setProfile={setProfile} currentTeamId={currentTeamId} currentTeam={currentTeamMembership?.team} currentTeamRole={currentTeamMembership?.role} />}
+                {tab === 3 && !canManageTeam(currentTeamMembership?.role) && <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-400">Only captains and vice-captains can access team setup tools.</div>}
               </>
             )}
           </div>

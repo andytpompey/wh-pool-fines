@@ -14,6 +14,7 @@ export async function resolveAuthenticatedPlayerContext({ user }) {
   const memberships = await teamModel.listMembershipsForPlayer(profile.playerId)
   const membershipsWithCounts = await Promise.all(memberships.map(async membership => ({
     ...membership,
+    playerId: profile.playerId,
     team: {
       ...membership.team,
       memberCount: await teamModel.getTeamMembershipCount(membership.team.id),
