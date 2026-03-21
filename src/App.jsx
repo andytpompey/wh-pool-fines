@@ -174,44 +174,103 @@ function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam }) {
 }
 
 function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam, onCreateTeam, onJoinTeam }) {
+  const currentMembership = memberships.find(membership => membership.team.id === currentTeamId) ?? null
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h2 className="font-display text-2xl font-bold text-white">My Teams</h2>
-          <p className="text-sm text-zinc-400">Choose a team to enter, or switch your app-wide team context.</p>
-        </div>
-        <div className="flex gap-2">
-          <Btn size="sm" variant="outline" onClick={onJoinTeam}>Join team</Btn>
-          <Btn size="sm" onClick={onCreateTeam}>Create team</Btn>
+    <div className="space-y-4">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">More &gt; Teams</p>
+            <h2 className="font-display text-2xl font-bold text-white mt-1">Teams</h2>
+            <p className="text-sm text-zinc-400 mt-1">Switch the app-wide active team here, then open a team for deeper management when needed.</p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Btn size="sm" variant="outline" onClick={onJoinTeam}>Join team</Btn>
+            <Btn size="sm" onClick={onCreateTeam}>Create team</Btn>
+          </div>
         </div>
       </div>
-      {!memberships.length && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
-          You do not currently belong to any teams yet.
+
+      <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Active team context</p>
+            <p className="text-sm text-zinc-400 mt-1">Dashboard, Matches, and Fines continue to use the current team shown below.</p>
+          </div>
+          <Badge color={currentMembership ? 'amber' : 'gray'}>{currentMembership ? 'Current' : 'No team'}</Badge>
         </div>
-      )}
-      {memberships.map(membership => {
-        const isCurrent = membership.team.id === currentTeamId
-        return (
-          <div key={membership.team.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-            <div className="flex items-start justify-between gap-3">
+        <div className="mt-3 rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3">
+          {currentMembership ? (
+            <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-bold text-white">{membership.team.name}</h3>
-                  {isCurrent && <Badge color="amber">Current</Badge>}
-                  <Badge color="blue">{teamModel.getRoleLabel(membership.role)}</Badge>
+                  <p className="text-base font-bold text-white">{currentMembership.team.name}</p>
+                  <Badge color="amber">Current</Badge>
                 </div>
-                <p className="text-xs text-zinc-500 mt-1">Joined {new Date(membership.joinedAt).toLocaleDateString('en-GB')}</p>
+                <p className="text-xs text-zinc-400 mt-1">{teamModel.getRoleLabel(currentMembership.role)} · {currentMembership.team.memberCount ?? 0} members</p>
+              </div>
+              <Btn size="sm" variant="outline" onClick={() => onOpenTeam(currentMembership.team.id)}>Manage team</Btn>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-zinc-400">You do not have an active team yet. Join an existing team or create a new one to get started.</p>
+              <div className="flex gap-2">
+                <Btn size="sm" variant="outline" onClick={onJoinTeam}>Join team</Btn>
+                <Btn size="sm" onClick={onCreateTeam}>Create team</Btn>
               </div>
             </div>
-            <div className="flex gap-2 mt-4">
-              <Btn className="flex-1" onClick={() => onOpenTeam(membership.team.id)}>Open team</Btn>
-              {!isCurrent && <Btn variant="outline" className="flex-1" onClick={() => onSwitchTeam(membership.team.id)}>Set current</Btn>}
-            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-white">Your teams</h3>
+            <p className="text-sm text-zinc-400">Choose one action to switch context, or the other to manage that team.</p>
           </div>
-        )
-      })}
+          <Badge color="blue">{memberships.length}</Badge>
+        </div>
+
+        {!memberships.length && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
+            You do not currently belong to any teams yet.
+          </div>
+        )}
+
+        {memberships.map(membership => {
+          const isCurrent = membership.team.id === currentTeamId
+          return (
+            <div key={membership.team.id} className={`bg-zinc-900 border rounded-2xl p-4 ${isCurrent ? 'border-amber-500/60' : 'border-zinc-800'}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-white">{membership.team.name}</h3>
+                    {isCurrent && <Badge color="amber">Current</Badge>}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Badge color="blue">{teamModel.getRoleLabel(membership.role)}</Badge>
+                    <Badge color="gray">{membership.team.memberCount ?? 0} members</Badge>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-2">Joined {new Date(membership.joinedAt).toLocaleDateString('en-GB')}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+                <Btn
+                  variant={isCurrent ? 'ghost' : 'outline'}
+                  className="w-full"
+                  onClick={() => onSwitchTeam(membership.team.id)}
+                  disabled={isCurrent}
+                >
+                  {isCurrent ? 'Current team selected' : 'Switch to this team'}
+                </Btn>
+                <Btn className="w-full" onClick={() => onOpenTeam(membership.team.id)}>Manage team</Btn>
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -1085,17 +1144,7 @@ export default function App() {
               <CreateTeamPage onCreateTeam={handleCreateTeam} saving={saving} />
             ) : route.name === 'join-team' ? (
               <JoinTeamPage onJoinTeam={handleJoinTeam} onCreateTeam={() => navigate('/teams/new')} saving={saving} />
-            ) : !currentTeamId ? (
-              <div className="space-y-3">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
-                  No current team is available for this account yet.
-                </div>
-                <div className="flex gap-2">
-                  <Btn variant="outline" onClick={() => navigate('/teams/join')}>Join a team</Btn>
-                  <Btn onClick={() => navigate('/teams/new')}>Create your first team</Btn>
-                </div>
-              </div>
-            ) : loading ? <Spinner /> : error ? <ErrorScreen error={error} onRetry={() => load(currentTeamId)} /> : route.name === 'teams' ? (
+            ) : route.name === 'teams' ? (
               <TeamsIndex
                 memberships={memberContext.memberships}
                 currentTeamId={currentTeamId}
@@ -1104,7 +1153,18 @@ export default function App() {
                 onCreateTeam={() => navigate('/teams/new')}
                 onJoinTeam={() => navigate('/teams/join')}
               />
-            ) : route.name === 'team' ? (
+            ) : !currentTeamId ? (
+              <div className="space-y-3">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
+                  No current team is available for this account yet.
+                </div>
+                <div className="flex gap-2">
+                  <Btn variant="outline" onClick={() => navigate('/teams')}>View teams</Btn>
+                  <Btn variant="outline" onClick={() => navigate('/teams/join')}>Join a team</Btn>
+                  <Btn onClick={() => navigate('/teams/new')}>Create your first team</Btn>
+                </div>
+              </div>
+            ) : loading ? <Spinner /> : error ? <ErrorScreen error={error} onRetry={() => load(currentTeamId)} /> : route.name === 'team' ? (
               <TeamMembersPage
                 team={currentTeamMembership?.team}
                 membership={currentTeamMembership}
