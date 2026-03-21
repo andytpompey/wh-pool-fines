@@ -79,10 +79,13 @@ export async function signOut() {
   if (error) throw error
 }
 
-export function getSession() {
-  return supabase.auth.getSession()
+export async function getSession() {
+  const { data, error } = await supabase.auth.getSession()
+  if (error) throw error
+  return data.session
 }
 
 export function onAuthStateChange(callback) {
-  return supabase.auth.onAuthStateChange(callback)
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => callback(session))
+  return () => data.subscription.unsubscribe()
 }

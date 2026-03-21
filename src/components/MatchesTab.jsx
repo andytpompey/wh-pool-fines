@@ -86,6 +86,9 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
 
   return (
     <div>
+      <div className="mb-4 bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
+        Matches are scoped to the selected team. TODO: match players still reference global player profiles until roster screens are team-aware.
+      </div>
       <div className="flex items-center gap-3 mb-4">
         <button onClick={onBack} className="text-amber-400 hover:text-amber-300 font-bold text-sm">← Back</button>
         <div className="flex-1">
@@ -290,7 +293,7 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
 }
 
 // ─── Matches Tab ──────────────────────────────────────────────────────────────
-export default function MatchesTab({ players, fineTypes, seasons, matches, setMatches, withSave }) {
+export default function MatchesTab({ players, fineTypes, seasons, matches, setMatches, withSave, currentTeamId }) {
   const [selectedId, setSelectedId] = useState(null)
   const [showNew,    setShowNew]    = useState(false)
   const [newMatch,   setNewMatch]   = useState({ date: '', seasonId: '', opponent: '' })
@@ -334,6 +337,9 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
 
   return (
     <div>
+      <div className="mb-4 bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
+        Matches are scoped to the selected team. TODO: match players still reference global player profiles until roster screens are team-aware.
+      </div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-display text-lg font-bold text-white">Matches</h2>
         <Btn onClick={() => setShowNew(true)}>+ New Match</Btn>
