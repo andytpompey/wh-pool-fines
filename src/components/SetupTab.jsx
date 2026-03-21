@@ -7,9 +7,11 @@ export default function SetupTab({
   players, fineTypes, seasons, matches,
   setPlayers, setFineTypes, setSeasons, setMatches,
   withSave, currentUser, profile, setProfile, currentTeamId, currentTeam, currentTeamRole,
+  onOpenProfile, onOpenTeams, onSignOut,
 }) {
-  const [section, setSection] = useState('players')
+  const [section, setSection] = useState('hub')
   const canManageTeam = currentTeamRole === 'captain' || currentTeamRole === 'admin'
+  const sections = canManageTeam ? ['hub', 'players', 'fines', 'seasons', 'account', 'data'] : ['hub', 'account']
 
   // ── Player state ──────────────────────────────────────────────────────────
   const [playerInput, setPlayerInput]             = useState({ name: '', email: '', mobile: '', preferredAuthMethod: 'email' })
@@ -191,21 +193,62 @@ export default function SetupTab({
 
   return (
     <div>
-      {currentTeam && (
-        <div className="mb-4 bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
-          Setup is editing team-scoped seasons and fine types for <span className="text-white font-bold">{currentTeam.name}</span>.
-          <span className="block mt-1">TODO: player management is still global until roster-specific team admin screens are rebuilt.</span>
+      <div className="space-y-4">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">More</p>
+              <h2 className="font-display text-2xl font-bold text-white mt-1">Account & team hub</h2>
+              <p className="text-sm text-zinc-400 mt-1">Access profile, team management, and other non-match actions from one place.</p>
+            </div>
+            {currentTeam && (
+              <div className="text-right text-xs text-zinc-500">
+                <div>Current team</div>
+                <div className="text-white font-bold mt-1">{currentTeam.name}</div>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
+            <Btn onClick={onOpenProfile} className="w-full">Profile</Btn>
+            <Btn variant="outline" onClick={onOpenTeams} className="w-full">Teams</Btn>
+            <Btn variant="ghost" onClick={onSignOut} className="w-full">Sign out</Btn>
+          </div>
         </div>
-      )}
 
-      <div className="flex gap-1 mb-4 bg-zinc-800 rounded-xl p-1">
-        {['players', 'fines', 'seasons', 'account', 'data'].map(s => (
+        {currentTeam && (
+          <div className="bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
+            Team setup tools below still edit team-scoped seasons and fine types for <span className="text-white font-bold">{currentTeam.name}</span>.
+            <span className="block mt-1">Player management remains available here for now until roster-specific admin screens are rebuilt.</span>
+          </div>
+        )}
+      </div>
+
+      <div className="flex gap-1 mb-4 mt-4 bg-zinc-800 rounded-xl p-1 overflow-x-auto">
+        {sections.map(s => (
           <button key={s} onClick={() => setSection(s)}
             className={`flex-1 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${section === s ? 'bg-amber-500 text-zinc-900' : 'text-zinc-400 hover:text-white'}`}>
             {s}
           </button>
         ))}
       </div>
+
+      {section === 'hub' && (
+        <div className="space-y-3">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
+            Use this area for account access, team switching, and setup tools that are outside the day-to-day Dashboard, Matches, and Fines workflow.
+          </div>
+          {!canManageTeam && (
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-400">
+              Team setup tools are limited to captains and vice-captains, but your Profile and Teams pages are available above.
+            </div>
+          )}
+          {canManageTeam && (
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-400">
+              Captains and vice-captains can use the tabs below to manage players, fine types, seasons, account preferences, and data import/export without changing match-day screens.
+            </div>
+          )}
+        </div>
+      )}
 
       {section === 'players' && (
         <div>

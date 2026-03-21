@@ -146,7 +146,7 @@ function ErrorScreen({ error, onRetry }) {
   )
 }
 
-function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam, onViewTeams, onViewProfile }) {
+function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam }) {
   if (!memberships.length) return null
 
   return (
@@ -156,10 +156,7 @@ function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam, onViewTeams, o
           <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Current team</p>
           <p className="text-sm text-white">Switch context safely without leaving the app.</p>
         </div>
-        <div className="flex gap-2">
-          <Btn size="sm" variant="outline" onClick={onViewProfile}>Profile</Btn>
-          <Btn size="sm" variant="outline" onClick={onViewTeams}>My Teams</Btn>
-        </div>
+        <Badge color="blue">Info only</Badge>
       </div>
       <select
         value={currentTeamId ?? ''}
@@ -977,8 +974,8 @@ export default function App() {
     await Promise.all([loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
   }), [currentTeamId, currentTeamMembership, loadTeamRoster, refreshMemberContext, session?.user, teamRoster.members])
 
-  const tabLabels = ['Dashboard', 'Matches', 'Fines', 'Setup']
-  const icons = ['📊', '🎱', '💰', '⚙️']
+  const tabLabels = ['Dashboard', 'Matches', 'Fines', 'More']
+  const icons = ['📊', '🎱', '💰', '➕']
 
   if (authLoading) return <Spinner />
 
@@ -1007,13 +1004,8 @@ export default function App() {
             <span>Last updated: {formatLastUpdated(LAST_UPDATED)}</span>
           </div>
           {currentPlayer && (
-            <div className="flex items-center gap-2">
-              <button onClick={() => navigate('/profile')} className="text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded-full px-3 py-1.5 whitespace-nowrap">
-                Profile
-              </button>
-              <button onClick={handleSignOut} className="text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded-full px-3 py-1.5 whitespace-nowrap">
-                Sign out
-              </button>
+            <div className="text-xs text-zinc-500">
+              {profile?.displayName || currentPlayer.name}
             </div>
           )}
         </div>
@@ -1029,8 +1021,6 @@ export default function App() {
               memberships={memberContext.memberships}
               currentTeamId={currentTeamId}
               onSwitchTeam={teamId => switchTeam(teamId, route.name === 'team' ? 'team' : 'app')}
-              onViewTeams={() => navigate('/teams')}
-              onViewProfile={() => navigate('/profile')}
             />
 
             {route.name === 'profile' ? (
@@ -1086,10 +1076,10 @@ export default function App() {
                 {tab === 0 && <Dashboard players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} currentTeam={currentTeamMembership?.team} />}
                 {tab === 1 && <MatchesTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
                 {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
-                {tab === 3 && canManageTeam(currentTeamMembership?.role) && <SetupTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches}
+                {tab === 3 && <SetupTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches}
                                 setPlayers={setPlayers} setFineTypes={setFineTypes} setSeasons={setSeasons} setMatches={setMatches} withSave={withSave}
-                                currentUser={session?.user} profile={profile} setProfile={setProfile} currentTeamId={currentTeamId} currentTeam={currentTeamMembership?.team} currentTeamRole={currentTeamMembership?.role} />}
-                {tab === 3 && !canManageTeam(currentTeamMembership?.role) && <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-400">Only captains and vice-captains can access team setup tools.</div>}
+                                currentUser={session?.user} profile={profile} setProfile={setProfile} currentTeamId={currentTeamId} currentTeam={currentTeamMembership?.team} currentTeamRole={currentTeamMembership?.role}
+                                onOpenProfile={() => navigate('/profile')} onOpenTeams={() => navigate('/teams')} onSignOut={handleSignOut} />}
               </>
             )}
           </div>
