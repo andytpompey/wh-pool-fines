@@ -494,19 +494,38 @@ function FineTypesTab({ fineTypes, canManageTeam, saving, onAddFineType, onUpdat
   const [confirmDeleteFine, setConfirmDeleteFine] = useState(null)
   const [finePinInput, setFinePinInput] = useState('')
   const [finePinError, setFinePinError] = useState('')
+  const sortedFineTypes = useMemo(() => [...fineTypes].sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name)), [fineTypes])
 
   return (
     <div className="space-y-4">
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <h3 className="font-bold text-white">Team fine types</h3>
+            <p className="text-xs text-zinc-400">Manage the fine definitions used by this team&apos;s matches, fine recording, and reporting.</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge color={canManageTeam ? 'green' : 'red'}>{canManageTeam ? 'Editable' : 'View only'}</Badge>
+            <Badge color="blue">{sortedFineTypes.length} {sortedFineTypes.length === 1 ? 'fine type' : 'fine types'}</Badge>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <SummaryCard label="Configured fines" value={sortedFineTypes.length} accent="text-amber-400" />
+          <SummaryCard label="Lowest price" value={sortedFineTypes.length ? `£${sortedFineTypes[0].cost.toFixed(2)}` : '—'} />
+          <SummaryCard label="Highest price" value={sortedFineTypes.length ? `£${sortedFineTypes[sortedFineTypes.length - 1].cost.toFixed(2)}` : '—'} />
+        </div>
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div>
-            <h3 className="font-bold text-white">Fine types</h3>
-            <p className="text-xs text-zinc-400">Manage fine definitions used by matches and reports for this team.</p>
+            <h4 className="font-bold text-white">Add fine type</h4>
+            <p className="text-xs text-zinc-400">New fine types are created for the selected team only.</p>
           </div>
-          <Badge color={canManageTeam ? 'green' : 'red'}>{canManageTeam ? 'Editable' : 'View only'}</Badge>
         </div>
         <Input label="Fine name" value={fineInput.name} onChange={event => setFineInput(current => ({ ...current, name: event.target.value }))} disabled={!canManageTeam || saving} />
-        <Input label="Cost (£)" type="number" step="0.10" min="0" value={fineInput.cost} onChange={event => setFineInput(current => ({ ...current, cost: event.target.value }))} disabled={!canManageTeam || saving} />
+        <Input label="Current price (£)" type="number" step="0.10" min="0" value={fineInput.cost} onChange={event => setFineInput(current => ({ ...current, cost: event.target.value }))} disabled={!canManageTeam || saving} />
         <Btn
           onClick={async () => {
             await onAddFineType(fineInput)
@@ -519,19 +538,29 @@ function FineTypesTab({ fineTypes, canManageTeam, saving, onAddFineType, onUpdat
       </div>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h4 className="font-bold text-white">Configured fine types</h4>
+            <p className="text-xs text-zinc-400">Update names and prices here. This team-scoped list reuses the existing fine type create, edit, and delete flow.</p>
+          </div>
+        </div>
         <div className="space-y-2">
-          {!fineTypes.length ? (
+          {!sortedFineTypes.length ? (
             <EmptyState>No fine types configured yet.</EmptyState>
-          ) : [...fineTypes].sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name)).map(fineType => (
+          ) : sortedFineTypes.map(fineType => (
             <div key={fineType.id} className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-3 gap-3">
-              <div>
-                <span className="text-white text-sm font-medium">{fineType.name}</span>
-                <span className="text-amber-400 text-xs font-bold ml-2">£{fineType.cost.toFixed(2)}</span>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-white text-sm font-medium">{fineType.name}</span>
+                  <Badge color="amber">£{fineType.cost.toFixed(2)}</Badge>
+                </div>
+                <p className="text-xs text-zinc-500">Price changes apply only to this team&apos;s fine configuration.</p>
               </div>
               {canManageTeam && (
                 <div className="flex items-center gap-2 shrink-0">
                   <button onClick={() => setEditFineType({ id: fineType.id, name: fineType.name, cost: String(fineType.cost) })} className="text-xs px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-bold">Edit</button>
-                  <button onClick={() => { setConfirmDeleteFine(fineType); setFinePinInput(''); setFinePinError('') }} className="text-red-400 hover:text-red-300 text-xl leading-none">×</button>
+                  <button onClick={() => { setEditFineType({ id: fineType.id, name: fineType.name, cost: String(fineType.cost) }) }} className="text-xs px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-bold">Change price</button>
+                  <button onClick={() => { setConfirmDeleteFine(fineType); setFinePinInput(''); setFinePinError('') }} className="text-xs px-2 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 font-bold">Delete</button>
                 </div>
               )}
             </div>
@@ -584,17 +613,36 @@ function SeasonsTab({ seasons, canManageTeam, saving, onAddSeason, onUpdateSeaso
   const [deletePinInput, setDeletePinInput] = useState('')
   const [deletePinError, setDeletePinError] = useState('')
 
+  const sortedSeasons = useMemo(() => [...seasons].sort((a, b) => a.name.localeCompare(b.name)), [seasons])
   const seasonCountLabel = useMemo(() => `${seasons.length} ${seasons.length === 1 ? 'season' : 'seasons'}`, [seasons.length])
 
   return (
     <div className="space-y-4">
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
+          <div>
+            <h3 className="font-bold text-white">Team seasons</h3>
+            <p className="text-xs text-zinc-400">Configure the seasons that organise this team&apos;s fixtures, fines, and reporting.</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge color={canManageTeam ? 'green' : 'red'}>{canManageTeam ? seasonCountLabel : 'View only'}</Badge>
+            <Badge color="blue">Team scoped</Badge>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <SummaryCard label="Configured seasons" value={sortedSeasons.length} accent="text-blue-400" />
+          <SummaryCard label="League seasons" value={sortedSeasons.filter(season => season.type !== 'Cup').length} />
+          <SummaryCard label="Cup seasons" value={sortedSeasons.filter(season => season.type === 'Cup').length} accent="text-amber-400" />
+        </div>
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div>
-            <h3 className="font-bold text-white">Seasons</h3>
-            <p className="text-xs text-zinc-400">Configure season groupings for team matches and reporting.</p>
+            <h4 className="font-bold text-white">Create season</h4>
+            <p className="text-xs text-zinc-400">New seasons are attached to the selected team and available in matches immediately.</p>
           </div>
-          <Badge color={canManageTeam ? 'green' : 'red'}>{canManageTeam ? seasonCountLabel : 'View only'}</Badge>
         </div>
         <Input label="Season name" value={seasonInput.name} onChange={event => setSeasonInput(current => ({ ...current, name: event.target.value }))} disabled={!canManageTeam || saving} />
         <Sel label="Type" value={seasonInput.type} onChange={event => setSeasonInput(current => ({ ...current, type: event.target.value }))} disabled={!canManageTeam || saving}>
@@ -608,24 +656,33 @@ function SeasonsTab({ seasons, canManageTeam, saving, onAddSeason, onUpdateSeaso
           }}
           disabled={!canManageTeam || saving || !seasonInput.name.trim()}
         >
-          Add season
+          Create season
         </Btn>
       </div>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h4 className="font-bold text-white">Configured seasons</h4>
+            <p className="text-xs text-zinc-400">This view reuses the existing season create, edit, and delete flow for the selected team.</p>
+          </div>
+        </div>
         <div className="space-y-2">
-          {!seasons.length ? (
+          {!sortedSeasons.length ? (
             <EmptyState>No seasons configured yet.</EmptyState>
-          ) : [...seasons].sort((a, b) => a.name.localeCompare(b.name)).map(season => (
+          ) : sortedSeasons.map(season => (
             <div key={season.id} className="flex items-center justify-between bg-zinc-800 rounded-lg px-3 py-3 gap-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-white text-sm font-medium">{season.name}</span>
-                <Badge color={season.type === 'Cup' ? 'amber' : 'blue'}>{season.type}</Badge>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-white text-sm font-medium">{season.name}</span>
+                  <Badge color={season.type === 'Cup' ? 'amber' : 'blue'}>{season.type}</Badge>
+                </div>
+                <p className="text-xs text-zinc-500">This season is scoped to the selected team and remains available to matches that reference it.</p>
               </div>
               {canManageTeam && (
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                   <button onClick={() => setEditSeason({ ...season })} className="text-xs px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-bold">Edit</button>
-                  <button onClick={() => { setConfirmDeleteSeason(season); setDeletePinInput(''); setDeletePinError('') }} className="text-red-400 hover:text-red-300 text-xl leading-none">×</button>
+                  <button onClick={() => { setConfirmDeleteSeason(season); setDeletePinInput(''); setDeletePinError('') }} className="text-xs px-2 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 font-bold">Delete</button>
                 </div>
               )}
             </div>
