@@ -9,6 +9,7 @@ export default function SetupTab({
   onOpenProfile, onOpenTeams, onOpenTeamManagement, onSignOut,
 }) {
   const [section, setSection] = useState('hub')
+  const hasCurrentTeam = Boolean(currentTeam)
   const canManageTeam = currentTeamRole === 'captain' || currentTeamRole === 'admin'
   const sections = canManageTeam ? ['hub', 'account', 'data'] : ['hub', 'account']
 
