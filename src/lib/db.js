@@ -9,13 +9,16 @@ function handle(result) {
   return result.data
 }
 
-export async function loadAll() {
+export async function loadAll({ teamId } = {}) {
+  if (!teamId) {
+    return { players: [], fineTypes: [], seasons: [], matches: [] }
+  }
   const [players, fineTypes, seasons, matchRows, fineRows, subRows, mpRows] =
     await Promise.all([
       supabase.from('players').select('*').order('display_name', { ascending: true, nullsFirst: false }).order('name'),
-      supabase.from('fine_types').select('*').order('cost').order('name'),
-      supabase.from('seasons').select('*').order('name'),
-      supabase.from('matches').select('*').order('date', { ascending: false }),
+      supabase.from('fine_types').select('*').eq('team_id', teamId).order('cost').order('name'),
+      supabase.from('seasons').select('*').eq('team_id', teamId).order('name'),
+      supabase.from('matches').select('*').eq('team_id', teamId).order('date', { ascending: false }),
       supabase.from('fines').select('*'),
       supabase.from('subs').select('*'),
       supabase.from('match_players').select('*'),
@@ -28,6 +31,7 @@ export async function loadAll() {
   const matches = matchRows.data.map(m => ({
     ...m,
     seasonId: m.season_id,
+    teamId: m.team_id,
     fines: fineRows.data.filter(f => f.match_id === m.id).map(normalFine),
     subs: subRows.data.filter(s => s.match_id === m.id).map(normalSub),
     playerIds: mpRows.data.filter(p => p.match_id === m.id).map(p => p.player_id),
@@ -50,8 +54,8 @@ const normalPlayer   = r => ({
   preferredAuthMethod: r.preferred_auth_method ?? 'email',
   authUserId: r.user_id ?? r.auth_user_id ?? null,
 })
-const normalFineType = r => ({ id: r.id, name: r.name, cost: Number(r.cost) })
-const normalSeason = r => ({ id: r.id, name: r.name, type: r.type })
+const normalFineType = r => ({ id: r.id, name: r.name, cost: Number(r.cost), teamId: r.team_id ?? null })
+const normalSeason = r => ({ id: r.id, name: r.name, type: r.type, teamId: r.team_id ?? null })
 const normalFine = r => ({
   id: r.id, matchId: r.match_id, playerId: r.player_id,
   fineTypeId: r.fine_type_id, playerName: r.player_name,
@@ -94,11 +98,11 @@ export async function deletePlayer(id) {
 }
 
 export async function addFineType(ft) {
-  return normalFineType(handle(await supabase.from('fine_types').insert({ id: ft.id, name: ft.name, cost: ft.cost }).select().single()))
+  return normalFineType(handle(await supabase.from('fine_types').insert({ id: ft.id, name: ft.name, cost: ft.cost, team_id: ft.teamId ?? null }).select().single()))
 }
 
 export async function updateFineType(ft) {
-  return normalFineType(handle(await supabase.from('fine_types').update({ name: ft.name, cost: ft.cost }).eq('id', ft.id).select().single()))
+  return normalFineType(handle(await supabase.from('fine_types').update({ name: ft.name, cost: ft.cost, team_id: ft.teamId ?? null }).eq('id', ft.id).select().single()))
 }
 
 export async function deleteFineType(id) {
@@ -106,11 +110,11 @@ export async function deleteFineType(id) {
 }
 
 export async function addSeason(season) {
-  return normalSeason(handle(await supabase.from('seasons').insert({ id: season.id, name: season.name, type: season.type }).select().single()))
+  return normalSeason(handle(await supabase.from('seasons').insert({ id: season.id, name: season.name, type: season.type, team_id: season.teamId ?? null }).select().single()))
 }
 
 export async function updateSeason(season) {
-  return normalSeason(handle(await supabase.from('seasons').update({ name: season.name, type: season.type }).eq('id', season.id).select().single()))
+  return normalSeason(handle(await supabase.from('seasons').update({ name: season.name, type: season.type, team_id: season.teamId ?? null }).eq('id', season.id).select().single()))
 }
 
 export async function deleteSeason(id) {
@@ -124,6 +128,7 @@ export async function addMatch(match) {
     season_id: match.seasonId,
     opponent: match.opponent,
     submitted: match.submitted,
+    team_id: match.teamId ?? null,
   }).select().single())
   return { ...match, ...row, seasonId: row.season_id }
 }
@@ -134,6 +139,7 @@ export async function updateMatch(match) {
     season_id: match.seasonId,
     opponent: match.opponent,
     submitted: match.submitted,
+    team_id: match.teamId ?? null,
   }).eq('id', match.id))
 
   handle(await supabase.from('match_players').delete().eq('match_id', match.id))
@@ -194,11 +200,11 @@ export async function importAll({ players, fineTypes, seasons, matches }) {
     preferred_auth_method: p.preferredAuthMethod || null,
     user_id: p.authUserId || null,
   }))))
-  if (fineTypes.length) handle(await supabase.from('fine_types').insert(fineTypes.map(f => ({ id: f.id, name: f.name, cost: f.cost }))))
-  if (seasons.length) handle(await supabase.from('seasons').insert(seasons.map(s => ({ id: s.id, name: s.name, type: s.type }))))
+  if (fineTypes.length) handle(await supabase.from('fine_types').insert(fineTypes.map(f => ({ id: f.id, name: f.name, cost: f.cost, team_id: f.teamId ?? null }))))
+  if (seasons.length) handle(await supabase.from('seasons').insert(seasons.map(s => ({ id: s.id, name: s.name, type: s.type, team_id: s.teamId ?? null }))))
 
   for (const m of matches) {
-    handle(await supabase.from('matches').insert({ id: m.id, date: m.date, season_id: m.seasonId, opponent: m.opponent, submitted: m.submitted }))
+    handle(await supabase.from('matches').insert({ id: m.id, date: m.date, season_id: m.seasonId, opponent: m.opponent, submitted: m.submitted, team_id: m.teamId ?? null }))
     if (m.playerIds?.length) handle(await supabase.from('match_players').insert(m.playerIds.map(pid => ({ match_id: m.id, player_id: pid }))))
     if (m.fines?.length) handle(await supabase.from('fines').insert(m.fines.map(f => ({ id: f.id, match_id: m.id, player_id: f.playerId, fine_type_id: f.fineTypeId, player_name: f.playerName, fine_name: f.fineName, cost: f.cost, paid: f.paid }))))
     if (m.subs?.length) handle(await supabase.from('subs').insert(m.subs.map(s => ({ id: s.id, match_id: m.id, player_id: s.playerId, player_name: s.playerName, amount: s.amount, paid: s.paid }))))
@@ -254,3 +260,7 @@ export async function createOrReusePendingTeamInvite({ teamId, email, invitedByP
     .select('*')
     .single())
 }
+
+
+// TODO: player records are still global profiles rather than per-team roster rows.
+// For now we load all players so legacy screens keep working while matches/fines/seasons/fine types are team-scoped.

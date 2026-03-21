@@ -6,7 +6,7 @@ import * as userProfileDb from '../lib/userProfile'
 export default function SetupTab({
   players, fineTypes, seasons, matches,
   setPlayers, setFineTypes, setSeasons, setMatches,
-  withSave, currentUser, profile, setProfile,
+  withSave, currentUser, profile, setProfile, currentTeamId, currentTeam,
 }) {
   const [section, setSection] = useState('players')
 
@@ -93,14 +93,14 @@ export default function SetupTab({
 
   const addFine = () => withSave(async () => {
     if (!fineInput.name.trim() || !fineInput.cost) return
-    const ft = await db.addFineType({ id: uuid(), name: fineInput.name.trim(), cost: parseFloat(fineInput.cost) })
+    const ft = await db.addFineType({ id: uuid(), name: fineInput.name.trim(), cost: parseFloat(fineInput.cost), teamId: currentTeamId })
     setFineTypes(prev => [...prev, ft].sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name)))
     setFineInput({ name: '', cost: '' })
   })
 
   const saveEditFineType = () => withSave(async () => {
     if (!editFineType?.name.trim() || !editFineType.cost) return
-    const updated = await db.updateFineType({ ...editFineType, cost: parseFloat(editFineType.cost) })
+    const updated = await db.updateFineType({ ...editFineType, cost: parseFloat(editFineType.cost), teamId: currentTeamId })
     setFineTypes(prev => prev.map(f => f.id === updated.id ? updated : f))
     setEditFineType(null)
   })
@@ -114,14 +114,14 @@ export default function SetupTab({
 
   const addSeason = () => withSave(async () => {
     if (!seasonInput.name.trim()) return
-    const s = await db.addSeason({ id: uuid(), name: seasonInput.name.trim(), type: seasonInput.type })
+    const s = await db.addSeason({ id: uuid(), name: seasonInput.name.trim(), type: seasonInput.type, teamId: currentTeamId })
     setSeasons(prev => [...prev, s].sort((a, b) => a.name.localeCompare(b.name)))
     setSeasonInput({ name: '', type: 'League' })
   })
 
   const saveEditSeason = () => withSave(async () => {
     if (!editSeason?.name.trim()) return
-    const updated = await db.updateSeason(editSeason)
+    const updated = await db.updateSeason({ ...editSeason, teamId: currentTeamId })
     setSeasons(prev => prev.map(s => s.id === updated.id ? updated : s))
     setEditSeason(null)
   })
@@ -190,6 +190,13 @@ export default function SetupTab({
 
   return (
     <div>
+      {currentTeam && (
+        <div className="mb-4 bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
+          Setup is editing team-scoped seasons and fine types for <span className="text-white font-bold">{currentTeam.name}</span>.
+          <span className="block mt-1">TODO: player management is still global until roster-specific team admin screens are rebuilt.</span>
+        </div>
+      )}
+
       <div className="flex gap-1 mb-4 bg-zinc-800 rounded-xl p-1">
         {['players', 'fines', 'seasons', 'account', 'data'].map(s => (
           <button key={s} onClick={() => setSection(s)}

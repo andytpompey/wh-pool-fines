@@ -74,3 +74,29 @@ export async function getPendingInviteByToken(token) {
     .maybeSingle())
   return row ?? null
 }
+
+
+const normaliseMembership = row => ({
+  id: row.id,
+  role: row.role,
+  status: row.status,
+  joinedAt: row.joined_at,
+  team: row.teams ? {
+    id: row.teams.id,
+    name: row.teams.name,
+    joinCode: row.teams.join_code,
+    createdAt: row.teams.created_at,
+  } : null,
+})
+
+export async function listMembershipsForPlayer(playerId) {
+  if (!playerId) return []
+  const rows = handle(await supabase
+    .from('team_memberships')
+    .select('id, role, status, joined_at, teams ( id, name, join_code, created_at )')
+    .eq('player_id', playerId)
+    .eq('status', 'active')
+    .order('joined_at'))
+
+  return (rows ?? []).map(normaliseMembership).filter(membership => membership.team)
+}

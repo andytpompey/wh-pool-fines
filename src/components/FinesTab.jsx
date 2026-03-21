@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Badge, Modal, Input, Btn, ADMIN_PIN, formatDate } from '../App'
 import * as db from '../lib/db'
 
-export default function FinesTab({ players, matches, setMatches, withSave }) {
+export default function FinesTab({ players, matches, setMatches, withSave, currentTeamId }) {
   const [filterPlayer, setFilterPlayer] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterType,   setFilterType]   = useState('all')
@@ -39,7 +39,7 @@ export default function FinesTab({ players, matches, setMatches, withSave }) {
       ? { ...currentMatch, fines: currentMatch.fines.map(f => f.id === item.id ? { ...f, paid: !f.paid } : f) }
       : { ...currentMatch, subs: (currentMatch.subs ?? []).map(s => s.id === item.id ? { ...s, paid: !s.paid } : s) }
 
-    if (updatedMatch) await db.updateMatch(updatedMatch)
+    if (updatedMatch) await db.updateMatch({ ...updatedMatch, teamId: currentTeamId })
     setMatches(prev => prev.map(m => m.id === item.matchId ? updatedMatch : m))
   })
 
@@ -50,7 +50,7 @@ export default function FinesTab({ players, matches, setMatches, withSave }) {
       subs:  (m.subs ?? []).map(s => s.playerId === playerId && !s.paid ? { ...s, paid: true } : s),
     }))
 
-    await Promise.all(updatedMatches.map(m => db.updateMatch(m)))
+    await Promise.all(updatedMatches.map(m => db.updateMatch({ ...m, teamId: currentTeamId })))
     setMatches(updatedMatches)
     setShowSettle(null)
   })
@@ -67,7 +67,7 @@ export default function FinesTab({ players, matches, setMatches, withSave }) {
       ? { ...currentMatch, fines: currentMatch.fines.filter(f => f.id !== item.id) }
       : { ...currentMatch, subs: (currentMatch.subs ?? []).filter(s => s.id !== item.id) }
 
-    if (updatedMatch) await db.updateMatch(updatedMatch)
+    if (updatedMatch) await db.updateMatch({ ...updatedMatch, teamId: currentTeamId })
     setMatches(prev => prev.map(m => m.id === item.matchId ? updatedMatch : m))
     setPendingDelete(null); setPinInput(''); setPinError('')
   })
@@ -86,6 +86,9 @@ export default function FinesTab({ players, matches, setMatches, withSave }) {
 
   return (
     <div>
+      <div className="mb-4 bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
+        Fines and subs reflect the selected team through its matches.
+      </div>
       {/* Player balances */}
       {playerSummaries.length > 0 && (
         <div className="mb-5">
