@@ -479,6 +479,7 @@ function CreateTeamPage({ onCreateTeam, saving }) {
 
 export default function App() {
   const [tab, setTab] = useState(0)
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
   const [route, setRoute] = useState(() => getRoute())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -565,6 +566,10 @@ export default function App() {
     window.addEventListener('popstate', handleRouteChange)
     return () => window.removeEventListener('popstate', handleRouteChange)
   }, [])
+
+  useEffect(() => {
+    setIsMoreMenuOpen(false)
+  }, [route.name, currentTeamId])
 
   useEffect(() => {
     auth.getSession()
@@ -1026,8 +1031,12 @@ export default function App() {
     setSeasons(prev => prev.filter(item => item.id !== season.id))
   }), [currentTeamId, currentTeamMembership?.role])
 
-  const tabLabels = ['Dashboard', 'Matches', 'Fines', 'More']
-  const icons = ['📊', '🎱', '💰', '➕']
+  const navItems = [
+    { label: 'Dashboard', icon: '📊', onClick: () => { setTab(0); setIsMoreMenuOpen(false) }, isActive: tab === 0 && !isMoreMenuOpen },
+    { label: 'Matches', icon: '🎱', onClick: () => { setTab(1); setIsMoreMenuOpen(false) }, isActive: tab === 1 && !isMoreMenuOpen },
+    { label: 'Fines', icon: '💰', onClick: () => { setTab(2); setIsMoreMenuOpen(false) }, isActive: tab === 2 && !isMoreMenuOpen },
+    { label: 'More', icon: '➕', onClick: () => setIsMoreMenuOpen(open => !open), isActive: isMoreMenuOpen },
+  ]
 
   if (authLoading) return <Spinner />
 
@@ -1143,11 +1152,13 @@ export default function App() {
                 {tab === 0 && <Dashboard players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} currentTeam={currentTeamMembership?.team} />}
                 {tab === 1 && <MatchesTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
                 {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
-                {tab === 3 && <SetupTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches}
-                                setPlayers={setPlayers} setFineTypes={setFineTypes} setSeasons={setSeasons} setMatches={setMatches} withSave={withSave}
-                                currentUser={session?.user} profile={profile} setProfile={setProfile} currentTeamId={currentTeamId} currentTeam={currentTeamMembership?.team} currentTeamRole={currentTeamMembership?.role}
-                                onOpenTeamManagement={() => navigate(`/teams/${currentTeamId}`)}
-                                onOpenProfile={() => navigate('/profile')} onOpenTeams={() => navigate('/teams')} onSignOut={handleSignOut} />}
+                {isMoreMenuOpen && (
+                  <SetupTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches}
+                            setPlayers={setPlayers} setFineTypes={setFineTypes} setSeasons={setSeasons} setMatches={setMatches}
+                            currentTeam={currentTeamMembership?.team} currentTeamRole={currentTeamMembership?.role}
+                            onOpenTeamManagement={() => { setIsMoreMenuOpen(false); navigate(`/teams/${currentTeamId}`) }}
+                            onOpenProfile={() => { setIsMoreMenuOpen(false); navigate('/profile') }} onOpenTeams={() => { setIsMoreMenuOpen(false); navigate('/teams') }} onSignOut={() => { setIsMoreMenuOpen(false); handleSignOut() }} onClose={() => setIsMoreMenuOpen(false)} />
+                )}
               </>
             )}
           </div>
@@ -1155,12 +1166,12 @@ export default function App() {
           {route.name === 'app' && currentTeamId && (
             <div className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 backdrop-blur border-t border-zinc-800">
               <div className="max-w-lg mx-auto flex">
-                {tabLabels.map((t, i) => (
-                  <button key={t} onClick={() => setTab(i)}
-                    className={`flex-1 py-3 flex flex-col items-center gap-0.5 transition-all ${tab === i ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>
-                    <span className="text-lg">{icons[i]}</span>
-                    <span className="text-xs font-bold">{t}</span>
-                    {tab === i && <div className="w-4 h-0.5 bg-amber-400 rounded-full mt-0.5" />}
+                {navItems.map(item => (
+                  <button key={item.label} onClick={item.onClick}
+                    className={`flex-1 py-3 flex flex-col items-center gap-0.5 transition-all ${item.isActive ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'}`}>
+                    <span className="text-lg">{item.icon}</span>
+                    <span className="text-xs font-bold">{item.label}</span>
+                    {item.isActive && <div className="w-4 h-0.5 bg-amber-400 rounded-full mt-0.5" />}
                   </button>
                 ))}
               </div>
