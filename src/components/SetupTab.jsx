@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Modal, Input, Sel, Btn, ADMIN_PIN, uuid } from '../App'
 import * as db from '../lib/db'
-import * as userProfileDb from '../lib/userProfile'
 
 export default function SetupTab({
   players, fineTypes, seasons, matches,
@@ -36,23 +35,6 @@ export default function SetupTab({
   const [importError, setImportError] = useState('')
   const [importSuccess, setImportSuccess] = useState(false)
   const [importing, setImporting] = useState(false)
-
-  const [accountForm, setAccountForm] = useState({
-    preferredAuthMethod: profile?.preferredAuthMethod ?? 'email',
-    playerId: profile?.playerId ?? '',
-  })
-  const [accountError, setAccountError] = useState('')
-  const [accountSaved, setAccountSaved] = useState(false)
-
-
-  useEffect(() => {
-    setAccountForm({
-      preferredAuthMethod: profile?.preferredAuthMethod ?? 'email',
-      playerId: profile?.playerId ?? '',
-    })
-  }, [profile?.preferredAuthMethod, profile?.playerId])
-
-
 
   const normalizeAuthDetails = player => {
     const email = player.email?.trim().toLowerCase() ?? ''
@@ -166,30 +148,6 @@ export default function SetupTab({
     a.click()
     URL.revokeObjectURL(url)
   }
-
-  const saveAccount = () => withSave(async () => {
-    if (!currentUser?.id || !profile) return
-    setAccountError('')
-    setAccountSaved(false)
-
-    if (accountForm.preferredAuthMethod === 'email' && !profile.email) {
-      setAccountError('Your account has no email. Use WhatsApp as default, or add email in Supabase Auth.')
-      return
-    }
-    if (accountForm.preferredAuthMethod === 'whatsapp' && !profile.mobile) {
-      setAccountError('Your account has no mobile number. Use Email as default, or add mobile in Supabase Auth.')
-      return
-    }
-
-    const updated = await userProfileDb.updateCurrentUserProfile(currentUser.id, {
-      preferredAuthMethod: accountForm.preferredAuthMethod,
-      playerId: accountForm.playerId || null,
-      currentEmail: profile.email,
-      currentMobile: profile.mobile,
-    })
-    setProfile(updated)
-    setAccountSaved(true)
-  })
 
   return (
     <div>
@@ -360,26 +318,6 @@ export default function SetupTab({
           </div>
           {confirmDeleteSeason && <Modal title="Delete Season" onClose={() => setConfirmDeleteSeason(null)}><Input label="Admin PIN" type="password" value={deletePinInput} onChange={e => setDeletePinInput(e.target.value)} />{deletePinError && <p className="text-red-400 text-sm mb-2">{deletePinError}</p>}<div className="flex gap-2"><Btn variant="danger" className="flex-1" onClick={confirmSeasonDelete}>Delete Season</Btn><Btn variant="ghost" className="flex-1" onClick={() => setConfirmDeleteSeason(null)}>Cancel</Btn></div></Modal>}
           {editSeason && <Modal title="Edit Season" onClose={() => setEditSeason(null)}><Input label="Season Name" value={editSeason.name} onChange={e => setEditSeason(s => ({ ...s, name: e.target.value }))} /><Sel label="Type" value={editSeason.type} onChange={e => setEditSeason(s => ({ ...s, type: e.target.value }))}><option value="League">League</option><option value="Cup">Cup</option></Sel><div className="flex gap-2 mt-1"><Btn onClick={saveEditSeason} className="flex-1">Save</Btn><Btn variant="ghost" onClick={() => setEditSeason(null)} className="flex-1">Cancel</Btn></div></Modal>}
-        </div>
-      )}
-
-      {section === 'account' && (
-        <div className="bg-zinc-800 rounded-xl p-4">
-          <h3 className="font-bold text-white mb-3">My account</h3>
-          <p className="text-xs text-zinc-400 mb-2">Signed in as: <span className="text-zinc-200">{currentUser?.email || currentUser?.phone || currentUser?.id}</span></p>
-          <Input label="Email (from Supabase Auth)" value={profile?.email ?? ''} disabled />
-          <Input label="Mobile (from Supabase Auth)" value={profile?.mobile ?? ''} disabled />
-          <Sel label="Default authentication method" value={accountForm.preferredAuthMethod} onChange={e => setAccountForm(f => ({ ...f, preferredAuthMethod: e.target.value }))}>
-            <option value="email">Email OTP</option>
-            <option value="whatsapp">WhatsApp OTP</option>
-          </Sel>
-          <Sel label="Linked player (optional)" value={accountForm.playerId} onChange={e => setAccountForm(f => ({ ...f, playerId: e.target.value }))}>
-            <option value="">No linked player</option>
-            {[...players].sort((a, b) => a.name.localeCompare(b.name)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </Sel>
-          {accountError && <p className="text-sm text-red-400 mb-2">{accountError}</p>}
-          {accountSaved && <p className="text-sm text-emerald-400 mb-2">Account saved.</p>}
-          <Btn onClick={saveAccount} className="w-full">Save account settings</Btn>
         </div>
       )}
 
