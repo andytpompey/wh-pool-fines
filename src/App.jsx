@@ -231,17 +231,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zinc-950 text-white pb-24">
       <div className="bg-zinc-950/95 border-b border-zinc-800">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-zinc-900 font-bold text-xs">WH</div>
-          <div className="flex-1">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-zinc-900 font-bold text-xs shrink-0">WH</div>
+          <div className="flex-1 min-w-0">
             <div className="font-display font-bold text-white text-lg leading-none">White Horse</div>
             <div className="text-zinc-500 text-xs">Pool Fines Tracker</div>
-            <div className="text-zinc-600 text-[10px] mt-0.5">Last updated: {formatLastUpdated(LAST_UPDATED)}</div>
-            {currentPlayer && <div className="text-zinc-400 text-[11px] mt-0.5">Signed in: {currentPlayer.name}</div>}
           </div>
-          {currentPlayer && (
-            <button onClick={handleSignOut} className="text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded-full px-2 py-1">Sign out</button>
-          )}
           {saveError ? (
             <div className="flex items-center gap-1.5 text-xs text-red-300 bg-red-950/60 border border-red-800/70 px-2 py-1 rounded-full">
               <span className="w-1.5 h-1.5 bg-red-400 rounded-full" />
@@ -260,11 +255,11 @@ export default function App() {
           ) : null}
         </div>
         {showBanner && (
-          <div className="max-w-lg mx-auto px-4 pb-2">
+          <div className="max-w-lg mx-auto px-4 pb-3">
             <img
               src={APP_BANNER_PATHS[bannerPathIndex]}
               alt="Roo Bin banner"
-              className="h-28 sm:h-36 w-full rounded-xl border border-zinc-800 object-cover object-center"
+              className="h-36 sm:h-44 w-full rounded-xl border border-zinc-800 bg-zinc-950 object-contain object-center"
               onError={() => {
                 if (bannerPathIndex < APP_BANNER_PATHS.length - 1) {
                   setBannerPathIndex(prev => prev + 1)
@@ -275,11 +270,16 @@ export default function App() {
             />
           </div>
         )}
-        <div className="max-w-lg mx-auto px-4 pb-2">
+        <div className="max-w-lg mx-auto px-4 pb-3 flex items-center justify-between gap-3">
           <div className="inline-flex items-center gap-2 text-xs text-zinc-300 bg-zinc-900/80 border border-zinc-700 rounded-md px-2.5 py-1">
             <span className="text-amber-400">🕒</span>
             <span>Last updated: {formatLastUpdated(LAST_UPDATED)}</span>
           </div>
+          {currentPlayer && (
+            <button onClick={handleSignOut} className="text-xs text-zinc-300 hover:text-white bg-zinc-800 border border-zinc-700 rounded-full px-3 py-1.5 whitespace-nowrap">
+              Sign out
+            </button>
+          )}
         </div>
       </div>
 
