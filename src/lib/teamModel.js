@@ -192,6 +192,23 @@ export async function acceptTeamInvite({ teamId, email, playerId = null }) {
     .single())
 }
 
+export async function updateTeamInvite({ inviteId, status, token, playerId = null, invitedByPlayerId = null, expiresAt = null }) {
+  if (!inviteId) throw new Error('Invite is required.')
+  const payload = {}
+  if (status) payload.status = status
+  if (token) payload.token = token
+  if (playerId !== null) payload.player_id = playerId
+  if (invitedByPlayerId !== null) payload.invited_by_player_id = invitedByPlayerId
+  if (expiresAt !== null) payload.expires_at = expiresAt
+
+  return handle(await supabase
+    .from('team_invites')
+    .update(payload)
+    .eq('id', inviteId)
+    .select('*')
+    .single())
+}
+
 export async function getPendingInviteByToken(token) {
   if (!token) return null
   const row = handle(await supabase

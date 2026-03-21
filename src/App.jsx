@@ -542,6 +542,7 @@ export default function App() {
           playerId: row.player_id,
           playerName: playersById.get(row.player_id)?.name ?? 'Unknown player',
           email: playersById.get(row.player_id)?.email ?? '',
+          mobile: playersById.get(row.player_id)?.mobile ?? '',
           role: row.role,
           status: row.status,
         }))
@@ -552,6 +553,8 @@ export default function App() {
         playerId: row.player_id,
         playerName: playersById.get(row.player_id)?.name ?? '',
         invitedAt: row.created_at,
+        invitedByPlayerId: row.invited_by_player_id,
+        token: row.token,
         role: 'member',
         status: row.status,
       })),
@@ -870,6 +873,102 @@ export default function App() {
     await Promise.all([loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
   }), [currentTeamId, currentTeamMembership, loadTeamRoster, refreshMemberContext, session?.user, teamRoster.members])
 
+  const handleSavePlayerDetails = useCallback((payload) => withSave(async () => {
+    if (!currentTeamId) throw new Error('Select a team first.')
+    if (!currentTeamMembership) throw new Error('You are not a member of this team.')
+    if (!payload?.playerId || !payload?.membershipId) throw new Error('Player details are required.')
+    const canEditPlayer = ['captain', 'admin'].includes(currentTeamMembership.role) || payload.playerId === currentTeamMembership.playerId
+    if (!canEditPlayer) throw new Error('You do not have permission to edit this player.')
+
+    const currentPlayer = players.find(player => player.id === payload.playerId)
+    if (!currentPlayer) throw new Error('Player not found.')
+
+    const displayName = payload.displayName?.trim()
+    const email = payload.email?.trim().toLowerCase()
+    const mobile = payload.mobile?.trim() ?? ''
+    if (!displayName) throw new Error('Display name is required.')
+    if (!email) throw new Error('Email is required.')
+
+    await db.updatePlayer({
+      ...currentPlayer,
+      name: displayName,
+      email,
+      mobile,
+    })
+
+    if (payload.role && payload.role !== payload.currentRole) {
+      if (currentTeamMembership.role !== 'captain') throw new Error('Only the captain can change team roles.')
+      if (!['captain', 'admin', 'member'].includes(payload.role)) throw new Error('Invalid role.')
+      const member = teamRoster.members.find(entry => entry.id === payload.membershipId)
+      if (!member) throw new Error('Membership not found.')
+      if (payload.role === 'captain') {
+        await teamModel.updateTeamMembership({ membershipId: member.id, role: 'captain' })
+        const currentCaptain = teamRoster.members.find(entry => entry.playerId === currentTeamMembership.playerId)
+        if (currentCaptain) {
+          await teamModel.updateTeamMembership({ membershipId: currentCaptain.id, role: 'member' })
+        }
+      } else {
+        if (member.role === 'captain') throw new Error('Transfer captaincy instead of demoting the captain directly.')
+        if (member.playerId === currentTeamMembership.playerId) {
+          throw new Error('Captain cannot remove their own captaincy without transferring it first.')
+        }
+        await teamModel.updateTeamMembership({ membershipId: member.id, role: payload.role })
+      }
+    }
+
+    await Promise.all([load(currentTeamId), loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
+  }), [currentTeamId, currentTeamMembership, load, loadTeamRoster, players, refreshMemberContext, session?.user, teamRoster.members])
+
+  const handleRemoveMember = useCallback((member) => withSave(async () => {
+    if (!currentTeamId) throw new Error('Select a team first.')
+    if (!currentTeamMembership) throw new Error('You are not a member of this team.')
+    if (!['captain', 'admin'].includes(currentTeamMembership.role)) throw new Error('Only captains and admins can remove players.')
+    if (!member?.id) throw new Error('Member is required.')
+    if (member.role === 'captain') throw new Error('Transfer captaincy before removing the captain.')
+    if (member.playerId === currentTeamMembership.playerId) throw new Error('You cannot remove yourself from the team here.')
+
+    await teamModel.updateTeamMembership({ membershipId: member.id, status: 'removed' })
+    await Promise.all([load(currentTeamId), loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
+  }), [currentTeamId, currentTeamMembership, load, loadTeamRoster, refreshMemberContext, session?.user])
+
+  const handleRevokeInvite = useCallback((invite) => withSave(async () => {
+    if (!currentTeamId) throw new Error('Select a team first.')
+    if (!currentTeamMembership) throw new Error('You are not a member of this team.')
+    if (!['captain', 'admin'].includes(currentTeamMembership.role)) throw new Error('Only captains and admins can revoke invites.')
+    if (!invite?.id) throw new Error('Invite is required.')
+
+    await teamModel.updateTeamInvite({ inviteId: invite.id, status: 'cancelled' })
+    await loadTeamRoster(currentTeamId)
+  }), [currentTeamId, currentTeamMembership, loadTeamRoster])
+
+  const handleResendInvite = useCallback((invite) => withSave(async () => {
+    if (!currentTeamId) throw new Error('Select a team first.')
+    if (!currentTeamMembership) throw new Error('You are not a member of this team.')
+    if (!['captain', 'admin'].includes(currentTeamMembership.role)) throw new Error('Only captains and admins can resend invites.')
+    if (!invite?.id || !invite?.email) throw new Error('Invite is required.')
+
+    const inviteToken = teamInvites.generateSecureInviteToken()
+    await teamModel.updateTeamInvite({
+      inviteId: invite.id,
+      token: inviteToken,
+      playerId: invite.playerId,
+      invitedByPlayerId: memberContext.player?.id ?? null,
+      expiresAt: null,
+    })
+
+    const invitedPlayerName = invite.playerName || invite.email
+    const emailResult = await teamInvites.sendTeamInviteEmail({
+      email: invite.email,
+      teamName: currentTeamMembership.team.name,
+      inviteToken,
+      invitedPlayerName,
+    })
+
+    await loadTeamRoster(currentTeamId)
+
+    return { message: emailResult.message }
+  }), [currentTeamId, currentTeamMembership, loadTeamRoster, memberContext.player?.id])
+
   const handleAddFineType = useCallback((payload) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
     if (!canManageTeam(currentTeamMembership?.role)) throw new Error('Only captains and admins can manage fine types.')
@@ -1028,6 +1127,10 @@ export default function App() {
                 }}
                 onInvitePlayer={handleInvitePlayer}
                 onUpdateMemberRole={handleUpdateMemberRole}
+                onSavePlayerDetails={handleSavePlayerDetails}
+                onRemoveMember={handleRemoveMember}
+                onRevokeInvite={handleRevokeInvite}
+                onResendInvite={handleResendInvite}
                 onAddFineType={handleAddFineType}
                 onUpdateFineType={handleUpdateFineType}
                 onDeleteFineType={handleDeleteFineType}
@@ -1047,6 +1150,7 @@ export default function App() {
                 {tab === 3 && <SetupTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches}
                                 setPlayers={setPlayers} setFineTypes={setFineTypes} setSeasons={setSeasons} setMatches={setMatches} withSave={withSave}
                                 currentUser={session?.user} profile={profile} setProfile={setProfile} currentTeamId={currentTeamId} currentTeam={currentTeamMembership?.team} currentTeamRole={currentTeamMembership?.role}
+                                onOpenTeamManagement={() => navigate(`/teams/${currentTeamId}`)}
                                 onOpenProfile={() => navigate('/profile')} onOpenTeams={() => navigate('/teams')} onSignOut={handleSignOut} />}
               </>
             )}
