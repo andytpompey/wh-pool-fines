@@ -10,8 +10,7 @@ export default function SetupTab({
 }) {
   const [section, setSection] = useState('hub')
   const canManageTeam = currentTeamRole === 'captain' || currentTeamRole === 'admin'
-  const sections = canManageTeam ? ['hub', 'data'] : ['hub']
-  const hasCurrentTeam = Boolean(currentTeam)
+  const sections = canManageTeam ? ['hub', 'account', 'data'] : ['hub', 'account']
 
 
   const handleExport = () => {
@@ -69,6 +68,13 @@ export default function SetupTab({
             </div>
           )}
         </div>
+
+        {currentTeam && (
+          <div className="bg-zinc-900/70 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-400">
+            Team-specific seasons and fine types now live in Team Management for <span className="text-white font-bold">{currentTeam.name}</span>.
+            <span className="block mt-1">Use the selected team page for roster, invites, fines, and seasons so setup no longer duplicates those controls.</span>
+          </div>
+        )}
       </div>
 
       <div className="mt-3 flex gap-1 rounded-xl bg-zinc-800 p-1 overflow-x-auto">
@@ -91,10 +97,14 @@ export default function SetupTab({
             {hasCurrentTeam && <Btn variant="outline" onClick={onOpenTeamManagement} className="w-full">Open Team Management</Btn>}
             <Btn variant="ghost" onClick={onSignOut} className="w-full">Sign out</Btn>
           </div>
-
-          {hasCurrentTeam && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-3 text-sm text-zinc-400">
-              Team-specific setup now lives in Team Management for <span className="font-bold text-white">{currentTeam.name}</span>.
+          {!canManageTeam && (
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-400">
+              Team setup tools are limited to captains and vice-captains, but your Profile and Teams pages are available above.
+            </div>
+          )}
+          {canManageTeam && (
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-400">
+              Captains and vice-captains can use Team Management for team configuration, while this area stays focused on account access and data import/export.
             </div>
           )}
 
@@ -107,6 +117,30 @@ export default function SetupTab({
                   <p className="mt-1 text-xs text-zinc-400">Fines, seasons, roster, and invites are managed from the selected team page.</p>
                 </div>
                 <Btn size="sm" variant="outline" onClick={onOpenTeamManagement}>Open</Btn>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {section === 'account' && (
+        <div className="space-y-3">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
+            Profile access, team switching, and sign-out stay here. Team-specific configuration now lives inside Team Management.
+          </div>
+          {currentTeam && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Fines</p>
+                <h3 className="text-white font-bold mt-1">Manage fine types from the team</h3>
+                <p className="text-sm text-zinc-400 mt-2">Add, edit, and remove {currentTeam.name}&apos;s fine types from Team Management → Fines.</p>
+                <Btn variant="outline" className="mt-3 w-full" onClick={onOpenTeamManagement}>Open Team Management</Btn>
+              </div>
+              <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Seasons</p>
+                <h3 className="text-white font-bold mt-1">Manage seasons from the team</h3>
+                <p className="text-sm text-zinc-400 mt-2">Create and edit {currentTeam.name}&apos;s seasons from Team Management → Seasons.</p>
+                <Btn variant="outline" className="mt-3 w-full" onClick={onOpenTeamManagement}>Open Team Management</Btn>
               </div>
             </div>
           )}
