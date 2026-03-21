@@ -3,6 +3,7 @@ import * as db from './lib/db'
 import * as auth from './lib/auth'
 import * as teamModel from './lib/teamModel'
 import * as userProfileDb from './lib/userProfile'
+import * as teamInvites from './lib/teamInvites'
 import { resolveCurrentTeamContext } from './lib/currentTeam'
 import { resolveAuthenticatedPlayerContext } from './lib/memberships'
 import SetupTab from './components/SetupTab'
@@ -244,6 +245,155 @@ function TeamOverview({ team, membership, onOpenApp, onBackToTeams }) {
   )
 }
 
+function normaliseEmail(email) {
+  return email?.trim().toLowerCase() ?? ''
+}
+
+function TeamMembersPage({
+  team,
+  membership,
+  members,
+  invites,
+  onBackToTeams,
+  onOpenApp,
+  onRefresh,
+  onInvitePlayer,
+  saving,
+}) {
+  const canInvite = membership?.role === 'captain' || membership?.role === 'admin'
+  const [form, setForm] = useState({ displayName: '', email: '' })
+  const [status, setStatus] = useState({ error: '', success: '', info: [] })
+
+  useEffect(() => {
+    setStatus({ error: '', success: '', info: [] })
+  }, [team?.id])
+
+  const submit = async event => {
+    event.preventDefault()
+    setStatus({ error: '', success: '', info: [] })
+    try {
+      const result = await onInvitePlayer({
+        displayName: form.displayName.trim(),
+        email: form.email.trim(),
+      })
+      setStatus({
+        error: '',
+        success: result.message,
+        info: result.notes ?? [],
+      })
+      setForm({ displayName: '', email: '' })
+    } catch (err) {
+      setStatus({ error: err?.message ?? 'Failed to invite player.', success: '', info: [] })
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        <Btn variant="outline" size="sm" onClick={onBackToTeams}>← My Teams</Btn>
+        <Btn size="sm" onClick={onOpenApp}>Open app</Btn>
+        <Btn variant="outline" size="sm" onClick={onRefresh}>Refresh</Btn>
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div>
+            <h2 className="font-display text-2xl font-bold text-white">{team?.name || 'Team'}</h2>
+            <p className="text-sm text-zinc-400">Manage members and pending invites for this team.</p>
+          </div>
+          <Badge color={canInvite ? 'amber' : 'gray'}>{membership?.role || 'member'}</Badge>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-sm">
+          <div className="rounded-xl border border-zinc-800 bg-zinc-800/70 px-3 py-3">
+            <p className="text-zinc-400 text-xs uppercase tracking-wider">Active members</p>
+            <p className="text-xl font-bold text-white">{members.length}</p>
+          </div>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-800/70 px-3 py-3">
+            <p className="text-zinc-400 text-xs uppercase tracking-wider">Pending invites</p>
+            <p className="text-xl font-bold text-white">{invites.length}</p>
+          </div>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-800/70 px-3 py-3">
+            <p className="text-zinc-400 text-xs uppercase tracking-wider">Your access</p>
+            <p className="text-xl font-bold text-white capitalize">{membership?.role || 'member'}</p>
+          </div>
+        </div>
+      </div>
+
+      <form onSubmit={submit} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 className="font-bold text-white">Invite player by email</h3>
+            <p className="text-xs text-zinc-400">Captains and admins can add a player to this team without requiring account signup.</p>
+          </div>
+          <Badge color={canInvite ? 'green' : 'red'}>{canInvite ? 'Can invite' : 'View only'}</Badge>
+        </div>
+        <Input label="Display name" value={form.displayName} onChange={event => setForm(current => ({ ...current, displayName: event.target.value }))} placeholder="Player display name" disabled={!canInvite || saving} />
+        <Input label="Email" type="email" required value={form.email} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} placeholder="player@example.com" disabled={!canInvite || saving} />
+        {!canInvite && <p className="mb-3 text-sm text-zinc-400">Only captains and admins can send invites.</p>}
+        {status.error && <p className="mb-3 text-sm text-red-400">{status.error}</p>}
+        {status.success && <p className="mb-2 text-sm text-emerald-400">{status.success}</p>}
+        {!!status.info.length && (
+          <ul className="mb-3 space-y-1 text-xs text-zinc-400">
+            {status.info.map(note => <li key={note}>• {note}</li>)}
+          </ul>
+        )}
+        <Btn type="submit" disabled={!canInvite || saving || !form.displayName.trim() || !form.email.trim()}>
+          {saving ? 'Inviting...' : 'Invite player'}
+        </Btn>
+      </form>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 className="font-bold text-white">Active members</h3>
+            <p className="text-xs text-zinc-400">Current team roster with role visibility.</p>
+          </div>
+          <Badge color="blue">{members.length}</Badge>
+        </div>
+        <div className="space-y-2">
+          {!members.length ? (
+            <p className="text-sm text-zinc-400">No active members yet.</p>
+          ) : members.map(member => (
+            <div key={member.id} className="rounded-xl border border-zinc-800 bg-zinc-800/80 px-3 py-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-white">{member.playerName || 'Unknown player'}</p>
+                <p className="text-xs text-zinc-500">{member.email || 'No email saved'}</p>
+              </div>
+              <Badge color="amber">{member.role}</Badge>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 className="font-bold text-white">Pending invites</h3>
+            <p className="text-xs text-zinc-400">Outstanding email invites awaiting acceptance or future wiring.</p>
+          </div>
+          <Badge color="blue">{invites.length}</Badge>
+        </div>
+        <div className="space-y-2">
+          {!invites.length ? (
+            <p className="text-sm text-zinc-400">No pending invites.</p>
+          ) : invites.map(invite => (
+            <div key={invite.id} className="rounded-xl border border-zinc-800 bg-zinc-800/80 px-3 py-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-white">{invite.playerName || invite.email}</p>
+                <p className="text-xs text-zinc-500">{normaliseEmail(invite.email)}{invite.invitedAt ? ` · invited ${new Date(invite.invitedAt).toLocaleDateString('en-GB')}` : ''}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge color="gray">{invite.role}</Badge>
+                <Badge color="blue">pending</Badge>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PlayerProfilePage({ profile, memberships, onSaveProfile, onCreateTeam, saving }) {
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
   const [receiveTeamNotifications, setReceiveTeamNotifications] = useState(Boolean(profile?.receiveTeamNotifications))
@@ -362,6 +512,7 @@ export default function App() {
   const [profile, setProfile] = useState(null)
   const [memberContext, setMemberContext] = useState({ profile: null, memberships: [], player: null })
   const [currentTeamId, setCurrentTeamId] = useState(() => localStorage.getItem(TEAM_STORAGE_KEY) || null)
+  const [teamRoster, setTeamRoster] = useState({ members: [], invites: [] })
   const [showBanner, setShowBanner] = useState(true)
   const [bannerPathIndex, setBannerPathIndex] = useState(0)
   const [players, setPlayers] = useState([])
@@ -389,6 +540,43 @@ export default function App() {
     }).catch(err => {
       setError(err.message ?? String(err))
       setLoading(false)
+    })
+  }, [])
+
+  const loadTeamRoster = useCallback(async (teamId) => {
+    if (!teamId) {
+      setTeamRoster({ members: [], invites: [] })
+      return
+    }
+
+    const [membershipRows, inviteRows, playerRows] = await Promise.all([
+      teamModel.listTeamMemberships(teamId),
+      teamModel.listPendingTeamInvites(teamId),
+      db.loadAll({ teamId }).then(data => data.players),
+    ])
+
+    const playersById = new Map(playerRows.map(player => [player.id, player]))
+    setTeamRoster({
+      members: membershipRows
+        .filter(row => row.status === 'active')
+        .map(row => ({
+          id: row.id,
+          playerId: row.player_id,
+          playerName: playersById.get(row.player_id)?.name ?? 'Unknown player',
+          email: playersById.get(row.player_id)?.email ?? '',
+          role: row.role,
+          status: row.status,
+        }))
+        .sort((a, b) => a.playerName.localeCompare(b.playerName)),
+      invites: inviteRows.map(row => ({
+        id: row.id,
+        email: row.email,
+        playerId: row.player_id,
+        playerName: playersById.get(row.player_id)?.name ?? '',
+        invitedAt: row.created_at,
+        role: 'member',
+        status: row.status,
+      })),
     })
   }, [])
 
@@ -481,6 +669,12 @@ export default function App() {
   }, [session, currentTeamId, load])
 
   useEffect(() => {
+    if (route.name === 'team' && currentTeamId) {
+      loadTeamRoster(currentTeamId).catch(err => console.error('Failed to load team roster', err))
+    }
+  }, [route.name, currentTeamId, loadTeamRoster])
+
+  useEffect(() => {
     if (currentPlayer) localStorage.setItem('wh_current_player', JSON.stringify(currentPlayer))
     else localStorage.removeItem('wh_current_player')
   }, [currentPlayer])
@@ -562,6 +756,81 @@ export default function App() {
       console.error('Sign-out failed:', err)
     }
   }
+
+  const handleInvitePlayer = useCallback((payload) => withSave(async () => {
+    if (!currentTeamId) throw new Error('Select a team first.')
+    if (!currentTeamMembership) throw new Error('You are not a member of this team.')
+    if (!['captain', 'admin'].includes(currentTeamMembership.role)) {
+      throw new Error('Only captains and admins can invite players.')
+    }
+
+    const email = normaliseEmail(payload.email)
+    const displayName = payload.displayName?.trim()
+    if (!displayName) throw new Error('Display name is required.')
+    if (!email) throw new Error('Email is required.')
+
+    const notes = []
+    let player = await db.findPlayerByEmail(email)
+    if (player?.authUserId) notes.push('Existing user matched by email.')
+    else if (player) notes.push('Existing player matched by email.')
+
+    if (!player) {
+      player = await db.createOrReusePlayerByEmail({ email, displayName })
+      notes.push('New player created and invited.')
+      setPlayers(prev => [...prev.filter(existing => existing.id !== player.id), player].sort((a, b) => a.name.localeCompare(b.name)))
+    }
+
+    const existingMembership = await teamModel.getTeamMembership({ teamId: currentTeamId, playerId: player.id })
+    const inviteToken = teamInvites.generateSecureInviteToken()
+
+    if (existingMembership?.status === 'active') {
+      await teamModel.upsertPendingTeamInvite({
+        teamId: currentTeamId,
+        email,
+        token: inviteToken,
+        playerId: player.id,
+        invitedByPlayerId: memberContext.player?.id ?? null,
+        expiresAt: null,
+      })
+      notes.unshift('Already on team.')
+      await loadTeamRoster(currentTeamId)
+      return {
+        message: `${player.name} is already an active member of ${currentTeamMembership.team.name}.`,
+        notes,
+      }
+    }
+
+    await teamModel.addTeamMembership({
+      teamId: currentTeamId,
+      playerId: player.id,
+      role: existingMembership?.role || 'member',
+      status: 'active',
+    })
+
+    await teamModel.upsertPendingTeamInvite({
+      teamId: currentTeamId,
+      email,
+      token: inviteToken,
+      playerId: player.id,
+      invitedByPlayerId: memberContext.player?.id ?? null,
+      expiresAt: null,
+    })
+
+    const emailResult = await teamInvites.sendTeamInviteEmail({
+      email,
+      teamName: currentTeamMembership.team.name,
+      inviteToken,
+      invitedPlayerName: player.name,
+    })
+    notes.push(emailResult.message)
+
+    await Promise.all([loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
+
+    return {
+      message: `${player.name} has been added to ${currentTeamMembership.team.name} and invite tracking is up to date.`,
+      notes,
+    }
+  }), [currentTeamId, currentTeamMembership, loadTeamRoster, memberContext.player?.id, refreshMemberContext, session?.user])
 
   const tabLabels = ['Dashboard', 'Matches', 'Fines', 'Setup']
   const icons = ['📊', '🎱', '💰', '⚙️']
@@ -645,11 +914,16 @@ export default function App() {
                 onCreateTeam={() => navigate('/teams/new')}
               />
             ) : route.name === 'team' ? (
-              <TeamOverview
+              <TeamMembersPage
                 team={currentTeamMembership?.team}
                 membership={currentTeamMembership}
+                members={teamRoster.members}
+                invites={teamRoster.invites}
                 onOpenApp={() => navigate('/')}
                 onBackToTeams={() => navigate('/teams')}
+                onRefresh={() => loadTeamRoster(currentTeamId)}
+                onInvitePlayer={handleInvitePlayer}
+                saving={saving}
               />
             ) : (
               <>

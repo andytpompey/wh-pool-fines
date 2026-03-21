@@ -231,6 +231,36 @@ export async function attachAuthUser(playerId, authUserId) {
   return normalPlayer(handle(await supabase.from('players').update({ user_id: authUserId }).eq('id', playerId).select().single()))
 }
 
+export async function findPlayerByEmail(email) {
+  const normalizedEmail = email?.trim().toLowerCase()
+  if (!normalizedEmail) return null
+  const row = handle(await supabase.from('players').select('*').ilike('email', normalizedEmail).limit(1).maybeSingle())
+  return row ? normalPlayer(row) : null
+}
+
+export async function createOrReusePlayerByEmail({ email, displayName }) {
+  const normalizedEmail = email?.trim().toLowerCase()
+  const trimmedDisplayName = displayName?.trim()
+  if (!normalizedEmail) throw new Error('Email is required')
+  if (!trimmedDisplayName) throw new Error('Display name is required')
+
+  const existing = await findPlayerByEmail(normalizedEmail)
+  if (existing) {
+    const nextName = existing.name?.trim() || trimmedDisplayName
+    if (nextName !== existing.name) {
+      return updatePlayer({ ...existing, name: nextName })
+    }
+    return existing
+  }
+
+  return addPlayer({
+    name: trimmedDisplayName,
+    email: normalizedEmail,
+    mobile: '',
+    preferredAuthMethod: 'email',
+  })
+}
+
 export async function createOrReusePendingTeamInvite({ teamId, email, invitedByPlayerId = null, expiresAt = null, token }) {
   const normalizedEmail = email?.trim().toLowerCase()
   if (!teamId) throw new Error('teamId is required')
