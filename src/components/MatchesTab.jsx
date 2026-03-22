@@ -71,9 +71,34 @@ function MatchDetail({ match, players, fineTypes, seasons, membership, platformR
     const errorMessage = pinAction === 'unlock' ? 'Unlock code verification is required to unlock submitted matches.' : 'Unlock code verification is required for protected actions.'
     const allowed = await teamModel.canActorPerformProtectedAction({ action: action === APP_ACTION.UNLOCK_MATCH ? teamModel.PROTECTED_ACTION.UNLOCK_MATCH : action === APP_ACTION.DELETE_MATCH ? teamModel.PROTECTED_ACTION.DELETE_MATCH : teamModel.PROTECTED_ACTION.DELETE_FINE_ENTRY, membership, platformRole, teamId: currentTeamId, unlockCode: pinInput })
     if (!allowed) { setPinError(platformRole === 'admin' ? 'Platform admins cannot perform unlock-protected actions.' : 'Incorrect or unauthorized unlock code.'); return }
-    if (pinAction === 'unlock') save({ submitted: false })
-    else if (pinAction === 'deleteMatch') onDelete()
-    else if (pinAction?.type === 'deleteFine') save({ fines: match.fines.filter(f => f.id !== pinAction.fineId) })
+    if (pinAction === 'unlock') {
+      await save({ submitted: false })
+      await db.logProtectedRecordReversal({
+        teamId: currentTeamId,
+        actorMembership: membership,
+        platformRole,
+        entityType: 'match',
+        entityId: match.id,
+        payload: { matchDate: match.date, protectedAction: 'unlock_match' },
+      })
+    } else if (pinAction === 'deleteMatch') await onDelete()
+    else if (pinAction?.type === 'deleteFine') {
+      const deletedFine = match.fines.find(f => f.id === pinAction.fineId)
+      await save({ fines: match.fines.filter(f => f.id !== pinAction.fineId) })
+      await db.logProtectedRecordDeletion({
+        teamId: currentTeamId,
+        actorMembership: membership,
+        platformRole,
+        entityType: 'fine',
+        entityId: pinAction.fineId,
+        payload: {
+          matchId: match.id,
+          label: deletedFine?.fineName ?? null,
+          playerId: deletedFine?.playerId ?? null,
+          protectedAction: 'delete_fine_entry',
+        },
+      })
+    }
     setShowAdminPin(false); setPinInput(''); setPinError(''); setPinAction(null)
   }
 
@@ -340,7 +365,7 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
       <MatchDetail match={currentMatch} players={players} fineTypes={fineTypes} seasons={seasons} membership={membership} platformRole={platformRole} currentTeamId={currentTeamId}
         onBack={() => setSelectedId(null)}
         onSave={updateMatch}
-        onDelete={() => db.deleteMatch(currentMatch.id).then(() => { setMatches(prev => prev.filter(m => m.id !== currentMatch.id)); setSelectedId(null) })}
+        onDelete={() => db.deleteMatchWithAudit({ id: currentMatch.id, teamId: currentTeamId, actorMembership: membership, platformRole, matchDate: currentMatch.date }).then(() => { setMatches(prev => prev.filter(m => m.id !== currentMatch.id)); setSelectedId(null) })}
       />
     )
   }

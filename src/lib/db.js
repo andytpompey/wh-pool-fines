@@ -3,6 +3,7 @@
  */
 
 import { supabase } from './supabase'
+import { AUDIT_ACTION, logAuditEventSafely } from './audit'
 
 function handle(result) {
   if (result.error) throw result.error
@@ -113,6 +114,20 @@ export async function deleteFineType(id) {
   handle(await supabase.from('fine_types').delete().eq('id', id))
 }
 
+export async function deleteFineTypeWithAudit({ id, teamId, actorMembership, platformRole = null, fineTypeName = null }) {
+  await deleteFineType(id)
+  await logAuditEventSafely({
+    action: AUDIT_ACTION.PROTECTED_RECORD_DELETED,
+    teamId,
+    actorMembership,
+    platformRole,
+    outcome: 'success',
+    targetEntityType: 'fine_type',
+    targetEntityId: id,
+    payload: { label: fineTypeName, protectedAction: 'delete_fine_type' },
+  })
+}
+
 export async function addSeason(season) {
   return normalSeason(handle(await supabase.from('seasons').insert({ id: season.id, name: season.name, type: season.type, team_id: season.teamId ?? null }).select().single()))
 }
@@ -123,6 +138,20 @@ export async function updateSeason(season) {
 
 export async function deleteSeason(id) {
   handle(await supabase.from('seasons').delete().eq('id', id))
+}
+
+export async function deleteSeasonWithAudit({ id, teamId, actorMembership, platformRole = null, seasonName = null }) {
+  await deleteSeason(id)
+  await logAuditEventSafely({
+    action: AUDIT_ACTION.PROTECTED_RECORD_DELETED,
+    teamId,
+    actorMembership,
+    platformRole,
+    outcome: 'success',
+    targetEntityType: 'season',
+    targetEntityId: id,
+    payload: { label: seasonName, protectedAction: 'delete_season' },
+  })
 }
 
 export async function addMatch(match) {
@@ -180,6 +209,46 @@ export async function updateMatch(match) {
 
 export async function deleteMatch(id) {
   handle(await supabase.from('matches').delete().eq('id', id))
+}
+
+export async function deleteMatchWithAudit({ id, teamId, actorMembership, platformRole = null, matchDate = null }) {
+  await deleteMatch(id)
+  await logAuditEventSafely({
+    action: AUDIT_ACTION.PROTECTED_RECORD_DELETED,
+    teamId,
+    actorMembership,
+    platformRole,
+    outcome: 'success',
+    targetEntityType: 'match',
+    targetEntityId: id,
+    payload: { matchDate, protectedAction: 'delete_match' },
+  })
+}
+
+export async function logProtectedRecordDeletion({ teamId, actorMembership, platformRole = null, entityType, entityId, payload = null }) {
+  await logAuditEventSafely({
+    action: AUDIT_ACTION.PROTECTED_RECORD_DELETED,
+    teamId,
+    actorMembership,
+    platformRole,
+    outcome: 'success',
+    targetEntityType: entityType,
+    targetEntityId: entityId,
+    payload,
+  })
+}
+
+export async function logProtectedRecordReversal({ teamId, actorMembership, platformRole = null, entityType, entityId, payload = null }) {
+  await logAuditEventSafely({
+    action: AUDIT_ACTION.PROTECTED_RECORD_REVERSED,
+    teamId,
+    actorMembership,
+    platformRole,
+    outcome: 'success',
+    targetEntityType: entityType,
+    targetEntityId: entityId,
+    payload,
+  })
 }
 
 export async function importAll({ players, fineTypes, seasons, matches }) {

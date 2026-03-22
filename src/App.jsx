@@ -917,14 +917,17 @@ export default function App() {
       throw new Error('Captain cannot remove their own captaincy without transferring it first.')
     }
     if (nextRole === TEAM_ROLE.CAPTAIN) {
-      await teamModel.updateTeamMembership({ membershipId: member.id, role: TEAM_ROLE.CAPTAIN })
       const currentCaptain = teamRoster.members.find(entry => entry.playerId === currentTeamMembership.playerId)
-      if (currentCaptain) {
-        await teamModel.updateTeamMembership({ membershipId: currentCaptain.id, role: TEAM_ROLE.MEMBER })
-      }
+      await teamModel.transferCaptaincy({
+        teamId: currentTeamId,
+        actorMembership: currentTeamMembership,
+        incomingCaptainMembershipId: member.id,
+        outgoingCaptainMembershipId: currentCaptain?.id ?? null,
+        incomingCaptainPlayerId: member.playerId,
+      })
     } else {
       if (member.role === TEAM_ROLE.CAPTAIN) throw new Error('Transfer captaincy instead of demoting the captain directly.')
-      await teamModel.updateTeamMembership({ membershipId: member.id, role: nextRole })
+      await teamModel.changeTeamMemberRole({ membershipId: member.id, nextRole, actorMembership: currentTeamMembership, teamId: currentTeamId, targetPlayerId: member.playerId, previousRole: member.role })
     }
 
     await Promise.all([loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
@@ -959,17 +962,20 @@ export default function App() {
       const member = teamRoster.members.find(entry => entry.id === payload.membershipId)
       if (!member) throw new Error('Membership not found.')
       if (payload.role === TEAM_ROLE.CAPTAIN) {
-        await teamModel.updateTeamMembership({ membershipId: member.id, role: TEAM_ROLE.CAPTAIN })
         const currentCaptain = teamRoster.members.find(entry => entry.playerId === currentTeamMembership.playerId)
-        if (currentCaptain) {
-          await teamModel.updateTeamMembership({ membershipId: currentCaptain.id, role: TEAM_ROLE.MEMBER })
-        }
+        await teamModel.transferCaptaincy({
+          teamId: currentTeamId,
+          actorMembership: currentTeamMembership,
+          incomingCaptainMembershipId: member.id,
+          outgoingCaptainMembershipId: currentCaptain?.id ?? null,
+          incomingCaptainPlayerId: member.playerId,
+        })
       } else {
         if (member.role === TEAM_ROLE.CAPTAIN) throw new Error('Transfer captaincy instead of demoting the captain directly.')
         if (member.playerId === currentTeamMembership.playerId) {
           throw new Error('Captain cannot remove their own captaincy without transferring it first.')
         }
-        await teamModel.updateTeamMembership({ membershipId: member.id, role: payload.role })
+        await teamModel.changeTeamMemberRole({ membershipId: member.id, nextRole: payload.role, actorMembership: currentTeamMembership, teamId: currentTeamId, targetPlayerId: member.playerId, previousRole: member.role })
       }
     }
 
@@ -984,7 +990,7 @@ export default function App() {
     if (member.role === TEAM_ROLE.CAPTAIN) throw new Error('Transfer captaincy before removing the captain.')
     if (member.playerId === currentTeamMembership.playerId) throw new Error('You cannot remove yourself from the team here.')
 
-    await teamModel.updateTeamMembership({ membershipId: member.id, status: 'removed' })
+    await teamModel.removeTeamMember({ membershipId: member.id, actorMembership: currentTeamMembership, teamId: currentTeamId, targetPlayerId: member.playerId, previousRole: member.role })
     await Promise.all([load(currentTeamId), loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
   }, 'Unlock code verification is required to remove team members.'), [currentTeamId, currentTeamMembership, load, loadTeamRoster, refreshMemberContext, session?.user, withProtectedAction])
 
@@ -1053,7 +1059,7 @@ export default function App() {
   const handleDeleteFineType = useCallback((fineType, unlockCode) => withProtectedAction(APP_ACTION.DELETE_FINE_TYPE, async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
     assertActionAccess({ action: APP_ACTION.MANAGE_FINE_TYPES, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can manage fine types.' })
-    await db.deleteFineType(fineType.id)
+    await db.deleteFineTypeWithAudit({ id: fineType.id, teamId: currentTeamId, actorMembership: currentTeamMembership, platformRole: memberContext.platformRole, fineTypeName: fineType.name })
     setFineTypes(prev => prev.filter(item => item.id !== fineType.id))
   }, 'Unlock code verification is required to delete fine types.'), [currentTeamId, currentTeamMembership?.role, withProtectedAction])
 
@@ -1080,7 +1086,7 @@ export default function App() {
   const handleDeleteSeason = useCallback((season, unlockCode) => withProtectedAction(APP_ACTION.DELETE_SEASON, async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
     assertActionAccess({ action: APP_ACTION.MANAGE_SEASONS, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can manage seasons.' })
-    await db.deleteSeason(season.id)
+    await db.deleteSeasonWithAudit({ id: season.id, teamId: currentTeamId, actorMembership: currentTeamMembership, platformRole: memberContext.platformRole, seasonName: season.name })
     setSeasons(prev => prev.filter(item => item.id !== season.id))
   }, 'Unlock code verification is required to delete seasons.'), [currentTeamId, currentTeamMembership?.role, withProtectedAction])
 
@@ -1123,6 +1129,7 @@ export default function App() {
     await teamModel.triggerAdminUnlockCodeReset({
       teamId: currentTeamId,
       platformRole: memberContext.platformRole,
+      actorMembership: currentTeamMembership,
       captainContacts: getCaptainContacts(),
       teamName: currentTeamMembership.team.name,
     })
