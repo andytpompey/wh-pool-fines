@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Badge, Modal, Input, Btn, ADMIN_PIN, formatDate } from '../App'
+import { Badge, Modal, Input, Btn, ADMIN_PIN, SegmentedControl, formatDate } from '../App'
 import * as db from '../lib/db'
 
 export default function FinesTab({ players, matches, setMatches, withSave, currentTeamId, currentTeamRole }) {
@@ -145,14 +145,13 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
           <option value="outstanding">Outstanding</option>
         </select>
       </div>
-      <div className="flex gap-1 mb-3 bg-zinc-800 rounded-xl p-1">
-        {[['all','All'],['fines','Fines'],['subs','Subs']].map(([v, label]) => (
-          <button key={v} onClick={() => setFilterType(v)}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${filterType === v ? 'bg-amber-500 text-zinc-900' : 'text-zinc-400 hover:text-white'}`}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        className="mb-3"
+        options={[['all', 'All'], ['fines', 'Fines'], ['subs', 'Subs']].map(([value, label]) => ({ value, label }))}
+        value={filterType}
+        onChange={setFilterType}
+        fullWidth
+      />
 
       {/* Totals */}
       <div className="grid grid-cols-3 gap-2 mb-3">

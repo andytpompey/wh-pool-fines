@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ADMIN_PIN, Badge, Btn, Input, Modal, Sel } from '../App'
+import { ADMIN_PIN, Badge, Btn, Input, Modal, Sel, SegmentedControl } from '../App'
 import * as teamModel from '../lib/teamModel'
 
 const TABS = [
@@ -88,17 +88,13 @@ export default function TeamManagementPage({
         </div>
       </div>
 
-      <div className="flex gap-1 bg-zinc-800 rounded-xl p-1 overflow-x-auto">
-        {TABS.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 min-w-fit px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === tab.id ? 'bg-amber-500 text-zinc-900' : 'text-zinc-400 hover:text-white'}`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        options={TABS.map(tab => ({ value: tab.id, label: tab.label }))}
+        value={activeTab}
+        onChange={setActiveTab}
+        fullWidth
+        scrollable
+      />
 
       {activeTab === 'players' && (
         <PlayersTab
