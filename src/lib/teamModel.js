@@ -1,15 +1,114 @@
 import { supabase } from './supabase'
-import { TEAM_ROLE, getTeamRoleLabel, normaliseTeamRole, canManageTeamOperations, canManageTeamRoles, PROTECTED_ACTIONS, canPerformProtectedAction, PROTECTED_ACTION } from './permissions'
+import { TEAM_ROLE, getTeamRoleLabel, normaliseTeamRole, canManageTeamOperations, canManageTeamRoles, PROTECTED_ACTIONS, canPerformProtectedAction, PROTECTED_ACTION, PLATFORM_ROLE } from './permissions'
+import * as auth from './auth'
 
 function handle(result) {
   if (result.error) throw result.error
   return result.data
 }
 
-async function sha256(value) {
-  const data = new TextEncoder().encode(value)
-  const digest = await crypto.subtle.digest('SHA-256', data)
-  return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('')
+const UNLOCK_CODE_HASH_ITERATIONS = 210000
+const UNLOCK_CODE_KEY = 'PBKDF2'
+const UNLOCK_CODE_HASH = 'SHA-256'
+const UNLOCK_CODE_VERSION = 1
+const MAX_VERIFY_ATTEMPTS = 5
+const MAX_RESET_ATTEMPTS = 3
+const VERIFY_WINDOW_MS = 5 * 60 * 1000
+const RESET_WINDOW_MS = 15 * 60 * 1000
+
+function getRandomBytes(size) {
+  const bytes = new Uint8Array(size)
+  crypto.getRandomValues(bytes)
+  return bytes
+}
+
+function bufferToHex(buffer) {
+  return Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+function timingSafeEqualHex(left, right) {
+  if (!left || !right) return false
+  const leftBytes = left.match(/.{1,2}/g)?.map(part => Number.parseInt(part, 16)) ?? []
+  const rightBytes = right.match(/.{1,2}/g)?.map(part => Number.parseInt(part, 16)) ?? []
+  const length = Math.max(leftBytes.length, rightBytes.length)
+  let mismatch = leftBytes.length === rightBytes.length ? 0 : 1
+  for (let index = 0; index < length; index += 1) {
+    mismatch |= (leftBytes[index] ?? 0) ^ (rightBytes[index] ?? 0)
+  }
+  return mismatch === 0
+}
+
+async function deriveUnlockCodeHash({ unlockCode, saltHex, iterations = UNLOCK_CODE_HASH_ITERATIONS }) {
+  const normalizedUnlockCode = unlockCode?.trim()
+  if (!normalizedUnlockCode) throw new Error('Unlock code is required.')
+  const secret = await crypto.subtle.importKey('raw', new TextEncoder().encode(normalizedUnlockCode), UNLOCK_CODE_KEY, false, ['deriveBits'])
+  const salt = Uint8Array.from((saltHex.match(/.{1,2}/g) ?? []).map(part => Number.parseInt(part, 16)))
+  const bits = await crypto.subtle.deriveBits({ name: UNLOCK_CODE_KEY, hash: UNLOCK_CODE_HASH, salt, iterations }, secret, 256)
+  return bufferToHex(bits)
+}
+
+async function hashNewUnlockCode(unlockCode) {
+  const saltHex = bufferToHex(getRandomBytes(16))
+  const hashHex = await deriveUnlockCodeHash({ unlockCode, saltHex })
+  return {
+    unlock_code_hash: hashHex,
+    unlock_code_salt: saltHex,
+    unlock_code_hash_algorithm: 'pbkdf2-sha256',
+    unlock_code_hash_iterations: UNLOCK_CODE_HASH_ITERATIONS,
+    unlock_code_version: UNLOCK_CODE_VERSION,
+  }
+}
+
+function getRateLimitState(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key) || 'null') || { count: 0, start: Date.now() }
+  } catch {
+    return { count: 0, start: Date.now() }
+  }
+}
+
+function checkRateLimit({ scope, teamId, limit, windowMs }) {
+  const key = `roo-bin:${scope}:${teamId}`
+  const now = Date.now()
+  const state = getRateLimitState(key)
+  if (now - state.start > windowMs) {
+    localStorage.setItem(key, JSON.stringify({ count: 1, start: now }))
+    return
+  }
+  if (state.count >= limit) throw new Error('Too many attempts. Please wait and try again.')
+  localStorage.setItem(key, JSON.stringify({ count: state.count + 1, start: state.start }))
+}
+
+function clearRateLimit({ scope, teamId }) {
+  localStorage.removeItem(`roo-bin:${scope}:${teamId}`)
+}
+
+async function notifyCaptainsOfUnlockCode({ captainContacts, teamName, unlockCode, reason }) {
+  const endpoint = import.meta.env.VITE_TEAM_UNLOCK_CODE_EMAIL_URL
+  const recipients = captainContacts.filter(contact => contact?.email && contact.receiveTeamNotifications !== false)
+  if (!recipients.length) {
+    return { delivered: false, message: 'Unlock code rotated, but no captain notification recipients were available.' }
+  }
+  if (!endpoint) {
+    return { delivered: false, message: 'Unlock code rotated. Captain notification delivery is not configured yet.' }
+  }
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      teamName,
+      unlockCode,
+      reason,
+      recipients: recipients.map(recipient => ({
+        email: recipient.email,
+        playerName: recipient.playerName,
+      })),
+    }),
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(body?.error || 'Failed to deliver unlock code notifications.')
+  return { delivered: true, message: body?.message || 'Unlock code notifications sent.' }
 }
 
 export const ROLE_LABELS = {
@@ -116,14 +215,7 @@ export async function listPendingTeamInvites(teamId) {
     .order('created_at', { ascending: false }))
 }
 
-export async function createTeamInvite({
-  teamId,
-  email,
-  token,
-  playerId = null,
-  invitedByPlayerId = null,
-  expiresAt = null,
-}) {
+export async function createTeamInvite({ teamId, email, token, playerId = null, invitedByPlayerId = null, expiresAt = null }) {
   return handle(await supabase
     .from('team_invites')
     .insert({
@@ -138,14 +230,7 @@ export async function createTeamInvite({
     .single())
 }
 
-export async function upsertPendingTeamInvite({
-  teamId,
-  email,
-  token,
-  playerId = null,
-  invitedByPlayerId = null,
-  expiresAt = null,
-}) {
+export async function upsertPendingTeamInvite({ teamId, email, token, playerId = null, invitedByPlayerId = null, expiresAt = null }) {
   const normalizedEmail = email?.trim().toLowerCase()
   if (!teamId) throw new Error('Team is required.')
   if (!normalizedEmail) throw new Error('Email is required.')
@@ -231,37 +316,82 @@ export async function getPendingInviteByToken(token) {
   return row ?? null
 }
 
-export async function setTeamUnlockCode({ teamId, unlockCode }) {
+async function updateTeamUnlockCodeRecord({ teamId, unlockCode, resetRequired = false }) {
   if (!teamId) throw new Error('Team is required.')
-  const normalizedUnlockCode = unlockCode?.trim()
-  if (!normalizedUnlockCode) throw new Error('Unlock code is required.')
-
-  const unlockCodeHash = await sha256(normalizedUnlockCode)
+  const hashedPayload = await hashNewUnlockCode(unlockCode)
+  clearRateLimit({ scope: 'unlock-verify', teamId })
+  clearRateLimit({ scope: 'unlock-reset', teamId })
   return handle(await supabase
     .from('teams')
     .update({
-      unlock_code_hash: unlockCodeHash,
-      unlock_code_reset_required: false,
+      ...hashedPayload,
+      unlock_code_reset_required: resetRequired,
       unlock_code_last_rotated_at: new Date().toISOString(),
+      unlock_code_reset_requested_at: new Date().toISOString(),
     })
     .eq('id', teamId)
     .select('*')
     .single())
 }
 
+export async function setTeamUnlockCode({ teamId, unlockCode, actorMembership }) {
+  if (normaliseTeamRole(actorMembership?.role) !== TEAM_ROLE.CAPTAIN) throw new Error('Only captains can set a team unlock code.')
+  const existingTeam = await getTeamById(teamId)
+  if (existingTeam?.unlock_code_hash) throw new Error('Unlock code already exists. Use change unlock code instead.')
+  return updateTeamUnlockCodeRecord({ teamId, unlockCode, resetRequired: false })
+}
+
+export async function changeTeamUnlockCode({ teamId, currentUnlockCode, nextUnlockCode, actorMembership }) {
+  if (normaliseTeamRole(actorMembership?.role) !== TEAM_ROLE.CAPTAIN) throw new Error('Only captains can change a team unlock code.')
+  const currentValid = await verifyTeamUnlockCode({ teamId, unlockCode: currentUnlockCode })
+  if (!currentValid) throw new Error('Current unlock code is incorrect.')
+  return updateTeamUnlockCodeRecord({ teamId, unlockCode: nextUnlockCode, resetRequired: false })
+}
+
+function generateTeamUnlockCode() {
+  return Array.from(getRandomBytes(6), byte => (byte % 10).toString()).join('')
+}
+
 export async function verifyTeamUnlockCode({ teamId, unlockCode }) {
   if (!teamId || !unlockCode?.trim()) return false
+  checkRateLimit({ scope: 'unlock-verify', teamId, limit: MAX_VERIFY_ATTEMPTS, windowMs: VERIFY_WINDOW_MS })
   const team = await getTeamById(teamId)
-  if (!team?.unlock_code_hash) return false
-  const unlockCodeHash = await sha256(unlockCode.trim())
-  return unlockCodeHash === team.unlock_code_hash
+  if (!team?.unlock_code_hash || !team?.unlock_code_salt) return false
+  const unlockCodeHash = await deriveUnlockCodeHash({
+    unlockCode: unlockCode.trim(),
+    saltHex: team.unlock_code_salt,
+    iterations: team.unlock_code_hash_iterations || UNLOCK_CODE_HASH_ITERATIONS,
+  })
+  const matched = timingSafeEqualHex(unlockCodeHash, team.unlock_code_hash)
+  if (matched) clearRateLimit({ scope: 'unlock-verify', teamId })
+  return matched
+}
+
+export async function requestCaptainUnlockCodeReset({ teamId, actorMembership, verificationMethod, verificationTarget, otpToken, captainContacts = [], teamName }) {
+  if (normaliseTeamRole(actorMembership?.role) !== TEAM_ROLE.CAPTAIN) throw new Error('Only captains can request an unlock code reset.')
+  checkRateLimit({ scope: 'unlock-reset', teamId, limit: MAX_RESET_ATTEMPTS, windowMs: RESET_WINDOW_MS })
+  if (verificationMethod === 'whatsapp') await auth.verifyWhatsAppOtp(verificationTarget, otpToken)
+  else await auth.verifyEmailOtp(verificationTarget, otpToken)
+
+  const newUnlockCode = generateTeamUnlockCode()
+  await updateTeamUnlockCodeRecord({ teamId, unlockCode: newUnlockCode, resetRequired: false })
+  const notification = await notifyCaptainsOfUnlockCode({ captainContacts, teamName, unlockCode: newUnlockCode, reason: 'captain_recovery' })
+  return { success: true, notification }
+}
+
+export async function triggerAdminUnlockCodeReset({ teamId, platformRole, captainContacts = [], teamName }) {
+  if (platformRole !== PLATFORM_ROLE.ADMIN) throw new Error('Only platform admins can trigger team unlock code resets.')
+  const newUnlockCode = generateTeamUnlockCode()
+  await updateTeamUnlockCodeRecord({ teamId, unlockCode: newUnlockCode, resetRequired: false })
+  const notification = await notifyCaptainsOfUnlockCode({ captainContacts, teamName, unlockCode: newUnlockCode, reason: 'platform_admin_reset' })
+  return { success: true, notification }
 }
 
 export async function markTeamUnlockCodeResetRequired(teamId) {
   if (!teamId) throw new Error('Team is required.')
   return handle(await supabase
     .from('teams')
-    .update({ unlock_code_hash: null, unlock_code_reset_required: true })
+    .update({ unlock_code_hash: null, unlock_code_salt: null, unlock_code_reset_required: true })
     .eq('id', teamId)
     .select('*')
     .single())

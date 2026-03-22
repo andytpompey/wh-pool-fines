@@ -222,7 +222,12 @@ create table if not exists teams (
   join_code text unique not null,
   created_by uuid null references players(id) on delete set null,
   unlock_code_hash text,
+  unlock_code_salt text,
+  unlock_code_hash_algorithm text not null default 'pbkdf2-sha256',
+  unlock_code_hash_iterations integer not null default 210000,
+  unlock_code_version integer not null default 1,
   unlock_code_last_rotated_at timestamptz,
+  unlock_code_reset_requested_at timestamptz,
   unlock_code_reset_required boolean not null default true,
   created_at timestamptz not null default now()
 );

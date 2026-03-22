@@ -582,6 +582,8 @@ export default function App() {
           playerName: playersById.get(row.player_id)?.name ?? 'Unknown player',
           email: playersById.get(row.player_id)?.email ?? '',
           mobile: playersById.get(row.player_id)?.mobile ?? '',
+          preferredAuthMethod: playersById.get(row.player_id)?.preferredAuthMethod ?? 'email',
+          receiveTeamNotifications: playersById.get(row.player_id)?.receiveTeamNotifications ?? true,
           role: normaliseTeamRole(row.role),
           status: row.status,
         }))
@@ -1070,6 +1072,51 @@ export default function App() {
     setSeasons(prev => prev.filter(item => item.id !== season.id))
   }), [currentTeamId, currentTeamMembership?.role])
 
+  const getCaptainContacts = useCallback(() => teamRoster.members
+    .filter(member => member.role === TEAM_ROLE.CAPTAIN)
+    .map(member => ({
+      playerName: member.playerName,
+      email: member.email,
+      receiveTeamNotifications: member.receiveTeamNotifications,
+    })), [teamRoster.members])
+
+  const handleSetUnlockCode = useCallback((unlockCode) => withSave(async () => {
+    if (!currentTeamId || !currentTeamMembership) throw new Error('Select a team first.')
+    await teamModel.setTeamUnlockCode({ teamId: currentTeamId, unlockCode, actorMembership: currentTeamMembership })
+    await refreshMemberContext(session?.user)
+  }), [currentTeamId, currentTeamMembership, refreshMemberContext, session?.user])
+
+  const handleChangeUnlockCode = useCallback((currentUnlockCode, nextUnlockCode) => withSave(async () => {
+    if (!currentTeamId || !currentTeamMembership) throw new Error('Select a team first.')
+    await teamModel.changeTeamUnlockCode({ teamId: currentTeamId, currentUnlockCode, nextUnlockCode, actorMembership: currentTeamMembership })
+    await refreshMemberContext(session?.user)
+  }), [currentTeamId, currentTeamMembership, refreshMemberContext, session?.user])
+
+  const handleRequestUnlockCodeReset = useCallback((payload) => withSave(async () => {
+    if (!currentTeamId || !currentTeamMembership) throw new Error('Select a team first.')
+    await teamModel.requestCaptainUnlockCodeReset({
+      teamId: currentTeamId,
+      actorMembership: currentTeamMembership,
+      verificationMethod: payload.verificationMethod,
+      verificationTarget: payload.verificationTarget,
+      otpToken: payload.otpToken,
+      captainContacts: getCaptainContacts(),
+      teamName: currentTeamMembership.team.name,
+    })
+    await refreshMemberContext(session?.user)
+  }), [currentTeamId, currentTeamMembership, getCaptainContacts, refreshMemberContext, session?.user])
+
+  const handleAdminUnlockCodeReset = useCallback(() => withSave(async () => {
+    if (!currentTeamId || !currentTeamMembership) throw new Error('Select a team first.')
+    await teamModel.triggerAdminUnlockCodeReset({
+      teamId: currentTeamId,
+      platformRole: memberContext.platformRole,
+      captainContacts: getCaptainContacts(),
+      teamName: currentTeamMembership.team.name,
+    })
+    await refreshMemberContext(session?.user)
+  }), [currentTeamId, currentTeamMembership, getCaptainContacts, memberContext.platformRole, refreshMemberContext, session?.user])
+
   const isInMoreSection = isMoreRoute(route.name)
   const showBottomNav = !!currentTeamId && (route.name === 'app' || isInMoreSection)
 
@@ -1176,7 +1223,7 @@ export default function App() {
             ) : loading ? <Spinner /> : error ? <ErrorScreen error={error} onRetry={() => load(currentTeamId)} /> : route.name === 'team' ? (
               <TeamManagementPage
                 team={currentTeamMembership?.team}
-                membership={currentTeamMembership}
+                membership={{ ...currentTeamMembership, email: profile?.email, mobile: profile?.mobile, preferredAuthMethod: profile?.preferredAuthMethod, platformRole: memberContext.platformRole, isPlatformAdmin: memberContext.isPlatformAdmin }}
                 members={teamRoster.members}
                 invites={teamRoster.invites}
                 fineTypes={fineTypes}
@@ -1198,6 +1245,10 @@ export default function App() {
                 onAddSeason={handleAddSeason}
                 onUpdateSeason={handleUpdateSeason}
                 onDeleteSeason={handleDeleteSeason}
+                onSetUnlockCode={handleSetUnlockCode}
+                onChangeUnlockCode={handleChangeUnlockCode}
+                onRequestUnlockCodeReset={handleRequestUnlockCodeReset}
+                onAdminResetUnlockCode={handleAdminUnlockCodeReset}
                 saving={saving}
               />
             ) : (
