@@ -75,6 +75,19 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
       : { ...currentMatch, subs: (currentMatch.subs ?? []).filter(s => s.id !== item.id) }
 
     if (updatedMatch) await db.updateMatch({ ...updatedMatch, teamId: currentTeamId })
+    await db.logProtectedRecordDeletion({
+      teamId: currentTeamId,
+      actorMembership: membership,
+      platformRole,
+      entityType: item.kind === 'fine' ? 'fine' : 'sub',
+      entityId: item.id,
+      payload: {
+        matchId: item.matchId,
+        label: item.label,
+        playerId: item.playerId,
+        protectedAction: 'delete_fine_entry',
+      },
+    })
     setMatches(prev => prev.map(m => m.id === item.matchId ? updatedMatch : m))
     setPendingDelete(null); setPinInput(''); setPinError('')
   })
