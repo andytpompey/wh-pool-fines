@@ -4,6 +4,7 @@ import * as auth from './lib/auth'
 import * as teamModel from './lib/teamModel'
 import * as userProfileDb from './lib/userProfile'
 import * as teamInvites from './lib/teamInvites'
+import { TEAM_ROLE, canManageTeamOperations, canManageTeamRoles, canAssignTeamRole, canEditPlayerProfileInTeam, normaliseTeamRole } from './lib/permissions'
 import { resolveCurrentTeamContext } from './lib/currentTeam'
 import { resolveAuthenticatedPlayerContext } from './lib/memberships'
 import SetupTab from './components/SetupTab'
@@ -311,10 +312,6 @@ function normaliseEmail(email) {
   return email?.trim().toLowerCase() ?? ""
 }
 
-function canManageTeam(role) {
-  return teamModel.canManageTeam(role)
-}
-
 function JoinTeamPage({ onJoinTeam, onCreateTeam, saving }) {
   const [joinCode, setJoinCode] = useState('')
   const [status, setStatus] = useState({ error: '', success: '', teamName: '' })
@@ -530,7 +527,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true)
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
-  const [memberContext, setMemberContext] = useState({ profile: null, memberships: [], player: null })
+  const [memberContext, setMemberContext] = useState({ profile: null, memberships: [], player: null, platformRole: null, isPlatformAdmin: false })
   const [currentTeamId, setCurrentTeamId] = useState(() => localStorage.getItem(TEAM_STORAGE_KEY) || null)
   const [teamRoster, setTeamRoster] = useState({ members: [], invites: [] })
   const [showBanner, setShowBanner] = useState(true)
@@ -585,7 +582,7 @@ export default function App() {
           playerName: playersById.get(row.player_id)?.name ?? 'Unknown player',
           email: playersById.get(row.player_id)?.email ?? '',
           mobile: playersById.get(row.player_id)?.mobile ?? '',
-          role: row.role,
+          role: normaliseTeamRole(row.role),
           status: row.status,
         }))
         .sort((a, b) => a.playerName.localeCompare(b.playerName)),
@@ -597,7 +594,7 @@ export default function App() {
         invitedAt: row.created_at,
         invitedByPlayerId: row.invited_by_player_id,
         token: row.token,
-        role: 'member',
+        role: TEAM_ROLE.MEMBER,
         status: row.status,
       })),
     })
@@ -654,7 +651,7 @@ export default function App() {
 
     if (!session?.user) {
       setProfile(null)
-      setMemberContext({ profile: null, memberships: [], player: null })
+      setMemberContext({ profile: null, memberships: [], player: null, platformRole: null, isPlatformAdmin: false })
       setCurrentTeamId(null)
       return
     }
@@ -766,7 +763,7 @@ export default function App() {
     if (!joinCode) throw new Error('Could not generate a unique join code. Please try again.')
 
     const team = await teamModel.createTeam({ name: teamName.trim(), createdBy: player.id, joinCode })
-    await teamModel.addTeamMembership({ teamId: team.id, playerId: player.id, role: 'captain', status: 'active' })
+    await teamModel.addTeamMembership({ teamId: team.id, playerId: player.id, role: TEAM_ROLE.CAPTAIN, status: 'active' })
     const context = await refreshMemberContext(session.user, { name: 'team', teamId: team.id })
     setProfile(context?.profile ?? profile)
     navigate(`/teams/${team.id}`)
@@ -779,7 +776,7 @@ export default function App() {
       setProfile(null)
       setCurrentPlayer(null)
       setCurrentTeamId(null)
-      setMemberContext({ profile: null, memberships: [], player: null })
+      setMemberContext({ profile: null, memberships: [], player: null, platformRole: null, isPlatformAdmin: false })
       navigate('/', { replace: true })
     } catch (err) {
       console.error('Sign-out failed:', err)
@@ -789,8 +786,8 @@ export default function App() {
   const handleInvitePlayer = useCallback((payload) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
     if (!currentTeamMembership) throw new Error('You are not a member of this team.')
-    if (!['captain', 'admin'].includes(currentTeamMembership.role)) {
-      throw new Error('Only captains and admins can invite players.')
+    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) {
+      throw new Error('Only captains and vice-captains can invite players.')
     }
 
     const email = normaliseEmail(payload.email)
@@ -832,7 +829,7 @@ export default function App() {
     await teamModel.addTeamMembership({
       teamId: currentTeamId,
       playerId: player.id,
-      role: existingMembership?.role || 'member',
+      role: normaliseTeamRole(existingMembership?.role) || TEAM_ROLE.MEMBER,
       status: 'active',
     })
 
@@ -882,7 +879,7 @@ export default function App() {
       }
     }
 
-    await teamModel.addTeamMembership({ teamId: team.id, playerId: player.id, role: 'member', status: 'active' })
+    await teamModel.addTeamMembership({ teamId: team.id, playerId: player.id, role: TEAM_ROLE.MEMBER, status: 'active' })
     if (player.email) {
       await teamModel.acceptTeamInvite({ teamId: team.id, email: player.email, playerId: player.id })
     }
@@ -898,21 +895,21 @@ export default function App() {
 
   const handleUpdateMemberRole = useCallback((member, nextRole) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (currentTeamMembership?.role !== 'captain') throw new Error('Only the captain can change team roles.')
+    if (!canManageTeamRoles({ membership: currentTeamMembership })) throw new Error('Only the captain can change team roles.')
     if (!member?.id) throw new Error('Member is required.')
-    if (!['captain', 'admin', 'member'].includes(nextRole)) throw new Error('Invalid role.')
+    if (!canAssignTeamRole({ actorMembership: currentTeamMembership, targetRole: nextRole }) && nextRole !== TEAM_ROLE.CAPTAIN) throw new Error('Invalid role.')
 
-    if (member.playerId === currentTeamMembership.playerId && nextRole !== 'captain') {
+    if (member.playerId === currentTeamMembership.playerId && nextRole !== TEAM_ROLE.CAPTAIN) {
       throw new Error('Captain cannot remove their own captaincy without transferring it first.')
     }
-    if (nextRole === 'captain') {
-      await teamModel.updateTeamMembership({ membershipId: member.id, role: 'captain' })
+    if (nextRole === TEAM_ROLE.CAPTAIN) {
+      await teamModel.updateTeamMembership({ membershipId: member.id, role: TEAM_ROLE.CAPTAIN })
       const currentCaptain = teamRoster.members.find(entry => entry.playerId === currentTeamMembership.playerId)
       if (currentCaptain) {
-        await teamModel.updateTeamMembership({ membershipId: currentCaptain.id, role: 'member' })
+        await teamModel.updateTeamMembership({ membershipId: currentCaptain.id, role: TEAM_ROLE.MEMBER })
       }
     } else {
-      if (member.role === 'captain') throw new Error('Transfer captaincy instead of demoting the captain directly.')
+      if (member.role === TEAM_ROLE.CAPTAIN) throw new Error('Transfer captaincy instead of demoting the captain directly.')
       await teamModel.updateTeamMembership({ membershipId: member.id, role: nextRole })
     }
 
@@ -923,7 +920,7 @@ export default function App() {
     if (!currentTeamId) throw new Error('Select a team first.')
     if (!currentTeamMembership) throw new Error('You are not a member of this team.')
     if (!payload?.playerId || !payload?.membershipId) throw new Error('Player details are required.')
-    const canEditPlayer = ['captain', 'admin'].includes(currentTeamMembership.role) || payload.playerId === currentTeamMembership.playerId
+    const canEditPlayer = canEditPlayerProfileInTeam({ actorMembership: currentTeamMembership, targetPlayerId: payload.playerId, actorPlayerId: currentTeamMembership.playerId, platformRole: memberContext.platformRole })
     if (!canEditPlayer) throw new Error('You do not have permission to edit this player.')
 
     const currentPlayer = players.find(player => player.id === payload.playerId)
@@ -943,18 +940,18 @@ export default function App() {
     })
 
     if (payload.role && payload.role !== payload.currentRole) {
-      if (currentTeamMembership.role !== 'captain') throw new Error('Only the captain can change team roles.')
-      if (!['captain', 'admin', 'member'].includes(payload.role)) throw new Error('Invalid role.')
+      if (currentTeamMembership.role !== TEAM_ROLE.CAPTAIN) throw new Error('Only the captain can change team roles.')
+      if (!canAssignTeamRole({ actorMembership: currentTeamMembership, targetRole: payload.role }) && payload.role !== TEAM_ROLE.CAPTAIN) throw new Error('Invalid role.')
       const member = teamRoster.members.find(entry => entry.id === payload.membershipId)
       if (!member) throw new Error('Membership not found.')
-      if (payload.role === 'captain') {
-        await teamModel.updateTeamMembership({ membershipId: member.id, role: 'captain' })
+      if (payload.role === TEAM_ROLE.CAPTAIN) {
+        await teamModel.updateTeamMembership({ membershipId: member.id, role: TEAM_ROLE.CAPTAIN })
         const currentCaptain = teamRoster.members.find(entry => entry.playerId === currentTeamMembership.playerId)
         if (currentCaptain) {
-          await teamModel.updateTeamMembership({ membershipId: currentCaptain.id, role: 'member' })
+          await teamModel.updateTeamMembership({ membershipId: currentCaptain.id, role: TEAM_ROLE.MEMBER })
         }
       } else {
-        if (member.role === 'captain') throw new Error('Transfer captaincy instead of demoting the captain directly.')
+        if (member.role === TEAM_ROLE.CAPTAIN) throw new Error('Transfer captaincy instead of demoting the captain directly.')
         if (member.playerId === currentTeamMembership.playerId) {
           throw new Error('Captain cannot remove their own captaincy without transferring it first.')
         }
@@ -968,9 +965,9 @@ export default function App() {
   const handleRemoveMember = useCallback((member) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
     if (!currentTeamMembership) throw new Error('You are not a member of this team.')
-    if (!['captain', 'admin'].includes(currentTeamMembership.role)) throw new Error('Only captains and admins can remove players.')
+    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can remove players.')
     if (!member?.id) throw new Error('Member is required.')
-    if (member.role === 'captain') throw new Error('Transfer captaincy before removing the captain.')
+    if (member.role === TEAM_ROLE.CAPTAIN) throw new Error('Transfer captaincy before removing the captain.')
     if (member.playerId === currentTeamMembership.playerId) throw new Error('You cannot remove yourself from the team here.')
 
     await teamModel.updateTeamMembership({ membershipId: member.id, status: 'removed' })
@@ -980,7 +977,7 @@ export default function App() {
   const handleRevokeInvite = useCallback((invite) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
     if (!currentTeamMembership) throw new Error('You are not a member of this team.')
-    if (!['captain', 'admin'].includes(currentTeamMembership.role)) throw new Error('Only captains and admins can revoke invites.')
+    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can revoke invites.')
     if (!invite?.id) throw new Error('Invite is required.')
 
     await teamModel.updateTeamInvite({ inviteId: invite.id, status: 'cancelled' })
@@ -990,7 +987,7 @@ export default function App() {
   const handleResendInvite = useCallback((invite) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
     if (!currentTeamMembership) throw new Error('You are not a member of this team.')
-    if (!['captain', 'admin'].includes(currentTeamMembership.role)) throw new Error('Only captains and admins can resend invites.')
+    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can resend invites.')
     if (!invite?.id || !invite?.email) throw new Error('Invite is required.')
 
     const inviteToken = teamInvites.generateSecureInviteToken()
@@ -1017,7 +1014,7 @@ export default function App() {
 
   const handleAddFineType = useCallback((payload) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (!canManageTeam(currentTeamMembership?.role)) throw new Error('Only captains and admins can manage fine types.')
+    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can manage fine types.')
     if (!payload?.name?.trim()) throw new Error('Fine name is required.')
     const cost = Number(payload.cost)
     if (Number.isNaN(cost) || cost < 0) throw new Error('Enter a valid fine cost.')
@@ -1029,7 +1026,7 @@ export default function App() {
 
   const handleUpdateFineType = useCallback((payload) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (!canManageTeam(currentTeamMembership?.role)) throw new Error('Only captains and admins can manage fine types.')
+    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can manage fine types.')
     if (!payload?.name?.trim()) throw new Error('Fine name is required.')
     const cost = Number(payload.cost)
     if (Number.isNaN(cost) || cost < 0) throw new Error('Enter a valid fine cost.')
@@ -1041,14 +1038,14 @@ export default function App() {
 
   const handleDeleteFineType = useCallback((fineType) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (!canManageTeam(currentTeamMembership?.role)) throw new Error('Only captains and admins can manage fine types.')
+    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can manage fine types.')
     await db.deleteFineType(fineType.id)
     setFineTypes(prev => prev.filter(item => item.id !== fineType.id))
   }), [currentTeamId, currentTeamMembership?.role])
 
   const handleAddSeason = useCallback((payload) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (!canManageTeam(currentTeamMembership?.role)) throw new Error('Only captains and admins can manage seasons.')
+    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can manage seasons.')
     if (!payload?.name?.trim()) throw new Error('Season name is required.')
 
     const created = await db.addSeason({ id: uuid(), name: payload.name.trim(), type: payload.type || 'League', teamId: currentTeamId })
@@ -1058,7 +1055,7 @@ export default function App() {
 
   const handleUpdateSeason = useCallback((payload) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (!canManageTeam(currentTeamMembership?.role)) throw new Error('Only captains and admins can manage seasons.')
+    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can manage seasons.')
     if (!payload?.name?.trim()) throw new Error('Season name is required.')
 
     const updated = await db.updateSeason({ ...payload, name: payload.name.trim(), type: payload.type || 'League', teamId: currentTeamId })
@@ -1068,7 +1065,7 @@ export default function App() {
 
   const handleDeleteSeason = useCallback((season) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (!canManageTeam(currentTeamMembership?.role)) throw new Error('Only captains and admins can manage seasons.')
+    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can manage seasons.')
     await db.deleteSeason(season.id)
     setSeasons(prev => prev.filter(item => item.id !== season.id))
   }), [currentTeamId, currentTeamMembership?.role])

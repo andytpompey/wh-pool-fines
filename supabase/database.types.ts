@@ -3,6 +3,27 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type Database = {
   public: {
     Tables: {
+
+      app_users: {
+        Row: {
+          id: string
+          is_platform_admin: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          is_platform_admin?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          is_platform_admin?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
       players: {
         Row: {
           id: string
@@ -47,6 +68,9 @@ export type Database = {
           name: string
           join_code: string
           created_by: string | null
+          unlock_code_hash: string | null
+          unlock_code_last_rotated_at: string | null
+          unlock_code_reset_required: boolean
           created_at: string
         }
         Insert: {
@@ -54,6 +78,9 @@ export type Database = {
           name: string
           join_code?: string
           created_by?: string | null
+          unlock_code_hash?: string | null
+          unlock_code_last_rotated_at?: string | null
+          unlock_code_reset_required?: boolean
           created_at?: string
         }
         Update: {
@@ -61,6 +88,9 @@ export type Database = {
           name?: string
           join_code?: string
           created_by?: string | null
+          unlock_code_hash?: string | null
+          unlock_code_last_rotated_at?: string | null
+          unlock_code_reset_required?: boolean
           created_at?: string
         }
       }
@@ -69,7 +99,7 @@ export type Database = {
           id: string
           team_id: string
           player_id: string
-          role: 'captain' | 'admin' | 'member'
+          role: 'captain' | 'vice_captain' | 'member'
           status: 'active' | 'invited' | 'removed'
           joined_at: string
         }
@@ -77,7 +107,7 @@ export type Database = {
           id?: string
           team_id: string
           player_id: string
-          role?: 'captain' | 'admin' | 'member'
+          role?: 'captain' | 'vice_captain' | 'member'
           status?: 'active' | 'invited' | 'removed'
           joined_at?: string
         }
@@ -85,7 +115,7 @@ export type Database = {
           id?: string
           team_id?: string
           player_id?: string
-          role?: 'captain' | 'admin' | 'member'
+          role?: 'captain' | 'vice_captain' | 'member'
           status?: 'active' | 'invited' | 'removed'
           joined_at?: string
         }
