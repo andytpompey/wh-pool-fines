@@ -22,7 +22,7 @@ create table if not exists team_memberships (
   id uuid primary key default gen_random_uuid(),
   team_id uuid not null references teams(id) on delete cascade,
   player_id uuid not null references players(id) on delete cascade,
-  role text not null check (role in ('captain', 'admin', 'member')),
+  role text not null check (role in ('captain', 'vice_captain', 'member')),
   status text not null default 'active' check (status in ('active', 'invited', 'removed')),
   joined_at timestamptz not null default now(),
   unique (team_id, player_id)
@@ -68,6 +68,7 @@ comment on column players.auth_user_id is 'DEPRECATED compatibility column. New 
 -- 3) Keep app_users for compatibility only; deprecate overlapping identity fields.
 create table if not exists app_users (
   id uuid primary key references auth.users(id) on delete cascade,
+  is_platform_admin boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -191,7 +192,7 @@ as $$
     from team_memberships tm
     where tm.team_id = target_team_id
       and tm.status = 'active'
-      and tm.role in ('captain', 'admin')
+      and tm.role in ('captain', 'vice_captain')
       and tm.player_id = current_player_id()
   );
 $$;
@@ -220,6 +221,9 @@ create table if not exists teams (
   name text not null,
   join_code text unique not null,
   created_by uuid null references players(id) on delete set null,
+  unlock_code_hash text,
+  unlock_code_last_rotated_at timestamptz,
+  unlock_code_reset_required boolean not null default true,
   created_at timestamptz not null default now()
 );
 
@@ -227,7 +231,7 @@ create table if not exists team_memberships (
   id uuid primary key default gen_random_uuid(),
   team_id uuid not null references teams(id) on delete cascade,
   player_id uuid not null references players(id) on delete cascade,
-  role text not null check (role in ('captain','admin','member')),
+  role text not null check (role in ('captain','vice_captain','member')),
   status text not null default 'active' check (status in ('active','invited','removed')),
   joined_at timestamptz not null default now(),
   unique(team_id, player_id)

@@ -1,26 +1,35 @@
 import { supabase } from './supabase'
+import { TEAM_ROLE, getTeamRoleLabel, normaliseTeamRole, canManageTeamOperations, canManageTeamRoles, PROTECTED_ACTIONS, canPerformProtectedAction, PROTECTED_ACTION } from './permissions'
 
 function handle(result) {
   if (result.error) throw result.error
   return result.data
 }
 
-export const ROLE_LABELS = {
-  captain: 'Captain',
-  admin: 'Vice-captain',
-  member: 'Player',
+async function sha256(value) {
+  const data = new TextEncoder().encode(value)
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('')
 }
+
+export const ROLE_LABELS = {
+  [TEAM_ROLE.CAPTAIN]: getTeamRoleLabel(TEAM_ROLE.CAPTAIN),
+  [TEAM_ROLE.VICE_CAPTAIN]: getTeamRoleLabel(TEAM_ROLE.VICE_CAPTAIN),
+  [TEAM_ROLE.MEMBER]: getTeamRoleLabel(TEAM_ROLE.MEMBER),
+}
+
+export { PROTECTED_ACTION, PROTECTED_ACTIONS }
 
 export function getRoleLabel(role) {
-  return ROLE_LABELS[role] ?? 'Player'
+  return getTeamRoleLabel(role)
 }
 
-export function canManageTeam(role) {
-  return role === 'captain' || role === 'admin'
+export function canManageTeam(role, platformRole = null) {
+  return canManageTeamOperations({ membership: { role: normaliseTeamRole(role), status: 'active' }, platformRole })
 }
 
 export function canCaptainManageRoles(role) {
-  return role === 'captain'
+  return canManageTeamRoles({ membership: { role: normaliseTeamRole(role), status: 'active' } })
 }
 
 export async function createTeam({ name, createdBy, joinCode = null }) {
@@ -51,11 +60,11 @@ export async function getTeamByJoinCode(joinCode) {
   return row ?? null
 }
 
-export async function addTeamMembership({ teamId, playerId, role = 'member', status = 'active' }) {
+export async function addTeamMembership({ teamId, playerId, role = TEAM_ROLE.MEMBER, status = 'active' }) {
   return handle(await supabase
     .from('team_memberships')
     .upsert(
-      { team_id: teamId, player_id: playerId, role, status },
+      { team_id: teamId, player_id: playerId, role: normaliseTeamRole(role), status },
       { onConflict: 'team_id,player_id' },
     )
     .select('*')
@@ -65,7 +74,7 @@ export async function addTeamMembership({ teamId, playerId, role = 'member', sta
 export async function updateTeamMembership({ membershipId, role, status }) {
   if (!membershipId) throw new Error('Membership is required.')
   const payload = {}
-  if (role) payload.role = role
+  if (role) payload.role = normaliseTeamRole(role)
   if (status) payload.status = status
   return handle(await supabase
     .from('team_memberships')
@@ -84,15 +93,17 @@ export async function getTeamMembership({ teamId, playerId }) {
     .eq('player_id', playerId)
     .limit(1)
     .maybeSingle())
-  return row ?? null
+  return row ? { ...row, role: normaliseTeamRole(row.role) } : null
 }
 
 export async function listTeamMemberships(teamId) {
-  return handle(await supabase
+  const rows = handle(await supabase
     .from('team_memberships')
     .select('*')
     .eq('team_id', teamId)
     .order('joined_at'))
+
+  return (rows ?? []).map(row => ({ ...row, role: normaliseTeamRole(row.role) }))
 }
 
 export async function listPendingTeamInvites(teamId) {
@@ -220,9 +231,51 @@ export async function getPendingInviteByToken(token) {
   return row ?? null
 }
 
+export async function setTeamUnlockCode({ teamId, unlockCode }) {
+  if (!teamId) throw new Error('Team is required.')
+  const normalizedUnlockCode = unlockCode?.trim()
+  if (!normalizedUnlockCode) throw new Error('Unlock code is required.')
+
+  const unlockCodeHash = await sha256(normalizedUnlockCode)
+  return handle(await supabase
+    .from('teams')
+    .update({
+      unlock_code_hash: unlockCodeHash,
+      unlock_code_reset_required: false,
+      unlock_code_last_rotated_at: new Date().toISOString(),
+    })
+    .eq('id', teamId)
+    .select('*')
+    .single())
+}
+
+export async function verifyTeamUnlockCode({ teamId, unlockCode }) {
+  if (!teamId || !unlockCode?.trim()) return false
+  const team = await getTeamById(teamId)
+  if (!team?.unlock_code_hash) return false
+  const unlockCodeHash = await sha256(unlockCode.trim())
+  return unlockCodeHash === team.unlock_code_hash
+}
+
+export async function markTeamUnlockCodeResetRequired(teamId) {
+  if (!teamId) throw new Error('Team is required.')
+  return handle(await supabase
+    .from('teams')
+    .update({ unlock_code_hash: null, unlock_code_reset_required: true })
+    .eq('id', teamId)
+    .select('*')
+    .single())
+}
+
+export async function canActorPerformProtectedAction({ action, membership, platformRole, teamId, unlockCode }) {
+  if (!PROTECTED_ACTIONS.includes(action)) return false
+  const unlockCodeVerified = await verifyTeamUnlockCode({ teamId, unlockCode })
+  return canPerformProtectedAction({ action, membership, platformRole, unlockCodeVerified })
+}
+
 const normaliseMembership = row => ({
   id: row.id,
-  role: row.role,
+  role: normaliseTeamRole(row.role),
   status: row.status,
   joinedAt: row.joined_at,
   team: row.teams ? {
@@ -230,6 +283,8 @@ const normaliseMembership = row => ({
     name: row.teams.name,
     joinCode: row.teams.join_code,
     createdAt: row.teams.created_at,
+    unlockCodeResetRequired: Boolean(row.teams.unlock_code_reset_required),
+    unlockCodeLastRotatedAt: row.teams.unlock_code_last_rotated_at,
   } : null,
 })
 
@@ -237,7 +292,7 @@ export async function listMembershipsForPlayer(playerId) {
   if (!playerId) return []
   const rows = handle(await supabase
     .from('team_memberships')
-    .select('id, role, status, joined_at, teams ( id, name, join_code, created_at )')
+    .select('id, role, status, joined_at, teams ( id, name, join_code, created_at, unlock_code_reset_required, unlock_code_last_rotated_at )')
     .eq('player_id', playerId)
     .eq('status', 'active')
     .order('joined_at'))
