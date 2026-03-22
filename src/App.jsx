@@ -173,7 +173,7 @@ function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam }) {
   )
 }
 
-function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam, onCreateTeam, onJoinTeam }) {
+function TeamsIndex({ memberships, currentTeamId, onOpenTeam, onCreateTeam, onJoinTeam }) {
   const currentMembership = memberships.find(membership => membership.team.id === currentTeamId) ?? null
 
   return (
@@ -183,7 +183,7 @@ function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam, onCr
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">More &gt; Teams</p>
             <h2 className="font-display text-2xl font-bold text-white mt-1">Teams</h2>
-            <p className="text-sm text-zinc-400 mt-1">Switch the app-wide active team here, then open a team for deeper management when needed.</p>
+            <p className="text-sm text-zinc-400 mt-1">Review your teams and open one for deeper management when needed. Change the active app-wide team from Profile.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Btn size="sm" variant="outline" onClick={onJoinTeam}>Join team</Btn>
@@ -196,7 +196,7 @@ function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam, onCr
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Active team context</p>
-            <p className="text-sm text-zinc-400 mt-1">Dashboard, Matches, and Fines continue to use the current team shown below.</p>
+            <p className="text-sm text-zinc-400 mt-1">Dashboard, Matches, and Fines continue to use the current team shown below. Switch it from Profile whenever needed.</p>
           </div>
           <Badge color={currentMembership ? 'amber' : 'gray'}>{currentMembership ? 'Current' : 'No team'}</Badge>
         </div>
@@ -228,7 +228,7 @@ function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam, onCr
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 className="font-bold text-white">Your teams</h3>
-            <p className="text-sm text-zinc-400">Choose one action to switch context, or the other to manage that team.</p>
+            <p className="text-sm text-zinc-400">Manage a team from here, while Profile remains the place to change the active team context.</p>
           </div>
           <Badge color="blue">{memberships.length}</Badge>
         </div>
@@ -256,16 +256,8 @@ function TeamsIndex({ memberships, currentTeamId, onSwitchTeam, onOpenTeam, onCr
                   <p className="text-xs text-zinc-500 mt-2">Joined {new Date(membership.joinedAt).toLocaleDateString('en-GB')}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-                <Btn
-                  variant={isCurrent ? 'ghost' : 'outline'}
-                  className="w-full"
-                  onClick={() => onSwitchTeam(membership.team.id)}
-                  disabled={isCurrent}
-                >
-                  {isCurrent ? 'Current team selected' : 'Switch to this team'}
-                </Btn>
-                <Btn className="w-full" onClick={() => onOpenTeam(membership.team.id)}>Manage team</Btn>
+              <div className="mt-4">
+                <Btn className="w-full" onClick={() => onOpenTeam(membership.team.id)}>{isCurrent ? 'Manage current team' : 'Open team management'}</Btn>
               </div>
             </div>
           )
@@ -324,7 +316,7 @@ function JoinTeamPage({ onJoinTeam, onCreateTeam, saving }) {
   )
 }
 
-function PlayerProfilePage({ profile, currentUser, players, memberships, onSaveProfile, onCreateTeam, onJoinTeam, onSignOut, saving }) {
+function PlayerProfilePage({ profile, currentUser, players, memberships, currentTeamId, onSwitchTeam, onSaveProfile, onCreateTeam, onJoinTeam, onSignOut, saving }) {
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
   const [preferredAuthMethod, setPreferredAuthMethod] = useState(profile?.preferredAuthMethod ?? 'email')
   const [linkedPlayerId, setLinkedPlayerId] = useState(profile?.playerId ?? '')
@@ -419,6 +411,17 @@ function PlayerProfilePage({ profile, currentUser, players, memberships, onSaveP
           </div>
         </div>
       </form>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 className="font-bold text-white">Current team context</h3>
+            <p className="text-xs text-zinc-400">Profile is now the single place to view and change the active team used throughout the app.</p>
+          </div>
+          <Badge color={memberships.length ? 'amber' : 'gray'}>{memberships.length ? 'Switcher available' : 'No teams'}</Badge>
+        </div>
+        <TeamSwitcher memberships={memberships} currentTeamId={currentTeamId} onSwitchTeam={onSwitchTeam} />
+      </div>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
         <div className="flex items-center justify-between gap-3 mb-3">
@@ -1078,11 +1081,15 @@ export default function App() {
         <>
           <div className="max-w-lg mx-auto px-4 pt-3">
             {!!saveError && <div className="mb-3 text-sm text-red-400 bg-red-950/40 border border-red-800/50 rounded-xl px-3 py-2">{saveError}</div>}
-            <TeamSwitcher
-              memberships={memberContext.memberships}
-              currentTeamId={currentTeamId}
-              onSwitchTeam={teamId => switchTeam(teamId, route.name === 'team' ? 'team' : 'app')}
-            />
+            {route.name !== 'profile' && currentTeamMembership ? (
+              <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Current team</p>
+                  <p className="truncate text-sm font-medium text-white">{currentTeamMembership.team.name}</p>
+                </div>
+                <Badge color="amber">{teamModel.getRoleLabel(currentTeamMembership.role)}</Badge>
+              </div>
+            ) : null}
 
             {route.name === 'profile' ? (
               <PlayerProfilePage
@@ -1090,6 +1097,8 @@ export default function App() {
                 currentUser={session?.user}
                 players={players}
                 memberships={memberContext.memberships}
+                currentTeamId={currentTeamId}
+                onSwitchTeam={teamId => switchTeam(teamId, 'app')}
                 onSaveProfile={handleSaveProfile}
                 onCreateTeam={() => navigate('/teams/new')}
                 onJoinTeam={() => navigate('/teams/join')}
@@ -1104,7 +1113,6 @@ export default function App() {
               <TeamsIndex
                 memberships={memberContext.memberships}
                 currentTeamId={currentTeamId}
-                onSwitchTeam={teamId => switchTeam(teamId, 'app')}
                 onOpenTeam={teamId => switchTeam(teamId, 'team')}
                 onCreateTeam={() => navigate('/teams/new')}
                 onJoinTeam={() => navigate('/teams/join')}
