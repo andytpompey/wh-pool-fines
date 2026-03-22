@@ -132,6 +132,41 @@ export function Btn({ children, variant = 'primary', size = 'md', className = ''
   return <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...props}>{children}</button>
 }
 
+export function SegmentedControl({ options, value, onChange, className = '', itemClassName = '', fullWidth = false, scrollable = false }) {
+  const containerClassName = [
+    'rounded-2xl border border-zinc-800 bg-zinc-900/90 p-1.5',
+    scrollable ? 'flex overflow-x-auto gap-2 scrollbar-hide' : 'grid gap-2',
+    fullWidth ? 'grid-flow-col auto-cols-fr' : 'grid-flow-col auto-cols-max',
+    className,
+  ].filter(Boolean).join(' ')
+
+  return (
+    <div className={containerClassName}>
+      {options.map(option => {
+        const isSelected = option.value === value
+        const label = option.label ?? option.value
+        return (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value)}
+            className={[
+              'min-h-10 shrink-0 rounded-xl border px-3.5 py-2 text-xs font-bold leading-none transition-all whitespace-nowrap',
+              isSelected
+                ? 'border-amber-400/80 bg-amber-500 text-zinc-900 shadow-[0_0_0_1px_rgba(251,191,36,0.2)]'
+                : 'border-zinc-800 bg-zinc-800/80 text-zinc-400 hover:border-zinc-700 hover:text-white',
+              fullWidth ? 'w-full' : '',
+              itemClassName,
+            ].filter(Boolean).join(' ')}
+          >
+            {label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function Spinner() {
   return <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4"><div className="w-10 h-10 border-4 border-zinc-700 border-t-amber-500 rounded-full animate-spin" /><p className="text-zinc-500 text-sm">Loading saved data...</p></div>
 }

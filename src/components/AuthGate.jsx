@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Btn, Input, Sel, Badge } from '../App'
+import { Btn, Input, Sel, Badge, SegmentedControl } from '../App'
 import * as db from '../lib/db'
 import * as auth from '../lib/auth'
 
@@ -144,14 +144,13 @@ export default function AuthGate({ players, setPlayers, onAuthenticated }) {
         <h1 className="font-display text-2xl font-bold mb-1">White Horse Sign In</h1>
         <p className="text-zinc-400 text-sm mb-5">Authenticate with one-time passcodes by email or WhatsApp.</p>
 
-        <div className="flex gap-1 mb-4 bg-zinc-800 rounded-xl p-1">
-          {['signin', 'register'].map(m => (
-            <button key={m} onClick={() => { setMode(m); setError(''); setStep('details') }}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold capitalize transition-all ${mode === m ? 'bg-amber-500 text-zinc-900' : 'text-zinc-400 hover:text-white'}`}>
-              {m}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          className="mb-4"
+          options={['signin', 'register'].map(value => ({ value, label: value }))}
+          value={mode}
+          onChange={value => { setMode(value); setError(''); setStep('details') }}
+          fullWidth
+        />
 
         {step === 'details' && (
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4">
