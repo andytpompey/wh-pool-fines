@@ -4,7 +4,8 @@ import * as auth from './lib/auth'
 import * as teamModel from './lib/teamModel'
 import * as userProfileDb from './lib/userProfile'
 import * as teamInvites from './lib/teamInvites'
-import { TEAM_ROLE, canManageTeamOperations, canManageTeamRoles, canAssignTeamRole, canEditPlayerProfileInTeam, normaliseTeamRole } from './lib/permissions'
+import { TEAM_ROLE, canAssignTeamRole, canEditPlayerProfileInTeam, normaliseTeamRole } from './lib/permissions'
+import { APP_ACTION, assertActionAccess, canAccessAction } from './lib/accessControl'
 import { resolveCurrentTeamContext } from './lib/currentTeam'
 import { resolveAuthenticatedPlayerContext } from './lib/memberships'
 import SetupTab from './components/SetupTab'
@@ -737,6 +738,19 @@ export default function App() {
     }
   }
 
+  const withProtectedAction = useCallback((action, fn, message) => async (unlockCode) => withSave(async () => {
+    if (!currentTeamId) throw new Error('Select a team first.')
+    await teamModel.assertProtectedActionAccess({
+      action,
+      membership: currentTeamMembership,
+      platformRole: memberContext.platformRole,
+      teamId: currentTeamId,
+      unlockCode,
+      message,
+    })
+    return fn()
+  }), [currentTeamId, currentTeamMembership, memberContext.platformRole])
+
   const handleSaveProfile = useCallback((updates) => withSave(async () => {
     if (!session?.user?.id) throw new Error('You must be signed in.')
     const updated = await userProfileDb.updateCurrentUserProfile(session.user.id, updates)
@@ -788,9 +802,7 @@ export default function App() {
   const handleInvitePlayer = useCallback((payload) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
     if (!currentTeamMembership) throw new Error('You are not a member of this team.')
-    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) {
-      throw new Error('Only captains and vice-captains can invite players.')
-    }
+    assertActionAccess({ action: APP_ACTION.MANAGE_TEAM_OPERATIONS, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can invite players.' })
 
     const email = normaliseEmail(payload.email)
     const displayName = payload.displayName?.trim()
@@ -897,7 +909,7 @@ export default function App() {
 
   const handleUpdateMemberRole = useCallback((member, nextRole) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (!canManageTeamRoles({ membership: currentTeamMembership })) throw new Error('Only the captain can change team roles.')
+    assertActionAccess({ action: APP_ACTION.MANAGE_TEAM_ROLES, membership: currentTeamMembership, message: 'Only the captain can change team roles.' })
     if (!member?.id) throw new Error('Member is required.')
     if (!canAssignTeamRole({ actorMembership: currentTeamMembership, targetRole: nextRole }) && nextRole !== TEAM_ROLE.CAPTAIN) throw new Error('Invalid role.')
 
@@ -942,7 +954,7 @@ export default function App() {
     })
 
     if (payload.role && payload.role !== payload.currentRole) {
-      if (currentTeamMembership.role !== TEAM_ROLE.CAPTAIN) throw new Error('Only the captain can change team roles.')
+      assertActionAccess({ action: APP_ACTION.MANAGE_TEAM_ROLES, membership: currentTeamMembership, message: 'Only the captain can change team roles.' })
       if (!canAssignTeamRole({ actorMembership: currentTeamMembership, targetRole: payload.role }) && payload.role !== TEAM_ROLE.CAPTAIN) throw new Error('Invalid role.')
       const member = teamRoster.members.find(entry => entry.id === payload.membershipId)
       if (!member) throw new Error('Membership not found.')
@@ -964,22 +976,22 @@ export default function App() {
     await Promise.all([load(currentTeamId), loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
   }), [currentTeamId, currentTeamMembership, load, loadTeamRoster, players, refreshMemberContext, session?.user, teamRoster.members])
 
-  const handleRemoveMember = useCallback((member) => withSave(async () => {
+  const handleRemoveMember = useCallback((member, unlockCode) => withProtectedAction(APP_ACTION.REMOVE_TEAM_MEMBER, async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
     if (!currentTeamMembership) throw new Error('You are not a member of this team.')
-    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can remove players.')
+    assertActionAccess({ action: APP_ACTION.MANAGE_TEAM_OPERATIONS, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can remove players.' })
     if (!member?.id) throw new Error('Member is required.')
     if (member.role === TEAM_ROLE.CAPTAIN) throw new Error('Transfer captaincy before removing the captain.')
     if (member.playerId === currentTeamMembership.playerId) throw new Error('You cannot remove yourself from the team here.')
 
     await teamModel.updateTeamMembership({ membershipId: member.id, status: 'removed' })
     await Promise.all([load(currentTeamId), loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
-  }), [currentTeamId, currentTeamMembership, load, loadTeamRoster, refreshMemberContext, session?.user])
+  }, 'Unlock code verification is required to remove team members.'), [currentTeamId, currentTeamMembership, load, loadTeamRoster, refreshMemberContext, session?.user, withProtectedAction])
 
   const handleRevokeInvite = useCallback((invite) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
     if (!currentTeamMembership) throw new Error('You are not a member of this team.')
-    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can revoke invites.')
+    assertActionAccess({ action: APP_ACTION.MANAGE_TEAM_OPERATIONS, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can revoke invites.' })
     if (!invite?.id) throw new Error('Invite is required.')
 
     await teamModel.updateTeamInvite({ inviteId: invite.id, status: 'cancelled' })
@@ -989,7 +1001,7 @@ export default function App() {
   const handleResendInvite = useCallback((invite) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
     if (!currentTeamMembership) throw new Error('You are not a member of this team.')
-    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can resend invites.')
+    assertActionAccess({ action: APP_ACTION.MANAGE_TEAM_OPERATIONS, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can resend invites.' })
     if (!invite?.id || !invite?.email) throw new Error('Invite is required.')
 
     const inviteToken = teamInvites.generateSecureInviteToken()
@@ -1016,7 +1028,7 @@ export default function App() {
 
   const handleAddFineType = useCallback((payload) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can manage fine types.')
+    assertActionAccess({ action: APP_ACTION.MANAGE_FINE_TYPES, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can manage fine types.' })
     if (!payload?.name?.trim()) throw new Error('Fine name is required.')
     const cost = Number(payload.cost)
     if (Number.isNaN(cost) || cost < 0) throw new Error('Enter a valid fine cost.')
@@ -1028,7 +1040,7 @@ export default function App() {
 
   const handleUpdateFineType = useCallback((payload) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can manage fine types.')
+    assertActionAccess({ action: APP_ACTION.MANAGE_FINE_TYPES, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can manage fine types.' })
     if (!payload?.name?.trim()) throw new Error('Fine name is required.')
     const cost = Number(payload.cost)
     if (Number.isNaN(cost) || cost < 0) throw new Error('Enter a valid fine cost.')
@@ -1038,16 +1050,16 @@ export default function App() {
     return updated
   }), [currentTeamId, currentTeamMembership?.role])
 
-  const handleDeleteFineType = useCallback((fineType) => withSave(async () => {
+  const handleDeleteFineType = useCallback((fineType, unlockCode) => withProtectedAction(APP_ACTION.DELETE_FINE_TYPE, async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can manage fine types.')
+    assertActionAccess({ action: APP_ACTION.MANAGE_FINE_TYPES, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can manage fine types.' })
     await db.deleteFineType(fineType.id)
     setFineTypes(prev => prev.filter(item => item.id !== fineType.id))
-  }), [currentTeamId, currentTeamMembership?.role])
+  }, 'Unlock code verification is required to delete fine types.'), [currentTeamId, currentTeamMembership?.role, withProtectedAction])
 
   const handleAddSeason = useCallback((payload) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can manage seasons.')
+    assertActionAccess({ action: APP_ACTION.MANAGE_SEASONS, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can manage seasons.' })
     if (!payload?.name?.trim()) throw new Error('Season name is required.')
 
     const created = await db.addSeason({ id: uuid(), name: payload.name.trim(), type: payload.type || 'League', teamId: currentTeamId })
@@ -1057,7 +1069,7 @@ export default function App() {
 
   const handleUpdateSeason = useCallback((payload) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can manage seasons.')
+    assertActionAccess({ action: APP_ACTION.MANAGE_SEASONS, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can manage seasons.' })
     if (!payload?.name?.trim()) throw new Error('Season name is required.')
 
     const updated = await db.updateSeason({ ...payload, name: payload.name.trim(), type: payload.type || 'League', teamId: currentTeamId })
@@ -1065,12 +1077,12 @@ export default function App() {
     return updated
   }), [currentTeamId, currentTeamMembership?.role])
 
-  const handleDeleteSeason = useCallback((season) => withSave(async () => {
+  const handleDeleteSeason = useCallback((season, unlockCode) => withProtectedAction(APP_ACTION.DELETE_SEASON, async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    if (!canManageTeamOperations({ membership: currentTeamMembership, platformRole: memberContext.platformRole })) throw new Error('Only captains and vice-captains can manage seasons.')
+    assertActionAccess({ action: APP_ACTION.MANAGE_SEASONS, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can manage seasons.' })
     await db.deleteSeason(season.id)
     setSeasons(prev => prev.filter(item => item.id !== season.id))
-  }), [currentTeamId, currentTeamMembership?.role])
+  }, 'Unlock code verification is required to delete seasons.'), [currentTeamId, currentTeamMembership?.role, withProtectedAction])
 
   const getCaptainContacts = useCallback(() => teamRoster.members
     .filter(member => member.role === TEAM_ROLE.CAPTAIN)
@@ -1254,8 +1266,8 @@ export default function App() {
             ) : (
               <>
                 {tab === 0 && <Dashboard players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} currentTeam={currentTeamMembership?.team} />}
-                {tab === 1 && <MatchesTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
-                {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} currentTeamRole={currentTeamMembership?.role} />}
+                {tab === 1 && <MatchesTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} membership={currentTeamMembership} platformRole={memberContext.platformRole} />}
+                {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} membership={currentTeamMembership} platformRole={memberContext.platformRole} />}
                 {isMoreMenuOpen && (
                   <SetupTab
                     onOpenProfile={() => { setIsMoreMenuOpen(false); navigate('/profile') }}

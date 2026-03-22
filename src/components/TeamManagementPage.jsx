@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ADMIN_PIN, Badge, Btn, Input, Modal, Sel, SegmentedControl } from '../App'
+import { Badge, Btn, Input, Modal, Sel, SegmentedControl } from '../App'
 import * as auth from '../lib/auth'
 import * as teamModel from '../lib/teamModel'
 import { TEAM_ROLE } from '../lib/permissions'
@@ -52,9 +52,10 @@ export default function TeamManagementPage({
   onChangeUnlockCode,
   onRequestUnlockCodeReset,
   onAdminResetUnlockCode,
+  platformRole,
 }) {
   const [activeTab, setActiveTab] = useState('players')
-  const canManageTeam = teamModel.canManageTeam(membership?.role)
+  const canManageTeam = teamModel.canManageTeam(membership?.role, platformRole)
   const canManageRoles = teamModel.canCaptainManageRoles(membership?.role)
 
   useEffect(() => {
@@ -155,6 +156,7 @@ export default function TeamManagementPage({
         <TeamSecurityTab
           team={team}
           membership={membership}
+          platformRole={platformRole}
           members={members}
           saving={saving}
           onSetUnlockCode={onSetUnlockCode}
@@ -274,10 +276,10 @@ function PlayersTab({ members, membership, canManageTeam, canManageRoles, saving
               throw err
             }
           }}
-          onRemove={async memberToRemove => {
+          onRemove={async (memberToRemove, unlockCode) => {
             setStatus({ error: '', success: '' })
             try {
-              await onRemoveMember(memberToRemove)
+              await onRemoveMember(memberToRemove, unlockCode)
               setSelectedMember(null)
               setStatus({ error: '', success: `${memberToRemove.playerName || 'Player'} removed from the team.` })
             } catch (err) {
@@ -300,6 +302,7 @@ function PlayerDetailsPanel({ member, membership, canManageTeam, canManageRoles,
   })
   const [error, setError] = useState('')
   const [confirmingRemoval, setConfirmingRemoval] = useState(false)
+  const [unlockCode, setUnlockCode] = useState('')
   const canEditPlayer = canManageTeam || member.playerId === membership?.playerId
   const canRemove = canManageTeam && member.role !== TEAM_ROLE.CAPTAIN && member.playerId !== membership?.playerId
 
@@ -312,6 +315,7 @@ function PlayerDetailsPanel({ member, membership, canManageTeam, canManageRoles,
     })
     setError('')
     setConfirmingRemoval(false)
+    setUnlockCode('')
   }, [member])
 
   return (
@@ -366,13 +370,14 @@ function PlayerDetailsPanel({ member, membership, canManageTeam, canManageRoles,
               <Btn variant="danger" onClick={() => setConfirmingRemoval(true)} disabled={saving}>Remove from team</Btn>
             ) : (
               <>
+                <Input label="Unlock code" type="password" value={unlockCode} onChange={event => setUnlockCode(event.target.value)} disabled={saving} />
                 <Btn variant="danger" onClick={async () => {
                   try {
-                    await onRemove(member)
+                    await onRemove(member, unlockCode)
                   } catch (err) {
                     setError(err?.message ?? 'Failed to remove player from team.')
                   }
-                }} disabled={saving}>
+                }} disabled={saving || !unlockCode.trim()}>
                   Confirm remove
                 </Btn>
                 <Btn variant="outline" onClick={() => setConfirmingRemoval(false)} disabled={saving}>Cancel</Btn>
@@ -586,16 +591,12 @@ function FineTypesTab({ fineTypes, canManageTeam, saving, onAddFineType, onUpdat
 
       {confirmDeleteFine && (
         <Modal title="Delete Fine Type" onClose={() => setConfirmDeleteFine(null)}>
-          <p className="text-zinc-400 text-sm mb-3">Delete <strong className="text-white">{confirmDeleteFine.name}</strong>? Enter admin PIN to confirm.</p>
-          <Input label="Admin PIN" type="password" value={finePinInput} onChange={event => setFinePinInput(event.target.value)} />
+          <p className="text-zinc-400 text-sm mb-3">Delete <strong className="text-white">{confirmDeleteFine.name}</strong>? Enter the team unlock code to confirm.</p>
+          <Input label="Team unlock code" type="password" value={finePinInput} onChange={event => setFinePinInput(event.target.value)} />
           {finePinError && <p className="text-red-400 text-sm mb-2">{finePinError}</p>}
           <div className="flex gap-2">
             <Btn variant="danger" className="flex-1" onClick={async () => {
-              if (finePinInput !== ADMIN_PIN) {
-                setFinePinError('Incorrect PIN')
-                return
-              }
-              await onDeleteFineType(confirmDeleteFine)
+              await onDeleteFineType(confirmDeleteFine, finePinInput)
               setConfirmDeleteFine(null)
               setFinePinInput('')
               setFinePinError('')
@@ -708,16 +709,12 @@ function SeasonsTab({ seasons, canManageTeam, saving, onAddSeason, onUpdateSeaso
 
       {confirmDeleteSeason && (
         <Modal title="Delete Season" onClose={() => setConfirmDeleteSeason(null)}>
-          <p className="text-zinc-400 text-sm mb-3">Delete <strong className="text-white">{confirmDeleteSeason.name}</strong>? Enter admin PIN to confirm.</p>
-          <Input label="Admin PIN" type="password" value={deletePinInput} onChange={event => setDeletePinInput(event.target.value)} />
+          <p className="text-zinc-400 text-sm mb-3">Delete <strong className="text-white">{confirmDeleteSeason.name}</strong>? Enter the team unlock code to confirm.</p>
+          <Input label="Team unlock code" type="password" value={deletePinInput} onChange={event => setDeletePinInput(event.target.value)} />
           {deletePinError && <p className="text-red-400 text-sm mb-2">{deletePinError}</p>}
           <div className="flex gap-2">
             <Btn variant="danger" className="flex-1" onClick={async () => {
-              if (deletePinInput !== ADMIN_PIN) {
-                setDeletePinError('Incorrect PIN')
-                return
-              }
-              await onDeleteSeason(confirmDeleteSeason)
+              await onDeleteSeason(confirmDeleteSeason, deletePinInput)
               setConfirmDeleteSeason(null)
               setDeletePinInput('')
               setDeletePinError('')
@@ -748,9 +745,9 @@ function SeasonsTab({ seasons, canManageTeam, saving, onAddSeason, onUpdateSeaso
 }
 
 
-function TeamSecurityTab({ team, membership, members, saving, onSetUnlockCode, onChangeUnlockCode, onRequestUnlockCodeReset, onAdminResetUnlockCode }) {
+function TeamSecurityTab({ team, membership, platformRole, members, saving, onSetUnlockCode, onChangeUnlockCode, onRequestUnlockCodeReset, onAdminResetUnlockCode }) {
   const isCaptain = membership?.role === TEAM_ROLE.CAPTAIN
-  const isPlatformAdmin = membership?.platformRole === 'admin' || membership?.isPlatformAdmin
+  const isPlatformAdmin = platformRole === 'admin'
   const captains = useMemo(() => members.filter(member => member.role === TEAM_ROLE.CAPTAIN), [members])
   const recoveryTarget = membership?.preferredAuthMethod === 'whatsapp' && membership?.mobile ? membership.mobile : membership?.email
   const recoveryMethod = membership?.preferredAuthMethod === 'whatsapp' && membership?.mobile ? 'whatsapp' : 'email'
