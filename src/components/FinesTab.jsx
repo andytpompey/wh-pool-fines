@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Badge, Modal, Input, Btn, ADMIN_PIN, SegmentedControl, formatDate } from '../App'
+import { TEAM_ROLE } from '../lib/permissions'
 import * as db from '../lib/db'
 
 export default function FinesTab({ players, matches, setMatches, withSave, currentTeamId, currentTeamRole }) {
   const [filterPlayer, setFilterPlayer] = useState('all')
-  const canManageFines = currentTeamRole === 'captain' || currentTeamRole === 'admin'
+  const canManageFines = currentTeamRole === TEAM_ROLE.CAPTAIN || currentTeamRole === TEAM_ROLE.VICE_CAPTAIN
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterType,   setFilterType]   = useState('all')
   const [showSettle,   setShowSettle]   = useState(null)
