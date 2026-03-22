@@ -49,6 +49,10 @@ function navigate(path, { replace = false } = {}) {
   window.dispatchEvent(new PopStateEvent('popstate'))
 }
 
+function isMoreRoute(routeName) {
+  return ['profile', 'teams', 'create-team', 'join-team', 'team'].includes(routeName)
+}
+
 export function uuid() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
@@ -1069,11 +1073,20 @@ export default function App() {
     setSeasons(prev => prev.filter(item => item.id !== season.id))
   }), [currentTeamId, currentTeamMembership?.role])
 
+  const isInMoreSection = isMoreRoute(route.name)
+  const showBottomNav = !!currentTeamId && (route.name === 'app' || isInMoreSection)
+
+  const openPrimaryTab = (nextTab) => {
+    setTab(nextTab)
+    setIsMoreMenuOpen(false)
+    if (route.name !== 'app') navigate('/')
+  }
+
   const navItems = [
-    { label: 'Dashboard', icon: '📊', onClick: () => { setTab(0); setIsMoreMenuOpen(false) }, isActive: tab === 0 && !isMoreMenuOpen },
-    { label: 'Matches', icon: '🎱', onClick: () => { setTab(1); setIsMoreMenuOpen(false) }, isActive: tab === 1 && !isMoreMenuOpen },
-    { label: 'Fines', icon: '💰', onClick: () => { setTab(2); setIsMoreMenuOpen(false) }, isActive: tab === 2 && !isMoreMenuOpen },
-    { label: 'More', icon: '➕', onClick: () => setIsMoreMenuOpen(open => !open), isActive: isMoreMenuOpen },
+    { label: 'Dashboard', icon: '📊', onClick: () => openPrimaryTab(0), isActive: route.name === 'app' && tab === 0 && !isMoreMenuOpen },
+    { label: 'Matches', icon: '🎱', onClick: () => openPrimaryTab(1), isActive: route.name === 'app' && tab === 1 && !isMoreMenuOpen },
+    { label: 'Fines', icon: '💰', onClick: () => openPrimaryTab(2), isActive: route.name === 'app' && tab === 2 && !isMoreMenuOpen },
+    { label: 'More', icon: '➕', onClick: () => setIsMoreMenuOpen(open => !open), isActive: isInMoreSection || isMoreMenuOpen },
   ]
 
   if (authLoading) return <Spinner />
@@ -1204,9 +1217,17 @@ export default function App() {
                 )}
               </>
             )}
+
+            {route.name !== 'app' && isMoreMenuOpen && (
+              <SetupTab
+                onOpenProfile={() => { setIsMoreMenuOpen(false); navigate('/profile') }}
+                onOpenTeams={() => { setIsMoreMenuOpen(false); navigate('/teams') }}
+                onClose={() => setIsMoreMenuOpen(false)}
+              />
+            )}
           </div>
 
-          {route.name === 'app' && currentTeamId && (
+          {showBottomNav && (
             <div className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 backdrop-blur border-t border-zinc-800">
               <div className="max-w-lg mx-auto flex">
                 {navItems.map(item => (
