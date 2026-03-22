@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { Badge, Modal, Input, Sel, Btn, ADMIN_PIN, SUB_AMOUNT, uuid, SegmentedControl, formatDate } from '../App'
+import { Badge, Modal, Input, Sel, Btn, SUB_AMOUNT, uuid, SegmentedControl, formatDate } from '../App'
 import * as db from '../lib/db'
+import * as teamModel from '../lib/teamModel'
+import { APP_ACTION, canAccessAction } from '../lib/accessControl'
 
 // ─── Match Detail ─────────────────────────────────────────────────────────────
-function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDelete }) {
+function MatchDetail({ match, players, fineTypes, seasons, membership, platformRole, currentTeamId, onBack, onSave, onDelete }) {
   const [showAddFine,       setShowAddFine]       = useState(false)
   const [editFine,          setEditFine]           = useState(null)
   const [showAdminPin,      setShowAdminPin]       = useState(false)
@@ -16,6 +18,9 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
 
   const season    = seasons.find(s => s.id === match.seasonId)
   const readonly  = match.submitted
+  const canManageMatches = canAccessAction({ action: APP_ACTION.EDIT_MATCH, membership, platformRole })
+  const canCreateOrEdit = canManageMatches && !readonly
+  const canUnlockMatch = canAccessAction({ action: APP_ACTION.UNLOCK_MATCH, membership, platformRole })
   const playerIds = match.playerIds ?? []
   const subs      = match.subs      ?? []
 
@@ -61,9 +66,12 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
   const openPin   = action => { setPinAction(action); setPinInput(''); setPinError(''); setShowAdminPin(true) }
   const deleteFine = fineId => openPin({ type: 'deleteFine', fineId })
 
-  const tryUnlock = () => {
-    if (pinInput !== ADMIN_PIN) { setPinError('Incorrect PIN'); return }
-    if (pinAction === 'unlock')           save({ submitted: false })
+  const tryUnlock = async () => {
+    const action = pinAction === 'unlock' ? APP_ACTION.UNLOCK_MATCH : pinAction === 'deleteMatch' ? APP_ACTION.DELETE_MATCH : APP_ACTION.DELETE_FINE_ENTRY
+    const errorMessage = pinAction === 'unlock' ? 'Unlock code verification is required to unlock submitted matches.' : 'Unlock code verification is required for protected actions.'
+    const allowed = await teamModel.canActorPerformProtectedAction({ action: action === APP_ACTION.UNLOCK_MATCH ? teamModel.PROTECTED_ACTION.UNLOCK_MATCH : action === APP_ACTION.DELETE_MATCH ? teamModel.PROTECTED_ACTION.DELETE_MATCH : teamModel.PROTECTED_ACTION.DELETE_FINE_ENTRY, membership, platformRole, teamId: currentTeamId, unlockCode: pinInput })
+    if (!allowed) { setPinError(platformRole === 'admin' ? 'Platform admins cannot perform unlock-protected actions.' : 'Incorrect or unauthorized unlock code.'); return }
+    if (pinAction === 'unlock') save({ submitted: false })
     else if (pinAction === 'deleteMatch') onDelete()
     else if (pinAction?.type === 'deleteFine') save({ fines: match.fines.filter(f => f.id !== pinAction.fineId) })
     setShowAdminPin(false); setPinInput(''); setPinError(''); setPinAction(null)
@@ -136,8 +144,8 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
             {[...players].sort((a, b) => a.name.localeCompare(b.name)).map(p => {
               const isIn = playerIds.includes(p.id)
               return (
-                <button key={p.id} disabled={readonly} onClick={() => togglePlayer(p.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all text-left ${isIn ? 'bg-amber-500/10 border-amber-600 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'} ${readonly ? 'opacity-75 cursor-default' : 'hover:border-amber-500 active:scale-[0.99]'}`}>
+                <button key={p.id} disabled={readonly || !canManageMatches} onClick={() => togglePlayer(p.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all text-left ${isIn ? 'bg-amber-500/10 border-amber-600 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'} ${readonly || !canManageMatches ? 'opacity-75 cursor-default' : 'hover:border-amber-500 active:scale-[0.99]'}`}>
                   <span className="font-medium text-sm">{p.name}</span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isIn ? 'bg-amber-500 text-zinc-900' : 'bg-zinc-700 text-zinc-500'}`}>{isIn ? 'Playing' : 'Not playing'}</span>
                 </button>
@@ -151,7 +159,7 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
       {/* Fines */}
       {activeSection === 'fines' && (
         <div className="mb-4">
-          {!readonly && <div className="flex justify-end mb-2"><Btn size="sm" onClick={() => setShowAddFine(true)}>+ Add Fine</Btn></div>}
+          {canCreateOrEdit && <div className="flex justify-end mb-2"><Btn size="sm" onClick={() => setShowAddFine(true)}>+ Add Fine</Btn></div>}
           <div className="space-y-2">
             {match.fines.map(f => (
               <div key={f.id} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 border ${f.paid ? 'bg-emerald-950/40 border-emerald-800/50' : 'bg-zinc-800 border-zinc-700'}`}>
@@ -161,7 +169,7 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {f.paid ? <Badge color="green">Paid</Badge> : <Badge color="red">Owed</Badge>}
-                  {!readonly && (
+                  {canCreateOrEdit && (
                     <>
                       <button onClick={() => togglePaid(f.id)} className="text-xs px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300">{f.paid ? 'U' : 'P'}</button>
                       <button onClick={() => setEditFine({ ...f })} className="text-xs px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300">Ed</button>
@@ -181,7 +189,7 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
         <div className="mb-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-zinc-500 text-xs">50p per player per match</p>
-            {!readonly && subs.some(s => !s.paid) && <Btn size="sm" variant="success" onClick={settleAllSubs}>Settle All Subs</Btn>}
+            {canCreateOrEdit && subs.some(s => !s.paid) && <Btn size="sm" variant="success" onClick={settleAllSubs}>Settle All Subs</Btn>}
           </div>
           {!subs.length && <p className="text-zinc-500 text-sm text-center py-6">No players selected yet</p>}
           <div className="space-y-2">
@@ -193,7 +201,7 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {s.paid ? <Badge color="green">Paid</Badge> : <Badge color="red">Owed</Badge>}
-                  {!readonly && (
+                  {canCreateOrEdit && (
                     <button onClick={() => toggleSubPaid(s.id)}
                       className={`text-xs px-2.5 py-1.5 rounded-lg font-bold transition-all ${s.paid ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300' : 'bg-emerald-700 hover:bg-emerald-600 text-white'}`}>
                       {s.paid ? '↩' : '✓'}
@@ -210,11 +218,11 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
       <div className="border-t border-zinc-700 pt-4 space-y-2">
         {!readonly ? (
           <>
-            <Btn variant="success" className="w-full" onClick={() => setShowConfirmSubmit(true)}>Submit Match</Btn>
-            <Btn variant="danger"  className="w-full" onClick={() => openPin('deleteMatch')}>Delete Match</Btn>
+            {canManageMatches && <Btn variant="success" className="w-full" onClick={() => setShowConfirmSubmit(true)}>Submit Match</Btn>}
+            {canManageMatches && <Btn variant="danger"  className="w-full" onClick={() => openPin('deleteMatch')}>Delete Match</Btn>}
           </>
         ) : (
-          <Btn variant="outline" className="w-full" onClick={() => openPin('unlock')}>Admin Unlock</Btn>
+          <Btn variant="outline" className="w-full" onClick={() => openPin('unlock')} disabled={!canUnlockMatch}>Unlock with team code</Btn>
         )}
       </div>
 
@@ -270,14 +278,14 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
         <Modal title={pinAction === 'deleteMatch' ? 'Delete Match' : pinAction?.type === 'deleteFine' ? 'Delete Fine' : 'Admin Unlock'}
           onClose={() => { setShowAdminPin(false); setPinAction(null); setPinInput(''); setPinError('') }}>
           <p className="text-zinc-400 text-sm mb-4">
-            {pinAction === 'deleteMatch' && 'Enter admin PIN to permanently delete this match.'}
-            {pinAction?.type === 'deleteFine' && 'Enter admin PIN to delete this fine.'}
-            {pinAction === 'unlock' && 'Enter admin PIN to unlock this match for editing.'}
+            {pinAction === 'deleteMatch' && 'Enter the team unlock code to permanently delete this match.'}
+            {pinAction?.type === 'deleteFine' && 'Enter the team unlock code to delete this fine.'}
+            {pinAction === 'unlock' && 'Enter the team unlock code to unlock this match for editing.'}
           </p>
           {(pinAction === 'deleteMatch' || pinAction?.type === 'deleteFine') && (
             <div className="bg-red-950/50 border border-red-800/50 rounded-lg px-3 py-2 mb-3 text-red-300 text-xs font-medium">Warning: cannot be undone.</div>
           )}
-          <Input label="Admin PIN" type="password" value={pinInput} onChange={e => setPinInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && tryUnlock()} placeholder="Enter PIN" />
+          <Input label="Team unlock code" type="password" value={pinInput} onChange={e => setPinInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && tryUnlock()} placeholder="Enter unlock code" />
           {pinError && <p className="text-red-400 text-sm mb-2">{pinError}</p>}
           <div className="flex gap-2">
             <Btn onClick={tryUnlock} variant={pinAction === 'deleteMatch' || pinAction?.type === 'deleteFine' ? 'danger' : 'primary'} className="flex-1">
@@ -292,15 +300,17 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
 }
 
 // ─── Matches Tab ──────────────────────────────────────────────────────────────
-export default function MatchesTab({ players, fineTypes, seasons, matches, setMatches, withSave, currentTeamId }) {
+export default function MatchesTab({ players, fineTypes, seasons, matches, setMatches, withSave, currentTeamId, membership, platformRole }) {
   const [selectedId, setSelectedId] = useState(null)
   const [showNew,    setShowNew]    = useState(false)
   const [newMatch,   setNewMatch]   = useState({ date: '', seasonId: '', opponent: '' })
+  const canManageMatches = canAccessAction({ action: APP_ACTION.CREATE_MATCH, membership, platformRole })
 
   const createMatch = () => withSave(async () => {
     if (!newMatch.date) return
     const m = { id: uuid(), date: newMatch.date, seasonId: newMatch.seasonId, opponent: newMatch.opponent.trim(), submitted: false, fines: [], playerIds: [], subs: [] }
-    await db.addMatch(m)
+    if (!canManageMatches) throw new Error('You do not have permission to create matches.')
+    await db.addMatch({ ...m, teamId: currentTeamId })
     setMatches(prev => [m, ...prev])
     setNewMatch({ date: '', seasonId: '', opponent: '' })
     setShowNew(false)
@@ -312,12 +322,13 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
     if (!current) return
 
     const updatedMatch = { ...current, ...patch }
-    await db.updateMatch(updatedMatch)
+    if (!canManageMatches) throw new Error('You do not have permission to update matches.')
+    await db.updateMatch({ ...updatedMatch, teamId: currentTeamId })
     setMatches(prev => prev.map(m => m.id === id ? updatedMatch : m))
   })
 
   const deleteMatch = id => withSave(async () => {
-    await db.deleteMatch(id)
+    throw new Error('Use the protected unlock flow to delete matches.')
     setMatches(prev => prev.filter(m => m.id !== id))
     setSelectedId(null)
   })
@@ -326,10 +337,10 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
 
   if (selectedId && currentMatch) {
     return (
-      <MatchDetail match={currentMatch} players={players} fineTypes={fineTypes} seasons={seasons}
+      <MatchDetail match={currentMatch} players={players} fineTypes={fineTypes} seasons={seasons} membership={membership} platformRole={platformRole} currentTeamId={currentTeamId}
         onBack={() => setSelectedId(null)}
         onSave={updateMatch}
-        onDelete={() => deleteMatch(currentMatch.id)}
+        onDelete={() => db.deleteMatch(currentMatch.id).then(() => { setMatches(prev => prev.filter(m => m.id !== currentMatch.id)); setSelectedId(null) })}
       />
     )
   }
@@ -343,7 +354,7 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
             <h2 className="mt-1 text-lg font-bold text-white">Match log</h2>
             <p className="mt-1 text-xs text-zinc-400">Create new matches and open past match sheets for the selected team.</p>
           </div>
-          <Btn size="sm" onClick={() => setShowNew(true)}>New match</Btn>
+          <Btn size="sm" onClick={() => setShowNew(true)} disabled={!canManageMatches}>New match</Btn>
         </div>
       </div>
 

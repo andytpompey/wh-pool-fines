@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { Badge, Modal, Input, Btn, ADMIN_PIN, SegmentedControl, formatDate } from '../App'
-import { TEAM_ROLE } from '../lib/permissions'
+import { Badge, Modal, Input, Btn, SegmentedControl, formatDate } from '../App'
 import * as db from '../lib/db'
+import * as teamModel from '../lib/teamModel'
+import { APP_ACTION, canAccessAction } from '../lib/accessControl'
 
-export default function FinesTab({ players, matches, setMatches, withSave, currentTeamId, currentTeamRole }) {
+export default function FinesTab({ players, matches, setMatches, withSave, currentTeamId, membership, platformRole }) {
   const [filterPlayer, setFilterPlayer] = useState('all')
-  const canManageFines = currentTeamRole === TEAM_ROLE.CAPTAIN || currentTeamRole === TEAM_ROLE.VICE_CAPTAIN
+  const canManageFines = canAccessAction({ action: APP_ACTION.MANAGE_PAYMENTS, membership, platformRole })
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterType,   setFilterType]   = useState('all')
   const [showSettle,   setShowSettle]   = useState(null)
@@ -34,7 +35,7 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
   const paidAmt  = filtered.filter(i => i.paid).reduce((s, i) => s + i.amount, 0)
 
   const togglePaid = item => withSave(async () => {
-    if (!canManageFines) return
+    if (!canManageFines) throw new Error('You do not have permission to manage payments.')
     const currentMatch = matches.find(m => m.id === item.matchId)
     if (!currentMatch) return
 
@@ -47,7 +48,7 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
   })
 
   const settleAll = playerId => withSave(async () => {
-    if (!canManageFines) return
+    if (!canManageFines) throw new Error('You do not have permission to manage payments.')
     const updatedMatches = matches.map(m => ({
       ...m,
       fines: m.fines.map(f => f.playerId === playerId && !f.paid ? { ...f, paid: true } : f),
@@ -60,8 +61,9 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
   })
 
   const confirmDelete = () => withSave(async () => {
-    if (!canManageFines) return
-    if (pinInput !== ADMIN_PIN) { setPinError('Incorrect PIN'); return }
+    if (!canManageFines) throw new Error('You do not have permission to manage payments.')
+    const allowed = await teamModel.canActorPerformProtectedAction({ action: teamModel.PROTECTED_ACTION.DELETE_FINE_ENTRY, membership, platformRole, teamId: currentTeamId, unlockCode: pinInput })
+    if (!allowed) { setPinError(platformRole === 'admin' ? 'Platform admins cannot perform unlock-protected actions.' : 'Incorrect or unauthorized unlock code.'); return }
     const item = pendingDelete
     if (!item) return
 
@@ -199,9 +201,9 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
       {/* Delete PIN modal */}
       {pendingDelete && (
         <Modal title={`Delete ${pendingDelete.kind === 'sub' ? 'Sub' : 'Fine'}`} onClose={() => { setPendingDelete(null); setPinInput(''); setPinError('') }}>
-          <p className="text-zinc-400 text-sm mb-3">Delete <strong className="text-white">{pendingDelete.label}</strong> for <strong className="text-white">{pendingDelete.playerName}</strong>? Enter admin PIN.</p>
+          <p className="text-zinc-400 text-sm mb-3">Delete <strong className="text-white">{pendingDelete.label}</strong> for <strong className="text-white">{pendingDelete.playerName}</strong>? Enter the team unlock code.</p>
           <div className="bg-red-950/50 border border-red-800/50 rounded-lg px-3 py-2 mb-3 text-red-300 text-xs font-medium">Warning: cannot be undone.</div>
-          <Input label="Admin PIN" type="password" value={pinInput} onChange={e => setPinInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && confirmDelete()} placeholder="Enter PIN" />
+          <Input label="Team unlock code" type="password" value={pinInput} onChange={e => setPinInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && confirmDelete()} placeholder="Enter unlock code" />
           {pinError && <p className="text-red-400 text-sm mb-2">{pinError}</p>}
           <div className="flex gap-2">
             <Btn variant="danger" className="flex-1" onClick={confirmDelete}>Delete</Btn>

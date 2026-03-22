@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
-import { TEAM_ROLE, getTeamRoleLabel, normaliseTeamRole, canManageTeamOperations, canManageTeamRoles, PROTECTED_ACTIONS, canPerformProtectedAction, PROTECTED_ACTION, PLATFORM_ROLE } from './permissions'
+import { TEAM_ROLE, getTeamRoleLabel, normaliseTeamRole, PROTECTED_ACTIONS, PROTECTED_ACTION, PLATFORM_ROLE } from './permissions'
+import { APP_ACTION, assertActionAccess, canAccessAction, getProtectedActionForAppAction } from './accessControl'
 import * as auth from './auth'
 
 function handle(result) {
@@ -124,11 +125,11 @@ export function getRoleLabel(role) {
 }
 
 export function canManageTeam(role, platformRole = null) {
-  return canManageTeamOperations({ membership: { role: normaliseTeamRole(role), status: 'active' }, platformRole })
+  return canAccessAction({ action: APP_ACTION.MANAGE_TEAM_OPERATIONS, membership: { role: normaliseTeamRole(role), status: 'active' }, platformRole })
 }
 
 export function canCaptainManageRoles(role) {
-  return canManageTeamRoles({ membership: { role: normaliseTeamRole(role), status: 'active' } })
+  return canAccessAction({ action: APP_ACTION.MANAGE_TEAM_ROLES, membership: { role: normaliseTeamRole(role), status: 'active' } })
 }
 
 export async function createTeam({ name, createdBy, joinCode = null }) {
@@ -335,14 +336,14 @@ async function updateTeamUnlockCodeRecord({ teamId, unlockCode, resetRequired = 
 }
 
 export async function setTeamUnlockCode({ teamId, unlockCode, actorMembership }) {
-  if (normaliseTeamRole(actorMembership?.role) !== TEAM_ROLE.CAPTAIN) throw new Error('Only captains can set a team unlock code.')
+  assertActionAccess({ action: APP_ACTION.MANAGE_UNLOCK_CODE, membership: actorMembership, message: 'Only captains can set a team unlock code.' })
   const existingTeam = await getTeamById(teamId)
   if (existingTeam?.unlock_code_hash) throw new Error('Unlock code already exists. Use change unlock code instead.')
   return updateTeamUnlockCodeRecord({ teamId, unlockCode, resetRequired: false })
 }
 
 export async function changeTeamUnlockCode({ teamId, currentUnlockCode, nextUnlockCode, actorMembership }) {
-  if (normaliseTeamRole(actorMembership?.role) !== TEAM_ROLE.CAPTAIN) throw new Error('Only captains can change a team unlock code.')
+  assertActionAccess({ action: APP_ACTION.MANAGE_UNLOCK_CODE, membership: actorMembership, message: 'Only captains can change a team unlock code.' })
   const currentValid = await verifyTeamUnlockCode({ teamId, unlockCode: currentUnlockCode })
   if (!currentValid) throw new Error('Current unlock code is incorrect.')
   return updateTeamUnlockCodeRecord({ teamId, unlockCode: nextUnlockCode, resetRequired: false })
@@ -368,7 +369,7 @@ export async function verifyTeamUnlockCode({ teamId, unlockCode }) {
 }
 
 export async function requestCaptainUnlockCodeReset({ teamId, actorMembership, verificationMethod, verificationTarget, otpToken, captainContacts = [], teamName }) {
-  if (normaliseTeamRole(actorMembership?.role) !== TEAM_ROLE.CAPTAIN) throw new Error('Only captains can request an unlock code reset.')
+  assertActionAccess({ action: APP_ACTION.MANAGE_UNLOCK_CODE, membership: actorMembership, message: 'Only captains can request an unlock code reset.' })
   checkRateLimit({ scope: 'unlock-reset', teamId, limit: MAX_RESET_ATTEMPTS, windowMs: RESET_WINDOW_MS })
   if (verificationMethod === 'whatsapp') await auth.verifyWhatsAppOtp(verificationTarget, otpToken)
   else await auth.verifyEmailOtp(verificationTarget, otpToken)
@@ -380,7 +381,7 @@ export async function requestCaptainUnlockCodeReset({ teamId, actorMembership, v
 }
 
 export async function triggerAdminUnlockCodeReset({ teamId, platformRole, captainContacts = [], teamName }) {
-  if (platformRole !== PLATFORM_ROLE.ADMIN) throw new Error('Only platform admins can trigger team unlock code resets.')
+  assertActionAccess({ action: APP_ACTION.ADMIN_RESET_UNLOCK_CODE, platformRole, message: 'Only platform admins can trigger team unlock code resets.' })
   const newUnlockCode = generateTeamUnlockCode()
   await updateTeamUnlockCodeRecord({ teamId, unlockCode: newUnlockCode, resetRequired: false })
   const notification = await notifyCaptainsOfUnlockCode({ captainContacts, teamName, unlockCode: newUnlockCode, reason: 'platform_admin_reset' })
@@ -397,10 +398,24 @@ export async function markTeamUnlockCodeResetRequired(teamId) {
     .single())
 }
 
+
+function getAppActionForProtectedAction(action) {
+  return Object.values(APP_ACTION).find(candidate => getProtectedActionForAppAction(candidate) === action) ?? null
+}
+
 export async function canActorPerformProtectedAction({ action, membership, platformRole, teamId, unlockCode }) {
   if (!PROTECTED_ACTIONS.includes(action)) return false
   const unlockCodeVerified = await verifyTeamUnlockCode({ teamId, unlockCode })
-  return canPerformProtectedAction({ action, membership, platformRole, unlockCodeVerified })
+  return canAccessAction({ action: getAppActionForProtectedAction(action), membership, platformRole, unlockCodeVerified })
+}
+
+export async function assertProtectedActionAccess({ action, membership, platformRole, teamId, unlockCode, message = 'Forbidden' }) {
+  const protectedAction = getProtectedActionForAppAction(action) ?? action
+  if (!PROTECTED_ACTIONS.includes(protectedAction)) throw new Error('Unsupported protected action.')
+  const unlockCodeVerified = await verifyTeamUnlockCode({ teamId, unlockCode })
+  const appAction = getProtectedActionForAppAction(action) ? action : getAppActionForProtectedAction(protectedAction)
+  assertActionAccess({ action: appAction, membership, platformRole, unlockCodeVerified, message })
+  return true
 }
 
 const normaliseMembership = row => ({
