@@ -55,6 +55,7 @@ const normalPlayer   = r => ({
   email: r.email ?? '',
   mobile: r.mobile ?? '',
   preferredAuthMethod: r.preferred_auth_method ?? 'email',
+  receiveTeamNotifications: Boolean(r.receive_team_notifications ?? true),
   authUserId: r.user_id ?? r.auth_user_id ?? null,
 })
 const normalFineType = r => ({ id: r.id, name: r.name, cost: Number(r.cost), teamId: r.team_id ?? null })

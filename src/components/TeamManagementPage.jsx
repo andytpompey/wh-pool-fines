@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ADMIN_PIN, Badge, Btn, Input, Modal, Sel, SegmentedControl } from '../App'
+import * as auth from '../lib/auth'
 import * as teamModel from '../lib/teamModel'
 import { TEAM_ROLE } from '../lib/permissions'
 
@@ -8,6 +9,7 @@ const TABS = [
   { id: 'invites', label: 'Invites' },
   { id: 'fines', label: 'Fines' },
   { id: 'seasons', label: 'Seasons' },
+  { id: 'security', label: 'Security' },
 ]
 
 function SummaryCard({ label, value, accent = 'text-white' }) {
@@ -46,6 +48,10 @@ export default function TeamManagementPage({
   onAddSeason,
   onUpdateSeason,
   onDeleteSeason,
+  onSetUnlockCode,
+  onChangeUnlockCode,
+  onRequestUnlockCodeReset,
+  onAdminResetUnlockCode,
 }) {
   const [activeTab, setActiveTab] = useState('players')
   const canManageTeam = teamModel.canManageTeam(membership?.role)
@@ -142,6 +148,19 @@ export default function TeamManagementPage({
           onAddSeason={onAddSeason}
           onUpdateSeason={onUpdateSeason}
           onDeleteSeason={onDeleteSeason}
+        />
+      )}
+
+      {activeTab === 'security' && (
+        <TeamSecurityTab
+          team={team}
+          membership={membership}
+          members={members}
+          saving={saving}
+          onSetUnlockCode={onSetUnlockCode}
+          onChangeUnlockCode={onChangeUnlockCode}
+          onRequestUnlockCodeReset={onRequestUnlockCodeReset}
+          onAdminResetUnlockCode={onAdminResetUnlockCode}
         />
       )}
     </div>
@@ -723,6 +742,147 @@ function SeasonsTab({ seasons, canManageTeam, saving, onAddSeason, onUpdateSeaso
             <Btn variant="ghost" className="flex-1" onClick={() => setEditSeason(null)}>Cancel</Btn>
           </div>
         </Modal>
+      )}
+    </div>
+  )
+}
+
+
+function TeamSecurityTab({ team, membership, members, saving, onSetUnlockCode, onChangeUnlockCode, onRequestUnlockCodeReset, onAdminResetUnlockCode }) {
+  const isCaptain = membership?.role === TEAM_ROLE.CAPTAIN
+  const isPlatformAdmin = membership?.platformRole === 'admin' || membership?.isPlatformAdmin
+  const captains = useMemo(() => members.filter(member => member.role === TEAM_ROLE.CAPTAIN), [members])
+  const recoveryTarget = membership?.preferredAuthMethod === 'whatsapp' && membership?.mobile ? membership.mobile : membership?.email
+  const recoveryMethod = membership?.preferredAuthMethod === 'whatsapp' && membership?.mobile ? 'whatsapp' : 'email'
+  const [setForm, setSetForm] = useState({ code: '', confirmCode: '' })
+  const [changeForm, setChangeForm] = useState({ currentCode: '', nextCode: '', confirmCode: '' })
+  const [recovery, setRecovery] = useState({ otp: '', sent: false, sending: false })
+  const [status, setStatus] = useState({ error: '', success: '' })
+
+  useEffect(() => {
+    setSetForm({ code: '', confirmCode: '' })
+    setChangeForm({ currentCode: '', nextCode: '', confirmCode: '' })
+    setRecovery({ otp: '', sent: false, sending: false })
+    setStatus({ error: '', success: '' })
+  }, [team?.id])
+
+  const sendRecoveryOtp = async () => {
+    if (!recoveryTarget) {
+      setStatus({ error: 'No captain recovery destination is available. Add an email or WhatsApp number to your profile first.', success: '' })
+      return
+    }
+    setStatus({ error: '', success: '' })
+    setRecovery(current => ({ ...current, sending: true }))
+    try {
+      if (recoveryMethod === 'whatsapp') await auth.sendWhatsAppOtp(recoveryTarget)
+      else await auth.sendEmailOtp(recoveryTarget)
+      setRecovery(current => ({ ...current, sent: true, sending: false }))
+      setStatus({ error: '', success: `Verification code sent to ${recoveryTarget}.` })
+    } catch (err) {
+      setRecovery(current => ({ ...current, sending: false }))
+      setStatus({ error: err?.message ?? 'Failed to send recovery code.', success: '' })
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="font-bold text-white">Team unlock code</h3>
+            <p className="text-xs text-zinc-400">Unlock codes are stored as salted PBKDF2 hashes only and rotated immediately on every change or reset.</p>
+          </div>
+          <Badge color={team?.unlockCodeResetRequired ? 'red' : 'green'}>{team?.unlockCodeResetRequired ? 'Reset required' : 'Configured'}</Badge>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
+          <SummaryCard label="Captains notified on reset" value={captains.length || 0} accent="text-blue-400" />
+          <SummaryCard label="Last rotated" value={team?.unlockCodeLastRotatedAt ? new Date(team.unlockCodeLastRotatedAt).toLocaleDateString('en-GB') : 'Never'} />
+          <SummaryCard label="Your access" value={teamModel.getRoleLabel(membership?.role)} accent="text-amber-400" />
+        </div>
+        {status.error && <p className="mt-3 text-sm text-red-400">{status.error}</p>}
+        {status.success && <p className="mt-3 text-sm text-emerald-400">{status.success}</p>}
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <h4 className="font-bold text-white">Captain self-service</h4>
+        <p className="text-xs text-zinc-400 mt-1 mb-3">Only captains can set, change, or recover the team unlock code. Vice-captains can still use the code for protected actions if they know it.</p>
+        {!isCaptain && <p className="text-sm text-zinc-500">You must be a captain to manage the team unlock code.</p>}
+        {isCaptain && !team?.unlockCodeLastRotatedAt && (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 mb-4">
+            <Input label="New unlock code" type="password" value={setForm.code} onChange={event => setSetForm(current => ({ ...current, code: event.target.value }))} disabled={saving} />
+            <Input label="Confirm unlock code" type="password" value={setForm.confirmCode} onChange={event => setSetForm(current => ({ ...current, confirmCode: event.target.value }))} disabled={saving} />
+            <Btn disabled={saving || !setForm.code.trim() || setForm.code !== setForm.confirmCode} onClick={async () => {
+              try {
+                await onSetUnlockCode(setForm.code)
+                setSetForm({ code: '', confirmCode: '' })
+                setStatus({ error: '', success: 'Team unlock code set successfully.' })
+              } catch (err) {
+                setStatus({ error: err?.message ?? 'Failed to set unlock code.', success: '' })
+              }
+            }}>{saving ? 'Saving...' : 'Set unlock code'}</Btn>
+          </div>
+        )}
+
+        {isCaptain && (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-4 space-y-1">
+            <Input label="Current unlock code" type="password" value={changeForm.currentCode} onChange={event => setChangeForm(current => ({ ...current, currentCode: event.target.value }))} disabled={saving} />
+            <Input label="New unlock code" type="password" value={changeForm.nextCode} onChange={event => setChangeForm(current => ({ ...current, nextCode: event.target.value }))} disabled={saving} />
+            <Input label="Confirm new unlock code" type="password" value={changeForm.confirmCode} onChange={event => setChangeForm(current => ({ ...current, confirmCode: event.target.value }))} disabled={saving} />
+            <Btn disabled={saving || !changeForm.currentCode.trim() || !changeForm.nextCode.trim() || changeForm.nextCode !== changeForm.confirmCode} onClick={async () => {
+              try {
+                await onChangeUnlockCode(changeForm.currentCode, changeForm.nextCode)
+                setChangeForm({ currentCode: '', nextCode: '', confirmCode: '' })
+                setStatus({ error: '', success: 'Team unlock code changed successfully. Previous codes are now invalid.' })
+              } catch (err) {
+                setStatus({ error: err?.message ?? 'Failed to change unlock code.', success: '' })
+              }
+            }}>{saving ? 'Updating...' : 'Change unlock code'}</Btn>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <h4 className="font-bold text-white">Forgotten-code recovery</h4>
+        <p className="text-xs text-zinc-400 mt-1 mb-3">Captains must verify identity with the same OTP pattern already used by the app before a new unlock code is generated and sent to all captains.</p>
+        {isCaptain ? (
+          <>
+            <p className="text-xs text-zinc-500 mb-3">Recovery destination: {recoveryTarget || 'Not available'}</p>
+            <div className="flex gap-2 flex-wrap">
+              <Btn variant="outline" disabled={saving || recovery.sending || !recoveryTarget} onClick={sendRecoveryOtp}>
+                {recovery.sending ? 'Sending...' : `Send ${recoveryMethod === 'whatsapp' ? 'WhatsApp' : 'email'} OTP`}
+              </Btn>
+            </div>
+            {recovery.sent && (
+              <div className="mt-3">
+                <Input label="Verification code" value={recovery.otp} onChange={event => setRecovery(current => ({ ...current, otp: event.target.value }))} disabled={saving} />
+                <Btn disabled={saving || !recovery.otp.trim()} onClick={async () => {
+                  try {
+                    await onRequestUnlockCodeReset({ verificationMethod: recoveryMethod, verificationTarget: recoveryTarget, otpToken: recovery.otp })
+                    setRecovery({ otp: '', sent: false, sending: false })
+                    setStatus({ error: '', success: 'Unlock code reset requested successfully. All captains have been notified if delivery is configured.' })
+                  } catch (err) {
+                    setStatus({ error: err?.message ?? 'Failed to recover unlock code.', success: '' })
+                  }
+                }}>{saving ? 'Resetting...' : 'Verify and reset unlock code'}</Btn>
+              </div>
+            )}
+          </>
+        ) : <p className="text-sm text-zinc-500">Only captains can run the recovery flow.</p>}
+      </div>
+
+      {isPlatformAdmin && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <h4 className="font-bold text-white">Platform admin reset</h4>
+          <p className="text-xs text-zinc-400 mt-1 mb-3">Admins can rotate a team unlock code and notify captains, but never view, choose, retrieve, or use the generated code.</p>
+          <Btn variant="danger" disabled={saving} onClick={async () => {
+            try {
+              await onAdminResetUnlockCode()
+              setStatus({ error: '', success: 'Admin reset complete. A new unlock code was generated and sent to team captains.' })
+            } catch (err) {
+              setStatus({ error: err?.message ?? 'Failed to trigger admin reset.', success: '' })
+            }
+          }}>{saving ? 'Resetting...' : 'Trigger admin reset'}</Btn>
+        </div>
       )}
     </div>
   )
