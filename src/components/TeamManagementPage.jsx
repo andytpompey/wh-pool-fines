@@ -100,8 +100,8 @@ export default function TeamManagementPage({
         options={TABS.map(tab => ({ value: tab.id, label: tab.label }))}
         value={activeTab}
         onChange={setActiveTab}
-        fullWidth
-        scrollable
+        wrap
+        minItemWidth="6.5rem"
       />
 
       {activeTab === 'players' && (

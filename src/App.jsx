@@ -138,16 +138,23 @@ export function Btn({ children, variant = 'primary', size = 'md', className = ''
   return <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...props}>{children}</button>
 }
 
-export function SegmentedControl({ options, value, onChange, className = '', itemClassName = '', fullWidth = false, scrollable = false }) {
+export function SegmentedControl({ options, value, onChange, className = '', itemClassName = '', fullWidth = false, scrollable = false, wrap = false, minItemWidth = '7rem' }) {
   const containerClassName = [
     'rounded-2xl border border-zinc-800 bg-zinc-900/90 p-1.5',
-    scrollable ? 'flex overflow-x-auto gap-2 scrollbar-hide' : 'grid gap-2',
-    fullWidth ? 'grid-flow-col auto-cols-fr' : 'grid-flow-col auto-cols-max',
+    wrap
+      ? 'grid gap-2'
+      : scrollable
+        ? 'flex overflow-x-auto gap-2 scrollbar-hide'
+        : 'grid gap-2',
+    wrap ? '' : fullWidth ? 'grid-flow-col auto-cols-fr' : 'grid-flow-col auto-cols-max',
     className,
   ].filter(Boolean).join(' ')
 
   return (
-    <div className={containerClassName}>
+    <div
+      className={containerClassName}
+      style={wrap ? { gridTemplateColumns: `repeat(auto-fit, minmax(${minItemWidth}, 1fr))` } : undefined}
+    >
       {options.map(option => {
         const isSelected = option.value === value
         const label = option.label ?? option.value
@@ -157,11 +164,12 @@ export function SegmentedControl({ options, value, onChange, className = '', ite
             type="button"
             onClick={() => onChange(option.value)}
             className={[
-              'min-h-10 shrink-0 rounded-xl border px-3.5 py-2 text-xs font-bold leading-none transition-all whitespace-nowrap',
+              'min-h-11 rounded-xl border px-3 py-2 text-center text-xs font-bold leading-tight transition-all',
+              wrap ? 'w-full min-w-0 whitespace-normal break-words' : 'shrink-0 whitespace-nowrap',
               isSelected
                 ? 'border-amber-400/80 bg-amber-500 text-zinc-900 shadow-[0_0_0_1px_rgba(251,191,36,0.2)]'
                 : 'border-zinc-800 bg-zinc-800/80 text-zinc-400 hover:border-zinc-700 hover:text-white',
-              fullWidth ? 'w-full' : '',
+              fullWidth || wrap ? 'w-full' : '',
               itemClassName,
             ].filter(Boolean).join(' ')}
           >
