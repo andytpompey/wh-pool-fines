@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ADMIN_PIN, Badge, Btn, Input, Modal, Sel, SegmentedControl } from '../App'
 import * as teamModel from '../lib/teamModel'
+import { TEAM_ROLE } from '../lib/permissions'
 
 const TABS = [
   { id: 'players', label: 'Players' },
@@ -175,14 +176,14 @@ function PlayersTab({ members, membership, canManageTeam, canManageRoles, saving
         ) : members.map(member => {
           const isSelf = member.playerId === membership?.playerId
           const roleOptions = [
-            { value: 'admin', label: 'Promote to Vice-captain' },
-            { value: 'member', label: 'Demote to Player' },
-            { value: 'captain', label: 'Transfer Captaincy' },
+            { value: TEAM_ROLE.VICE_CAPTAIN, label: 'Promote to Vice-captain' },
+            { value: TEAM_ROLE.MEMBER, label: 'Demote to Member' },
+            { value: TEAM_ROLE.CAPTAIN, label: 'Transfer Captaincy' },
           ].filter(option => {
             if (!canManageRoles) return false
             if (member.role === option.value) return false
-            if (member.role === 'captain' && option.value !== 'captain') return false
-            if (isSelf && option.value !== 'captain') return false
+            if (member.role === TEAM_ROLE.CAPTAIN && option.value !== TEAM_ROLE.CAPTAIN) return false
+            if (isSelf && option.value !== TEAM_ROLE.CAPTAIN) return false
             return true
           })
 
@@ -276,19 +277,19 @@ function PlayerDetailsPanel({ member, membership, canManageTeam, canManageRoles,
     displayName: member.playerName || '',
     email: member.email || '',
     mobile: member.mobile || '',
-    role: member.role || 'member',
+    role: member.role || TEAM_ROLE.MEMBER,
   })
   const [error, setError] = useState('')
   const [confirmingRemoval, setConfirmingRemoval] = useState(false)
   const canEditPlayer = canManageTeam || member.playerId === membership?.playerId
-  const canRemove = canManageTeam && member.role !== 'captain' && member.playerId !== membership?.playerId
+  const canRemove = canManageTeam && member.role !== TEAM_ROLE.CAPTAIN && member.playerId !== membership?.playerId
 
   useEffect(() => {
     setForm({
       displayName: member.playerName || '',
       email: member.email || '',
       mobile: member.mobile || '',
-      role: member.role || 'member',
+      role: member.role || TEAM_ROLE.MEMBER,
     })
     setError('')
     setConfirmingRemoval(false)
@@ -315,9 +316,9 @@ function PlayerDetailsPanel({ member, membership, canManageTeam, canManageRoles,
         disabled={!canManageRoles || saving}
         onChange={event => setForm(current => ({ ...current, role: event.target.value }))}
       >
-        <option value="captain">Captain</option>
-        <option value="admin">Vice-captain</option>
-        <option value="member">Player</option>
+        <option value={TEAM_ROLE.CAPTAIN}>Captain</option>
+        <option value={TEAM_ROLE.VICE_CAPTAIN}>Vice-captain</option>
+        <option value={TEAM_ROLE.MEMBER}>Member</option>
       </Sel>
       {!canManageRoles && <p className="text-xs text-zinc-500 -mt-2 mb-3">Only the captain can change team roles.</p>}
       {!canEditPlayer && <p className="text-xs text-zinc-500 -mt-2 mb-3">Only captains, vice-captains, or the selected player can edit these details.</p>}
@@ -402,7 +403,7 @@ function InvitesTab({ team, membership, invites, canManageTeam, saving, onInvite
         </div>
         <Input label="Display name" value={form.displayName} onChange={event => setForm(current => ({ ...current, displayName: event.target.value }))} placeholder="Player display name" disabled={!canManageTeam || saving} />
         <Input label="Email" type="email" required value={form.email} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} placeholder="player@example.com" disabled={!canManageTeam || saving} />
-        {!canManageTeam && <p className="mb-3 text-sm text-zinc-400">Only captains and admins can send invites.</p>}
+        {!canManageTeam && <p className="mb-3 text-sm text-zinc-400">Only captains and vice-captains can send invites.</p>}
         {status.error && <p className="mb-3 text-sm text-red-400">{status.error}</p>}
         {status.success && <p className="mb-2 text-sm text-emerald-400">{status.success}</p>}
         {!!status.info.length && (

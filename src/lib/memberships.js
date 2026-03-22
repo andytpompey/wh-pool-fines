@@ -1,17 +1,21 @@
 import * as userProfileDb from './userProfile'
 import * as teamModel from './teamModel'
+import * as platformAccess from './platformAccess'
 
 export async function resolveAuthenticatedPlayerContext({ user }) {
   if (!user?.id) {
-    return { profile: null, player: null, memberships: [] }
+    return { profile: null, player: null, memberships: [], platformRole: null, isPlatformAdmin: false }
   }
 
   const profile = await userProfileDb.upsertCurrentUserProfile({ user })
   if (!profile?.playerId) {
-    return { profile, player: null, memberships: [] }
+    return { profile, player: null, memberships: [], platformRole: null, isPlatformAdmin: false }
   }
 
-  const memberships = await teamModel.listMembershipsForPlayer(profile.playerId)
+  const [{ platformRole, isPlatformAdmin }, memberships] = await Promise.all([
+    platformAccess.getPlatformAccess(user.id),
+    teamModel.listMembershipsForPlayer(profile.playerId),
+  ])
   const membershipsWithCounts = await Promise.all(memberships.map(async membership => ({
     ...membership,
     playerId: profile.playerId,
@@ -29,5 +33,7 @@ export async function resolveAuthenticatedPlayerContext({ user }) {
       email: profile.email,
     },
     memberships: membershipsWithCounts,
+    platformRole,
+    isPlatformAdmin,
   }
 }
