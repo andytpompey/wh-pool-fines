@@ -9,12 +9,12 @@ alter table if exists teams
   add column if not exists unlock_code_last_rotated_at timestamptz,
   add column if not exists unlock_code_reset_required boolean not null default true;
 
-alter table if exists team_memberships
-  drop constraint if exists team_memberships_role_check;
-
 update team_memberships
 set role = 'vice_captain'
 where role = 'admin';
+
+alter table if exists team_memberships
+  drop constraint if exists team_memberships_role_check;
 
 alter table if exists team_memberships
   add constraint team_memberships_role_check
