@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Badge } from '../App'
+import { Badge, SegmentedControl } from '../App'
 
 export default function Dashboard({ players, fineTypes, seasons, matches }) {
   const [seasonFilter, setSeasonFilter] = useState('all')
@@ -65,14 +65,13 @@ export default function Dashboard({ players, fineTypes, seasons, matches }) {
         </div>
       </div>
 
-      <div className="flex gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
-        {[{ id: 'all', name: 'All Seasons' }, ...seasons].map(s => (
-          <button key={s.id} onClick={() => setSeasonFilter(s.id)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${seasonFilter === s.id ? 'bg-amber-500 text-zinc-900' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
-            {s.name}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        className="mb-3"
+        options={[{ value: 'all', label: 'All Seasons' }, ...seasons.map(season => ({ value: season.id, label: season.name }))]}
+        value={seasonFilter}
+        onChange={setSeasonFilter}
+        scrollable
+      />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-2 mb-3">
@@ -99,14 +98,13 @@ export default function Dashboard({ players, fineTypes, seasons, matches }) {
       </div>
 
       {/* View toggle */}
-      <div className="flex gap-1 mb-3 bg-zinc-800 rounded-xl p-1">
-        {[['players', 'By Player'], ['fineTypes', 'By Fine'], ['seasons', 'By Season']].map(([v, label]) => (
-          <button key={v} onClick={() => setView(v)}
-            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${view === v ? 'bg-amber-500 text-zinc-900' : 'text-zinc-400 hover:text-white'}`}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        className="mb-3"
+        options={[['players', 'By Player'], ['fineTypes', 'By Fine'], ['seasons', 'By Season']].map(([value, label]) => ({ value, label }))}
+        value={view}
+        onChange={setView}
+        fullWidth
+      />
 
       {/* Players view */}
       {view === 'players' && (

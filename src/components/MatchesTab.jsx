@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Badge, Modal, Input, Sel, Btn, ADMIN_PIN, SUB_AMOUNT, uuid, formatDate } from '../App'
+import { Badge, Modal, Input, Sel, Btn, ADMIN_PIN, SUB_AMOUNT, uuid, SegmentedControl, formatDate } from '../App'
 import * as db from '../lib/db'
 
 // ─── Match Detail ─────────────────────────────────────────────────────────────
@@ -120,14 +120,13 @@ function MatchDetail({ match, players, fineTypes, seasons, onBack, onSave, onDel
         </div>
       </div>
 
-      <div className="flex gap-1 mb-3 bg-zinc-800 rounded-xl p-1">
-        {sections.map(({ key, label }) => (
-          <button key={key} onClick={() => setActiveSection(key)}
-            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${activeSection === key ? 'bg-amber-500 text-zinc-900' : 'text-zinc-400 hover:text-white'}`}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        className="mb-3"
+        options={sections.map(({ key, label }) => ({ value: key, label }))}
+        value={activeSection}
+        onChange={setActiveSection}
+        fullWidth
+      />
 
       {/* Players */}
       {activeSection === 'players' && (
