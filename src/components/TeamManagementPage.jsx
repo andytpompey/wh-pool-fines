@@ -34,7 +34,6 @@ export default function TeamManagementPage({
   fineTypes,
   seasons,
   saving,
-  onBackToTeams,
   onOpenApp,
   onRefresh,
   onInvitePlayer,
@@ -75,8 +74,7 @@ export default function TeamManagementPage({
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
-        <Btn variant="outline" size="sm" onClick={onBackToTeams}>← My Teams</Btn>
-        <Btn size="sm" onClick={onOpenApp}>Open app</Btn>
+        <Btn variant="outline" size="sm" onClick={onOpenApp}>← Back</Btn>
         <Btn variant="outline" size="sm" onClick={onRefresh}>Refresh</Btn>
       </div>
 

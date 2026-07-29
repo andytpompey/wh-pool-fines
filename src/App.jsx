@@ -26,7 +26,7 @@ const TEAM_STORAGE_KEY = 'wh_current_team_id'
 
 function getRoute() {
   const path = window.location.pathname || '/'
-  if (path === '/teams') return { name: 'teams', teamId: null }
+  if (path === '/teams') return { name: 'app', teamId: null }
   if (path === '/profile') return { name: 'profile', teamId: null }
   if (path === '/teams/new') return { name: 'create-team', teamId: null }
   if (path === '/teams/join') return { name: 'join-team', teamId: null }
@@ -41,8 +41,8 @@ function navigate(path, { replace = false } = {}) {
   window.dispatchEvent(new PopStateEvent('popstate'))
 }
 
-function isMoreRoute(routeName) {
-  return ['profile', 'teams', 'create-team', 'join-team', 'team'].includes(routeName)
+function isSettingsRoute(routeName) {
+  return ['profile', 'create-team', 'join-team', 'team'].includes(routeName)
 }
 
 export function uuid() {
@@ -228,100 +228,37 @@ function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam }) {
   )
 }
 
-function TeamsIndex({ memberships, currentTeamId, onOpenTeam, onCreateTeam, onJoinTeam }) {
-  const currentMembership = memberships.find(membership => membership.team.id === currentTeamId) ?? null
-
+function TeamSwitchModal({ memberships, currentTeamId, onSwitchTeam, onClose }) {
   return (
-    <div className="space-y-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">More &gt; Teams</p>
-            <h2 className="font-display text-2xl font-bold text-white mt-1">Teams</h2>
-            <p className="text-sm text-zinc-400 mt-1">Review your teams and open one for deeper management when needed. Change the active app-wide team from Profile.</p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Btn size="sm" variant="outline" onClick={onJoinTeam}>Join team</Btn>
-            <Btn size="sm" onClick={onCreateTeam}>Create team</Btn>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-zinc-900/70 border border-zinc-800 rounded-2xl p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">Active team context</p>
-            <p className="text-sm text-zinc-400 mt-1">Dashboard, Matches, and Fines continue to use the current team shown below. Switch it from Profile whenever needed.</p>
-          </div>
-          <Badge color={currentMembership ? 'amber' : 'gray'}>{currentMembership ? 'Current' : 'No team'}</Badge>
-        </div>
-        <div className="mt-3 rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3">
-          {currentMembership ? (
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-base font-bold text-white">{currentMembership.team.name}</p>
-                  <Badge color="amber">Current</Badge>
-                </div>
-                <p className="text-xs text-zinc-400 mt-1">{teamModel.getRoleLabel(currentMembership.role)} · {currentMembership.team.memberCount ?? 0} members</p>
-              </div>
-              <Btn size="sm" variant="outline" onClick={() => onOpenTeam(currentMembership.team.id)}>Manage team</Btn>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-sm text-zinc-400">You do not have an active team yet. Join an existing team or create a new one to get started.</p>
-              <div className="flex gap-2">
-                <Btn size="sm" variant="outline" onClick={onJoinTeam}>Join team</Btn>
-                <Btn size="sm" onClick={onCreateTeam}>Create team</Btn>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h3 className="font-bold text-white">Your teams</h3>
-            <p className="text-sm text-zinc-400">Manage a team from here, while Profile remains the place to change the active team context.</p>
-          </div>
-          <Badge color="blue">{memberships.length}</Badge>
-        </div>
-
-        {!memberships.length && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
-            You do not currently belong to any teams yet.
-          </div>
-        )}
-
+    <Modal title="Switch Team" onClose={onClose}>
+      <p className="mb-3 text-sm text-zinc-400">Choose the team you want to use across Dashboard, Matches, and Fines.</p>
+      <div className="space-y-2">
         {memberships.map(membership => {
           const isCurrent = membership.team.id === currentTeamId
           return (
-            <div key={membership.team.id} className={`bg-zinc-900 border rounded-2xl p-4 ${isCurrent ? 'border-amber-500/60' : 'border-zinc-800'}`}>
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-bold text-white">{membership.team.name}</h3>
-                    {isCurrent && <Badge color="amber">Current</Badge>}
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <Badge color="blue">{teamModel.getRoleLabel(membership.role)}</Badge>
-                    <Badge color="gray">{membership.team.memberCount ?? 0} members</Badge>
-                  </div>
-                  <p className="text-xs text-zinc-500 mt-2">Joined {new Date(membership.joinedAt).toLocaleDateString('en-GB')}</p>
-                </div>
+            <button
+              key={membership.team.id}
+              type="button"
+              onClick={() => onSwitchTeam(membership.team.id)}
+              className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left transition ${
+                isCurrent
+                  ? 'border-amber-500 bg-amber-500/10'
+                  : 'border-zinc-700 bg-zinc-800 hover:border-zinc-500'
+              }`}
+            >
+              <div className="min-w-0">
+                <p className="truncate font-bold text-white">{membership.team.name}</p>
+                <p className="mt-0.5 text-xs text-zinc-400">{teamModel.getRoleLabel(membership.role)}</p>
               </div>
-              <div className="mt-4">
-                <Btn className="w-full" onClick={() => onOpenTeam(membership.team.id)}>{isCurrent ? 'Manage current team' : 'Open team management'}</Btn>
-              </div>
-            </div>
+              {isCurrent && <Badge color="amber">Current</Badge>}
+            </button>
           )
         })}
       </div>
-    </div>
+      <Btn variant="ghost" className="mt-3 w-full" onClick={onClose}>Cancel</Btn>
+    </Modal>
   )
 }
-
 
 function normaliseEmail(email) {
   return email?.trim().toLowerCase() ?? ""
@@ -534,6 +471,7 @@ function CreateTeamPage({ onCreateTeam, saving }) {
 export default function App() {
   const [tab, setTab] = useState(0)
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
+  const [isTeamSwitcherOpen, setIsTeamSwitcherOpen] = useState(false)
   const [route, setRoute] = useState(() => getRoute())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -1185,8 +1123,12 @@ export default function App() {
     await refreshMemberContext(session?.user)
   }), [currentTeamId, currentTeamMembership, getCaptainContacts, memberContext.platformRole, refreshMemberContext, session?.user])
 
-  const isInMoreSection = isMoreRoute(route.name)
-  const showBottomNav = !!currentTeamId && (route.name === 'app' || isInMoreSection)
+  const isInSettingsSection = isSettingsRoute(route.name)
+  const showBottomNav = !!currentTeamId && (route.name === 'app' || isInSettingsSection)
+  const canManageCurrentTeam = !!currentTeamMembership && [
+    TEAM_ROLE.CAPTAIN,
+    TEAM_ROLE.VICE_CAPTAIN,
+  ].includes(normaliseTeamRole(currentTeamMembership.role))
 
   const openPrimaryTab = (nextTab) => {
     setTab(nextTab)
@@ -1198,7 +1140,7 @@ export default function App() {
     { label: 'Dashboard', icon: '📊', onClick: () => openPrimaryTab(0), isActive: route.name === 'app' && tab === 0 && !isMoreMenuOpen },
     { label: 'Matches', icon: '🎱', onClick: () => openPrimaryTab(1), isActive: route.name === 'app' && tab === 1 && !isMoreMenuOpen },
     { label: 'Fines', icon: '💰', onClick: () => openPrimaryTab(2), isActive: route.name === 'app' && tab === 2 && !isMoreMenuOpen },
-    { label: 'More', icon: '➕', onClick: () => setIsMoreMenuOpen(open => !open), isActive: isInMoreSection || isMoreMenuOpen },
+    { label: 'Settings', icon: '⚙️', onClick: () => setIsMoreMenuOpen(open => !open), isActive: isInSettingsSection || isMoreMenuOpen },
   ]
 
   if (authLoading) return <Spinner />
@@ -1264,21 +1206,12 @@ export default function App() {
               <CreateTeamPage onCreateTeam={handleCreateTeam} saving={saving} />
             ) : route.name === 'join-team' ? (
               <JoinTeamPage onJoinTeam={handleJoinTeam} onCreateTeam={() => navigate('/teams/new')} saving={saving} />
-            ) : route.name === 'teams' ? (
-              <TeamsIndex
-                memberships={memberContext.memberships}
-                currentTeamId={currentTeamId}
-                onOpenTeam={teamId => switchTeam(teamId, 'team')}
-                onCreateTeam={() => navigate('/teams/new')}
-                onJoinTeam={() => navigate('/teams/join')}
-              />
             ) : !currentTeamId ? (
               <div className="space-y-3">
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
                   No current team is available for this account yet.
                 </div>
                 <div className="flex gap-2">
-                  <Btn variant="outline" onClick={() => navigate('/teams')}>View teams</Btn>
                   <Btn variant="outline" onClick={() => navigate('/teams/join')}>Join a team</Btn>
                   <Btn onClick={() => navigate('/teams/new')}>Create your first team</Btn>
                 </div>
@@ -1292,7 +1225,6 @@ export default function App() {
                 fineTypes={fineTypes}
                 seasons={seasons}
                 onOpenApp={() => navigate('/')}
-                onBackToTeams={() => navigate('/teams')}
                 onRefresh={async () => {
                   await Promise.all([load(currentTeamId), loadTeamRoster(currentTeamId)])
                 }}
@@ -1346,7 +1278,11 @@ export default function App() {
                 {isMoreMenuOpen && (
                   <SetupTab
                     onOpenProfile={() => { setIsMoreMenuOpen(false); navigate('/profile') }}
-                    onOpenTeams={() => { setIsMoreMenuOpen(false); navigate('/teams') }}
+                    onSwitchTeam={() => { setIsMoreMenuOpen(false); setIsTeamSwitcherOpen(true) }}
+                    onManageTeam={() => { setIsMoreMenuOpen(false); navigate(`/teams/${currentTeamId}`) }}
+                    onCreateTeam={() => { setIsMoreMenuOpen(false); navigate('/teams/new') }}
+                    canSwitchTeam={memberContext.memberships.length > 1}
+                    canManageTeam={canManageCurrentTeam}
                     onClose={() => setIsMoreMenuOpen(false)}
                   />
                 )}
@@ -1356,8 +1292,24 @@ export default function App() {
             {route.name !== 'app' && isMoreMenuOpen && (
               <SetupTab
                 onOpenProfile={() => { setIsMoreMenuOpen(false); navigate('/profile') }}
-                onOpenTeams={() => { setIsMoreMenuOpen(false); navigate('/teams') }}
+                onSwitchTeam={() => { setIsMoreMenuOpen(false); setIsTeamSwitcherOpen(true) }}
+                onManageTeam={() => { setIsMoreMenuOpen(false); navigate(`/teams/${currentTeamId}`) }}
+                onCreateTeam={() => { setIsMoreMenuOpen(false); navigate('/teams/new') }}
+                canSwitchTeam={memberContext.memberships.length > 1}
+                canManageTeam={canManageCurrentTeam}
                 onClose={() => setIsMoreMenuOpen(false)}
+              />
+            )}
+
+            {isTeamSwitcherOpen && memberContext.memberships.length > 1 && (
+              <TeamSwitchModal
+                memberships={memberContext.memberships}
+                currentTeamId={currentTeamId}
+                onSwitchTeam={teamId => {
+                  setIsTeamSwitcherOpen(false)
+                  switchTeam(teamId, 'app')
+                }}
+                onClose={() => setIsTeamSwitcherOpen(false)}
               />
             )}
           </div>
