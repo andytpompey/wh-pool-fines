@@ -35,6 +35,7 @@ export type Database = {
           auth_user_id: string | null
           user_id: string | null
           receive_team_notifications: boolean
+          dashboard_season_preferences: Json
           created_at: string | null
         }
         Insert: {
@@ -47,6 +48,7 @@ export type Database = {
           auth_user_id?: string | null
           user_id?: string | null
           receive_team_notifications?: boolean
+          dashboard_season_preferences?: Json
           created_at?: string | null
         }
         Update: {
@@ -59,6 +61,7 @@ export type Database = {
           auth_user_id?: string | null
           user_id?: string | null
           receive_team_notifications?: boolean
+          dashboard_season_preferences?: Json
           created_at?: string | null
         }
       }

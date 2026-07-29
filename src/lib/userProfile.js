@@ -13,6 +13,7 @@ const normaliseProfile = row => row ? ({
   playerId: row.id,
   displayName: row.display_name ?? row.name ?? '',
   receiveTeamNotifications: Boolean(row.receive_team_notifications),
+  dashboardSeasonPreferences: row.dashboard_season_preferences ?? {},
   role: 'member',
   createdAt: row.created_at,
   updatedAt: row.updated_at ?? row.created_at,
@@ -110,6 +111,9 @@ export async function updateCurrentUserProfile(userId, updates) {
   }
   if ('preferredAuthMethod' in updates) {
     payload.preferred_auth_method = updates.preferredAuthMethod
+  }
+  if ('dashboardSeasonPreferences' in updates) {
+    payload.dashboard_season_preferences = updates.dashboardSeasonPreferences ?? {}
   }
 
   if (!Object.keys(payload).length) {

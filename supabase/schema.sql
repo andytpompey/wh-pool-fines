@@ -14,6 +14,7 @@ create table if not exists players (
   auth_user_id           uuid,
   user_id                uuid,
   receive_team_notifications boolean not null default true,
+  dashboard_season_preferences jsonb not null default '{}'::jsonb,
   created_at             timestamptz default now(),
   constraint players_auth_contact_check check (email is not null)
 );
@@ -271,6 +272,7 @@ alter table players add column if not exists auth_user_id uuid;
 alter table players add column if not exists display_name text;
 alter table players add column if not exists user_id uuid;
 alter table players add column if not exists receive_team_notifications boolean not null default true;
+alter table players add column if not exists dashboard_season_preferences jsonb not null default '{}'::jsonb;
 
 update players set display_name = coalesce(display_name, name) where display_name is null;
 update players set user_id = auth_user_id where user_id is null and auth_user_id is not null;
