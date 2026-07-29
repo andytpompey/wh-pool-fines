@@ -325,6 +325,23 @@ function MatchDetail({ match, players, fineTypes, seasons, membership, platformR
 }
 
 // ─── Matches Tab ──────────────────────────────────────────────────────────────
+function MatchCardPill({ children, color }) {
+  const colors = {
+    green: 'bg-emerald-900/60 text-emerald-300 border-emerald-700',
+    amber: 'bg-amber-900/60 text-amber-300 border-amber-700',
+    blue: 'bg-blue-900/60 text-blue-300 border-blue-700',
+  }
+
+  return (
+    <span
+      title={typeof children === 'string' ? children : undefined}
+      className={`inline-flex min-h-7 w-28 shrink-0 items-center justify-center rounded border px-2 text-xs font-bold ${colors[color]}`}
+    >
+      <span className="truncate">{children}</span>
+    </span>
+  )
+}
+
 export default function MatchesTab({ players, fineTypes, seasons, matches, setMatches, withSave, currentTeamId, membership, platformRole, preferredSeasonId = 'all', onSeasonPreferenceChange }) {
   const [selectedId, setSelectedId] = useState(null)
   const [showNew,    setShowNew]    = useState(false)
@@ -393,23 +410,19 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
   return (
     <div>
       <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold text-white">Match Log</h2>
-          </div>
-          <div className="flex w-32 flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => setShowSeasonPicker(true)}
-              aria-haspopup="dialog"
-              aria-expanded={showSeasonPicker}
-              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
-            >
-              <span className="min-w-0 truncate">{selectedSeasonLabel}</span>
-              <span aria-hidden="true" className="text-zinc-400">⌄</span>
-            </button>
-            <Btn size="sm" className="min-h-10 w-full" onClick={() => setShowNew(true)} disabled={!canManageMatches}>New match</Btn>
-          </div>
+        <h2 className="text-lg font-bold text-white">Match Log</h2>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <Btn size="sm" className="min-h-10 w-32" onClick={() => setShowNew(true)} disabled={!canManageMatches}>New match</Btn>
+          <button
+            type="button"
+            onClick={() => setShowSeasonPicker(true)}
+            aria-haspopup="dialog"
+            aria-expanded={showSeasonPicker}
+            className="inline-flex min-h-10 w-32 items-center justify-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          >
+            <span className="min-w-0 truncate">{selectedSeasonLabel}</span>
+            <span aria-hidden="true" className="text-zinc-400">⌄</span>
+          </button>
         </div>
       </div>
 
@@ -425,7 +438,7 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
                 <span className="min-w-0 font-bold text-white">
                   {formatDate(m.date)}{m.opponent ? ` - vs ${m.opponent}` : ''}
                 </span>
-                {m.submitted ? <Badge color="green">Submitted</Badge> : <Badge color="amber">Draft</Badge>}
+                {m.submitted ? <MatchCardPill color="green">Submitted</MatchCardPill> : <MatchCardPill color="amber">Draft</MatchCardPill>}
               </div>
               <div className="mt-2 flex items-center justify-between gap-3 text-xs text-zinc-400">
                 <span>
@@ -433,7 +446,7 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
                   {' · '}
                   <span className="text-red-400">£{(total - paid).toFixed(2)} owed</span>
                 </span>
-                {season && <Badge color={season.type === 'Cup' ? 'amber' : 'blue'}>{season.name}</Badge>}
+                {season && <MatchCardPill color={season.type === 'Cup' ? 'amber' : 'blue'}>{season.name}</MatchCardPill>}
               </div>
             </button>
           )
