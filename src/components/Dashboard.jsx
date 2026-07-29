@@ -1,9 +1,26 @@
-import { useState } from 'react'
-import { Badge, SegmentedControl } from '../App'
+import { useEffect, useState } from 'react'
+import { Badge, Modal, SegmentedControl } from '../App'
 
-export default function Dashboard({ players, fineTypes, seasons, matches }) {
-  const [seasonFilter, setSeasonFilter] = useState('all')
+export default function Dashboard({ players, fineTypes, seasons, matches, preferredSeasonId = 'all', onSeasonPreferenceChange }) {
+  const [seasonFilter, setSeasonFilter] = useState(preferredSeasonId)
+  const [isSeasonPickerOpen, setIsSeasonPickerOpen] = useState(false)
   const [view, setView] = useState('players')
+
+  useEffect(() => {
+    const isAvailable = preferredSeasonId === 'all' || seasons.some(season => season.id === preferredSeasonId)
+    setSeasonFilter(isAvailable ? preferredSeasonId : 'all')
+    if (!isAvailable) onSeasonPreferenceChange?.('all')
+  }, [preferredSeasonId, seasons, onSeasonPreferenceChange])
+
+  const selectedSeasonLabel = seasonFilter === 'all'
+    ? 'All seasons'
+    : seasons.find(season => season.id === seasonFilter)?.name ?? 'All seasons'
+
+  const selectSeason = (seasonId) => {
+    setSeasonFilter(seasonId)
+    setIsSeasonPickerOpen(false)
+    onSeasonPreferenceChange?.(seasonId)
+  }
 
   const filteredMatches = matches.filter(m => seasonFilter === 'all' || m.seasonId === seasonFilter)
   const allFines = filteredMatches.flatMap(m => m.fines.map(f => ({ ...f, matchDate: m.date, seasonId: m.seasonId })))
@@ -61,17 +78,46 @@ export default function Dashboard({ players, fineTypes, seasons, matches }) {
             <h2 className="mt-1 text-lg font-bold text-white">Season overview</h2>
             <p className="mt-1 text-xs text-zinc-400">Track totals and balances for the selected team without leaving match-day views.</p>
           </div>
-          <Badge color={seasonFilter === 'all' ? 'gray' : 'blue'}>{seasonFilter === 'all' ? 'All seasons' : seasons.find(season => season.id === seasonFilter)?.name ?? 'Season filter'}</Badge>
+          <button
+            type="button"
+            onClick={() => setIsSeasonPickerOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={isSeasonPickerOpen}
+            className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          >
+            <span className="max-w-32 truncate">{selectedSeasonLabel}</span>
+            <span aria-hidden="true" className="text-zinc-400">⌄</span>
+          </button>
         </div>
       </div>
 
-      <SegmentedControl
-        className="mb-3"
-        options={[{ value: 'all', label: 'All Seasons' }, ...seasons.map(season => ({ value: season.id, label: season.name }))]}
-        value={seasonFilter}
-        onChange={setSeasonFilter}
-        scrollable
-      />
+      {isSeasonPickerOpen && (
+        <Modal title="Select season" onClose={() => setIsSeasonPickerOpen(false)}>
+          <div className="space-y-2" role="radiogroup" aria-label="Dashboard season">
+            {[{ id: 'all', name: 'All seasons' }, ...seasons].map(season => {
+              const isSelected = season.id === seasonFilter
+              return (
+                <button
+                  key={season.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => selectSeason(season.id)}
+                  className={[
+                    'flex min-h-12 w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-bold transition-colors',
+                    isSelected
+                      ? 'border-amber-400 bg-amber-500 text-zinc-950'
+                      : 'border-zinc-700 bg-zinc-800 text-zinc-200 hover:border-zinc-600 hover:bg-zinc-700',
+                  ].join(' ')}
+                >
+                  <span>{season.name}</span>
+                  <span aria-hidden="true">{isSelected ? '✓' : ''}</span>
+                </button>
+              )
+            })}
+          </div>
+        </Modal>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-2 mb-3">

@@ -770,6 +770,29 @@ export default function App() {
     return updated
   }), [session?.user?.id])
 
+  const handleDashboardSeasonPreferenceChange = useCallback(async (seasonId) => {
+    if (!session?.user?.id || !currentTeamId) return
+    const nextPreferences = {
+      ...(profile?.dashboardSeasonPreferences ?? {}),
+      [currentTeamId]: seasonId,
+    }
+    setProfile(current => current ? { ...current, dashboardSeasonPreferences: nextPreferences } : current)
+    setMemberContext(context => ({
+      ...context,
+      profile: context.profile ? { ...context.profile, dashboardSeasonPreferences: nextPreferences } : context.profile,
+    }))
+
+    try {
+      const updated = await userProfileDb.updateCurrentUserProfile(session.user.id, {
+        dashboardSeasonPreferences: nextPreferences,
+      })
+      setProfile(updated)
+      setMemberContext(context => ({ ...context, profile: updated }))
+    } catch (err) {
+      console.error('Failed to save dashboard season preference', err)
+    }
+  }, [currentTeamId, profile?.dashboardSeasonPreferences, session?.user?.id])
+
   const handleCreateTeam = useCallback((teamName) => withSave(async () => {
     if (!session?.user) throw new Error('You must be signed in.')
     if (!teamName?.trim()) throw new Error('Team name is required.')
@@ -1280,7 +1303,16 @@ export default function App() {
               />
             ) : (
               <>
-                {tab === 0 && <Dashboard players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} currentTeam={currentTeamMembership?.team} />}
+                {tab === 0 && (
+                  <Dashboard
+                    players={players}
+                    fineTypes={fineTypes}
+                    seasons={seasons}
+                    matches={matches}
+                    preferredSeasonId={profile?.dashboardSeasonPreferences?.[currentTeamId] ?? 'all'}
+                    onSeasonPreferenceChange={handleDashboardSeasonPreferenceChange}
+                  />
+                )}
                 {tab === 1 && <MatchesTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} membership={currentTeamMembership} platformRole={memberContext.platformRole} />}
                 {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} membership={currentTeamMembership} platformRole={memberContext.platformRole} />}
                 {isMoreMenuOpen && (
