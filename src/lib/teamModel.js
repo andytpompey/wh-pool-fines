@@ -545,6 +545,12 @@ const normaliseMembership = row => ({
     driversVoidSubs: row.teams.drivers_void_subs !== false,
     subAmount: Number(row.teams.sub_amount ?? 0.50),
     logoUrl: row.teams.logo_url ?? '',
+    rackemImportEnabled: Boolean(row.teams.rackem_import_enabled),
+    rackemLeagueSlug: row.teams.rackem_league_slug ?? '',
+    rackemLeagueName: row.teams.rackem_league_name ?? '',
+    rackemTeamId: row.teams.rackem_team_id ?? '',
+    rackemTeamName: row.teams.rackem_team_name ?? '',
+    rackemTeamUrl: row.teams.rackem_team_url ?? '',
   } : null,
 })
 
@@ -552,7 +558,7 @@ export async function listMembershipsForPlayer(playerId) {
   if (!playerId) return []
   const rows = handle(await supabase
     .from('team_memberships')
-    .select('id, role, status, joined_at, teams ( id, name, join_code, created_at, unlock_code_reset_required, unlock_code_last_rotated_at, subs_enabled, drivers_void_subs, sub_amount, logo_url )')
+    .select('id, role, status, joined_at, teams ( id, name, join_code, created_at, unlock_code_reset_required, unlock_code_last_rotated_at, subs_enabled, drivers_void_subs, sub_amount, logo_url, rackem_import_enabled, rackem_league_slug, rackem_league_name, rackem_team_id, rackem_team_name, rackem_team_url )')
     .eq('player_id', playerId)
     .eq('status', 'active')
     .order('joined_at'))
@@ -560,7 +566,21 @@ export async function listMembershipsForPlayer(playerId) {
   return (rows ?? []).map(normaliseMembership).filter(membership => membership.team)
 }
 
-export async function updateTeamSettings({ teamId, subsEnabled, driversVoidSubs, subAmount, logoUrl, actorMembership, platformRole }) {
+export async function updateTeamSettings({
+  teamId,
+  subsEnabled,
+  driversVoidSubs,
+  subAmount,
+  logoUrl,
+  rackemImportEnabled,
+  rackemLeagueSlug,
+  rackemLeagueName,
+  rackemTeamId,
+  rackemTeamName,
+  rackemTeamUrl,
+  actorMembership,
+  platformRole,
+}) {
   if (!teamId) throw new Error('Team is required.')
   assertActionAccess({
     action: APP_ACTION.MANAGE_TEAM_OPERATIONS,
@@ -576,6 +596,12 @@ export async function updateTeamSettings({ teamId, subsEnabled, driversVoidSubs,
       drivers_void_subs: Boolean(subsEnabled) && Boolean(driversVoidSubs),
       sub_amount: Number(subAmount),
       logo_url: logoUrl || null,
+      rackem_import_enabled: Boolean(rackemImportEnabled),
+      rackem_league_slug: rackemImportEnabled ? rackemLeagueSlug || null : null,
+      rackem_league_name: rackemImportEnabled ? rackemLeagueName || null : null,
+      rackem_team_id: rackemImportEnabled ? rackemTeamId || null : null,
+      rackem_team_name: rackemImportEnabled ? rackemTeamName || null : null,
+      rackem_team_url: rackemImportEnabled ? rackemTeamUrl || null : null,
     })
     .eq('id', teamId)
     .select('*')

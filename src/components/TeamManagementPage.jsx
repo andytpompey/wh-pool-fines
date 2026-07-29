@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Badge, Btn, Input, Modal, Sel, SegmentedControl } from '../App'
 import * as auth from '../lib/auth'
 import * as teamModel from '../lib/teamModel'
+import * as rackem from '../lib/rackem'
 import { validateTeamLogo } from '../lib/teamLogo'
 import { TEAM_ROLE } from '../lib/permissions'
 
@@ -49,6 +50,8 @@ export default function TeamManagementPage({
   onAddSeason,
   onUpdateSeason,
   onDeleteSeason,
+  onImportRackemSeason,
+  onRefreshRackemSeason,
   onUpdateTeamSettings,
   onSetUnlockCode,
   onChangeUnlockCode,
@@ -145,11 +148,14 @@ export default function TeamManagementPage({
       {activeTab === 'seasons' && (
         <SeasonsTab
           seasons={seasons}
+          team={team}
           canManageTeam={canManageTeam}
           saving={saving}
           onAddSeason={onAddSeason}
           onUpdateSeason={onUpdateSeason}
           onDeleteSeason={onDeleteSeason}
+          onImportRackemSeason={onImportRackemSeason}
+          onRefreshRackemSeason={onRefreshRackemSeason}
         />
       )}
 
@@ -184,21 +190,57 @@ function TeamSettingsTab({ team, canManageTeam, saving, onUpdateTeamSettings }) 
     subsEnabled: team?.subsEnabled !== false,
     driversVoidSubs: team?.driversVoidSubs !== false,
     subAmount: Number(team?.subAmount ?? 0.50).toFixed(2),
+    rackemImportEnabled: Boolean(team?.rackemImportEnabled),
+    rackemLeagueSlug: team?.rackemLeagueSlug ?? '',
+    rackemLeagueName: team?.rackemLeagueName ?? '',
+    rackemTeamId: team?.rackemTeamId ?? '',
+    rackemTeamName: team?.rackemTeamName ?? '',
+    rackemTeamUrl: team?.rackemTeamUrl ?? '',
   })
   const [logoFile, setLogoFile] = useState(null)
   const [logoPreview, setLogoPreview] = useState('')
   const [status, setStatus] = useState({ error: '', success: '' })
+  const [rackemLeagues, setRackemLeagues] = useState([])
+  const [rackemTeams, setRackemTeams] = useState([])
+  const [rackemLoading, setRackemLoading] = useState('')
 
   useEffect(() => {
     setSettings({
       subsEnabled: team?.subsEnabled !== false,
       driversVoidSubs: team?.driversVoidSubs !== false,
       subAmount: Number(team?.subAmount ?? 0.50).toFixed(2),
+      rackemImportEnabled: Boolean(team?.rackemImportEnabled),
+      rackemLeagueSlug: team?.rackemLeagueSlug ?? '',
+      rackemLeagueName: team?.rackemLeagueName ?? '',
+      rackemTeamId: team?.rackemTeamId ?? '',
+      rackemTeamName: team?.rackemTeamName ?? '',
+      rackemTeamUrl: team?.rackemTeamUrl ?? '',
     })
     setLogoFile(null)
     setLogoPreview('')
     setStatus({ error: '', success: '' })
   }, [team?.id, team?.subsEnabled, team?.driversVoidSubs, team?.subAmount, team?.logoUrl])
+
+  useEffect(() => {
+    if (!settings.rackemImportEnabled || rackemLeagues.length) return
+    setRackemLoading('leagues')
+    rackem.listRackemLeagues()
+      .then(setRackemLeagues)
+      .catch(error => setStatus({ error: error?.message ?? 'Could not load RackEm leagues.', success: '' }))
+      .finally(() => setRackemLoading(''))
+  }, [settings.rackemImportEnabled, rackemLeagues.length])
+
+  useEffect(() => {
+    if (!settings.rackemImportEnabled || !settings.rackemLeagueSlug) {
+      setRackemTeams([])
+      return
+    }
+    setRackemLoading('teams')
+    rackem.listRackemTeams(settings.rackemLeagueSlug)
+      .then(setRackemTeams)
+      .catch(error => setStatus({ error: error?.message ?? 'Could not load RackEm teams.', success: '' }))
+      .finally(() => setRackemLoading(''))
+  }, [settings.rackemImportEnabled, settings.rackemLeagueSlug])
 
   useEffect(() => () => {
     if (logoPreview) URL.revokeObjectURL(logoPreview)
@@ -309,6 +351,68 @@ function TeamSettingsTab({ team, canManageTeam, saving, onUpdateTeamSettings }) 
           />
         </label>
         {logoFile && <p className="mt-2 text-xs text-emerald-400">Ready to upload: {logoFile.name}</p>}
+      </div>
+
+      <div className="rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-3">
+        <label className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-white">Import from RackEmApp</p>
+            <p className="text-xs text-zinc-400">Connect this team to its public RackEm league and team profile.</p>
+          </div>
+          <input
+            type="checkbox"
+            checked={settings.rackemImportEnabled}
+            onChange={event => setSettings(current => ({
+              ...current,
+              rackemImportEnabled: event.target.checked,
+            }))}
+            disabled={!canManageTeam || saving}
+            className="h-5 w-5 accent-amber-500"
+          />
+        </label>
+
+        {settings.rackemImportEnabled && (
+          <div className="mt-4 border-t border-zinc-700 pt-4">
+            <Sel
+              label="RackEmApp league"
+              value={settings.rackemLeagueSlug}
+              disabled={!canManageTeam || saving || rackemLoading === 'leagues'}
+              onChange={event => {
+                const league = rackemLeagues.find(item => item.slug === event.target.value)
+                setSettings(current => ({
+                  ...current,
+                  rackemLeagueSlug: league?.slug ?? '',
+                  rackemLeagueName: league?.name ?? '',
+                  rackemTeamId: '',
+                  rackemTeamName: '',
+                  rackemTeamUrl: '',
+                }))
+              }}
+            >
+              <option value="">{rackemLoading === 'leagues' ? 'Loading leagues…' : 'Select a league'}</option>
+              {rackemLeagues.map(league => <option key={league.slug} value={league.slug}>{league.name}</option>)}
+            </Sel>
+
+            <Sel
+              label="RackEmApp team"
+              value={settings.rackemTeamId}
+              disabled={!canManageTeam || saving || !settings.rackemLeagueSlug || rackemLoading === 'teams'}
+              onChange={event => {
+                const rackemTeam = rackemTeams.find(item => item.id === event.target.value)
+                setSettings(current => ({
+                  ...current,
+                  rackemTeamId: rackemTeam?.id ?? '',
+                  rackemTeamName: rackemTeam?.name ?? '',
+                  rackemTeamUrl: rackemTeam?.url ?? '',
+                }))
+              }}
+            >
+              <option value="">{rackemLoading === 'teams' ? 'Loading teams…' : 'Select a team'}</option>
+              {rackemTeams.map(rackemTeam => <option key={rackemTeam.id} value={rackemTeam.id}>{rackemTeam.name}</option>)}
+            </Sel>
+            <p className="text-xs text-zinc-400">RackEm team identifiers change each season. RooBin will use Team History to discover connected seasons.</p>
+          </div>
+        )}
       </div>
 
       {status.error && <p className="text-sm text-red-400">{status.error}</p>}
@@ -774,12 +878,25 @@ function FineTypesTab({ fineTypes, canManageTeam, saving, onAddFineType, onUpdat
   )
 }
 
-function SeasonsTab({ seasons, canManageTeam, saving, onAddSeason, onUpdateSeason, onDeleteSeason }) {
+function SeasonsTab({
+  team,
+  seasons,
+  canManageTeam,
+  saving,
+  onAddSeason,
+  onUpdateSeason,
+  onDeleteSeason,
+  onImportRackemSeason,
+  onRefreshRackemSeason,
+}) {
   const [seasonInput, setSeasonInput] = useState({ name: '', type: 'League' })
   const [editSeason, setEditSeason] = useState(null)
   const [confirmDeleteSeason, setConfirmDeleteSeason] = useState(null)
   const [deletePinInput, setDeletePinInput] = useState('')
   const [deletePinError, setDeletePinError] = useState('')
+  const [rackemPreview, setRackemPreview] = useState(null)
+  const [selectedRackemSeasons, setSelectedRackemSeasons] = useState([])
+  const [rackemStatus, setRackemStatus] = useState({ loading: false, error: '', success: '' })
 
   const sortedSeasons = useMemo(() => [...seasons].sort((a, b) => a.name.localeCompare(b.name)), [seasons])
   const seasonCountLabel = useMemo(() => `${seasons.length} ${seasons.length === 1 ? 'season' : 'seasons'}`, [seasons.length])
@@ -804,6 +921,39 @@ function SeasonsTab({ seasons, canManageTeam, saving, onAddSeason, onUpdateSeaso
           <SummaryCard label="Cup seasons" value={sortedSeasons.filter(season => season.type === 'Cup').length} accent="text-amber-400" />
         </div>
       </div>
+
+      {team?.rackemImportEnabled && team?.rackemLeagueSlug && team?.rackemTeamId && (
+        <div className="rounded-2xl border border-amber-800/60 bg-amber-950/20 p-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h4 className="font-bold text-white">RackEmApp seasons</h4>
+              <p className="mt-1 text-xs text-zinc-400">
+                Connected to {team.rackemTeamName} · {team.rackemLeagueName}
+              </p>
+            </div>
+            <Btn
+              size="sm"
+              disabled={!canManageTeam || saving || rackemStatus.loading}
+              onClick={async () => {
+                setRackemStatus({ loading: true, error: '', success: '' })
+                try {
+                  const preview = await rackem.getRackemTeamPage(team.rackemLeagueSlug, team.rackemTeamId)
+                  setRackemPreview(preview)
+                  const importedIds = new Set(seasons.filter(item => item.source === 'rackem').map(item => item.sourceSeasonTeamId))
+                  setSelectedRackemSeasons(preview.seasons.filter(item => !importedIds.has(item.seasonTeamId) && item.current).map(item => item.seasonTeamId))
+                  setRackemStatus({ loading: false, error: '', success: '' })
+                } catch (error) {
+                  setRackemStatus({ loading: false, error: error?.message ?? 'Could not load RackEm seasons.', success: '' })
+                }
+              }}
+            >
+              {rackemStatus.loading ? 'Loading…' : 'Create seasons from RackEmApp'}
+            </Btn>
+          </div>
+          {rackemStatus.error && <p className="mt-3 text-sm text-red-400">{rackemStatus.error}</p>}
+          {rackemStatus.success && <p className="mt-3 text-sm text-emerald-400">{rackemStatus.success}</p>}
+        </div>
+      )}
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
         <div className="flex items-center justify-between gap-3 mb-3">
@@ -844,12 +994,34 @@ function SeasonsTab({ seasons, canManageTeam, saving, onAddSeason, onUpdateSeaso
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-white text-sm font-medium">{season.name}</span>
                   <Badge color={season.type === 'Cup' ? 'amber' : 'blue'}>{season.type}</Badge>
+                  {season.source === 'rackem' && <Badge color="green">RackEmApp</Badge>}
                 </div>
-                <p className="text-xs text-zinc-500">This season is scoped to the selected team and remains available to matches that reference it.</p>
+                <p className="text-xs text-zinc-500">
+                  {season.source === 'rackem'
+                    ? `Last refreshed ${season.sourceLastRefreshedAt ? new Date(season.sourceLastRefreshedAt).toLocaleString('en-GB') : 'never'}.`
+                    : 'This season is scoped to the selected team and remains available to matches that reference it.'}
+                </p>
               </div>
               {canManageTeam && (
                 <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                   <button onClick={() => setEditSeason({ ...season })} className="text-xs px-2 py-1 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-bold">Edit</button>
+                  {season.source === 'rackem' && (
+                    <button
+                      onClick={async () => {
+                        setRackemStatus({ loading: true, error: '', success: '' })
+                        try {
+                          const result = await onRefreshRackemSeason(season)
+                          setRackemStatus({ loading: false, error: '', success: `${season.name}: ${result.created} new, ${result.updated} updated.` })
+                        } catch (error) {
+                          setRackemStatus({ loading: false, error: error?.message ?? 'Refresh failed.', success: '' })
+                        }
+                      }}
+                      disabled={rackemStatus.loading || saving}
+                      className="text-xs px-2 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-bold disabled:opacity-50"
+                    >
+                      Refresh
+                    </button>
+                  )}
                   <button onClick={() => { setConfirmDeleteSeason(season); setDeletePinInput(''); setDeletePinError('') }} className="text-xs px-2 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 font-bold">Delete</button>
                 </div>
               )}
@@ -857,6 +1029,61 @@ function SeasonsTab({ seasons, canManageTeam, saving, onAddSeason, onUpdateSeaso
           ))}
         </div>
       </div>
+
+      {rackemPreview && (
+        <Modal title="Import RackEmApp seasons" onClose={() => setRackemPreview(null)}>
+          <p className="mb-3 text-sm text-zinc-400">Select the seasons to create. Existing imports are disabled.</p>
+          <div className="space-y-2">
+            {rackemPreview.seasons.map(item => {
+              const alreadyImported = seasons.some(season => season.source === 'rackem' && season.sourceSeasonTeamId === item.seasonTeamId)
+              const selected = selectedRackemSeasons.includes(item.seasonTeamId)
+              return (
+                <label key={item.seasonTeamId} className={`flex items-center justify-between gap-3 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-3 ${alreadyImported ? 'opacity-50' : ''}`}>
+                  <div>
+                    <p className="text-sm font-bold text-white">{item.name}</p>
+                    <p className="text-xs text-zinc-400">{item.current ? 'Current season' : 'Historical season'}{alreadyImported ? ' · Already imported' : ''}</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={alreadyImported || selected}
+                    disabled={alreadyImported}
+                    onChange={event => setSelectedRackemSeasons(current => event.target.checked
+                      ? [...current, item.seasonTeamId]
+                      : current.filter(id => id !== item.seasonTeamId))}
+                    className="h-5 w-5 accent-amber-500"
+                  />
+                </label>
+              )
+            })}
+          </div>
+          <div className="mt-4 flex gap-2">
+            <Btn
+              className="flex-1"
+              disabled={!selectedRackemSeasons.length || rackemStatus.loading}
+              onClick={async () => {
+                setRackemStatus({ loading: true, error: '', success: '' })
+                try {
+                  let created = 0
+                  let updated = 0
+                  for (const seasonTeamId of selectedRackemSeasons) {
+                    const season = rackemPreview.seasons.find(item => item.seasonTeamId === seasonTeamId)
+                    const result = await onImportRackemSeason(season)
+                    created += result.created
+                    updated += result.updated
+                  }
+                  setRackemPreview(null)
+                  setRackemStatus({ loading: false, error: '', success: `Import complete: ${created} matches created and ${updated} updated.` })
+                } catch (error) {
+                  setRackemStatus({ loading: false, error: error?.message ?? 'Import failed.', success: '' })
+                }
+              }}
+            >
+              {rackemStatus.loading ? 'Importing…' : 'Create selected seasons'}
+            </Btn>
+            <Btn variant="ghost" onClick={() => setRackemPreview(null)}>Cancel</Btn>
+          </div>
+        </Modal>
+      )}
 
       {confirmDeleteSeason && (
         <Modal title="Delete Season" onClose={() => setConfirmDeleteSeason(null)}>
