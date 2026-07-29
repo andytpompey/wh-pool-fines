@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Badge, Modal, Input, Btn, SegmentedControl, formatDate } from '../App'
+import { Badge, Modal, Input, Btn, SegmentedControl, TITLE_ACTION_GRID, TITLE_ACTION_SIZE, formatDate } from '../App'
 import * as db from '../lib/db'
 import * as teamModel from '../lib/teamModel'
 import { APP_ACTION, canAccessAction } from '../lib/accessControl'
@@ -9,7 +9,6 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
   const canManageFines = canAccessAction({ action: APP_ACTION.MANAGE_PAYMENTS, membership, platformRole })
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterType,   setFilterType]   = useState('all')
-  const [showSettle,   setShowSettle]   = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
   const [pinInput,  setPinInput]  = useState('')
   const [pinError,  setPinError]  = useState('')
@@ -47,19 +46,6 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
     setMatches(prev => prev.map(m => m.id === item.matchId ? updatedMatch : m))
   })
 
-  const settleAll = playerId => withSave(async () => {
-    if (!canManageFines) throw new Error('You do not have permission to manage payments.')
-    const updatedMatches = matches.map(m => ({
-      ...m,
-      fines: m.fines.map(f => f.playerId === playerId && !f.paid ? { ...f, paid: true } : f),
-      subs:  (m.subs ?? []).map(s => s.playerId === playerId && !s.paid ? { ...s, paid: true } : s),
-    }))
-
-    await Promise.all(updatedMatches.map(m => db.updateMatch({ ...m, teamId: currentTeamId })))
-    setMatches(updatedMatches)
-    setShowSettle(null)
-  })
-
   const confirmDelete = () => withSave(async () => {
     if (!canManageFines) throw new Error('You do not have permission to manage payments.')
     const allowed = await teamModel.canActorPerformProtectedAction({ action: teamModel.PROTECTED_ACTION.DELETE_FINE_ENTRY, membership, platformRole, teamId: currentTeamId, unlockCode: pinInput })
@@ -92,75 +78,33 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
     setPendingDelete(null); setPinInput(''); setPinError('')
   })
 
-  const playerSummaries = [...players].sort((a, b) => a.name.localeCompare(b.name)).map(p => {
-    const pf    = allFines.filter(f => f.playerId === p.id)
-    const ps    = allSubs.filter(s => s.playerId === p.id)
-    const fTot  = pf.reduce((s, f) => s + f.cost, 0)
-    const fPaid = pf.filter(f => f.paid).reduce((s, f) => s + f.cost, 0)
-    const sTot  = ps.reduce((s, sub) => s + sub.amount, 0)
-    const sPaid = ps.filter(s => s.paid).reduce((s, sub) => s + sub.amount, 0)
-    const total = fTot + sTot
-    const paid  = fPaid + sPaid
-    return { ...p, total, paid, outstanding: total - paid, count: pf.length, subCount: ps.length, finesOwed: fTot - fPaid, subsOwed: sTot - sPaid }
-  }).filter(p => p.total > 0)
-
-  const nextOutstandingPlayer = playerSummaries.filter(player => player.outstanding > 0).sort((a, b) => b.outstanding - a.outstanding)[0] ?? null
-
   return (
     <div>
-      <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Fines</p>
-            <h2 className="mt-1 text-lg font-bold text-white">Balances and payments</h2>
-            <p className="mt-1 text-xs text-zinc-400">Review fines and subs for the selected team. {canManageFines ? 'Settle balances from here when payments come in.' : 'View-only access keeps balances visible without admin controls.'}</p>
-          </div>
-          {canManageFines && nextOutstandingPlayer ? (
-            <Btn size="sm" variant="success" onClick={() => setShowSettle(nextOutstandingPlayer)}>Settle</Btn>
-          ) : (
-            <Badge color={canManageFines ? 'green' : 'gray'}>{canManageFines ? 'Ready' : 'View only'}</Badge>
-          )}
+      <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 px-1.5 py-3">
+        <h2 className="px-1.5 text-lg font-bold text-white">Balances and payments</h2>
+        <div className={`mt-3 ${TITLE_ACTION_GRID}`}>
+          <select
+            value={filterPlayer}
+            onChange={event => setFilterPlayer(event.target.value)}
+            aria-label="Filter by player"
+            className={`${TITLE_ACTION_SIZE} bg-zinc-800 border border-zinc-600 px-3 py-2 text-zinc-200 text-xs font-bold focus:outline-none focus:border-amber-500`}
+          >
+            <option value="all">All Players</option>
+            {[...players].sort((a, b) => a.name.localeCompare(b.name)).map(player => <option key={player.id} value={player.id}>{player.name}</option>)}
+          </select>
+          <select
+            value={filterStatus}
+            onChange={event => setFilterStatus(event.target.value)}
+            aria-label="Filter by payment status"
+            className={`col-start-3 ${TITLE_ACTION_SIZE} bg-zinc-800 border border-zinc-600 px-3 py-2 text-zinc-200 text-xs font-bold focus:outline-none focus:border-amber-500`}
+          >
+            <option value="all">All Status</option>
+            <option value="paid">Paid</option>
+            <option value="outstanding">Outstanding</option>
+          </select>
         </div>
       </div>
 
-      {/* Player balances */}
-      {playerSummaries.length > 0 && (
-        <div className="mb-4">
-          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Player balances</h3>
-          <div className="space-y-2">
-            {playerSummaries.map(p => (
-              <div key={p.id} className="bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-white text-sm">{p.name}</div>
-                  <div className="text-xs text-zinc-400 mt-0.5">{p.count} fines · {p.subCount} subs · <span className="text-emerald-400">£{p.paid.toFixed(2)} paid</span></div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="text-right">
-                    <div className={`font-bold text-sm ${p.outstanding > 0 ? 'text-red-400' : 'text-emerald-400'}`}>£{p.outstanding.toFixed(2)}</div>
-                    <div className="text-xs text-zinc-500">owed</div>
-                  </div>
-                  {canManageFines && p.outstanding > 0 && <Btn size="sm" variant="success" onClick={() => setShowSettle(p)}>Settle</Btn>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="grid grid-cols-2 gap-2 mb-2">
-        <select value={filterPlayer} onChange={e => setFilterPlayer(e.target.value)}
-          className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500">
-          <option value="all">All Players</option>
-          {[...players].sort((a, b) => a.name.localeCompare(b.name)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500">
-          <option value="all">All Status</option>
-          <option value="paid">Paid</option>
-          <option value="outstanding">Outstanding</option>
-        </select>
-      </div>
       <SegmentedControl
         className="mb-3"
         options={[['all', 'All'], ['fines', 'Fines'], ['subs', 'Subs']].map(([value, label]) => ({ value, label }))}
@@ -221,25 +165,6 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
           <div className="flex gap-2">
             <Btn variant="danger" className="flex-1" onClick={confirmDelete}>Delete</Btn>
             <Btn variant="ghost" className="flex-1" onClick={() => { setPendingDelete(null); setPinInput(''); setPinError('') }}>Cancel</Btn>
-          </div>
-        </Modal>
-      )}
-
-      {/* Settle modal */}
-      {showSettle && (
-        <Modal title={`Settle ${showSettle.name}`} onClose={() => setShowSettle(null)}>
-          <p className="text-zinc-300 text-sm mb-4">Mark all outstanding fines and subs for <strong className="text-white">{showSettle.name}</strong> as paid?</p>
-          <div className="bg-zinc-800 rounded-xl p-3 mb-4 space-y-1">
-            <div className="flex justify-between items-center">
-              <span className="text-zinc-400 text-sm">Total to settle</span>
-              <span className="text-red-400 font-bold text-lg">£{showSettle.outstanding.toFixed(2)}</span>
-            </div>
-            {showSettle.finesOwed > 0 && <div className="flex justify-between text-xs text-zinc-500"><span>Fines</span><span className="text-amber-400">£{showSettle.finesOwed.toFixed(2)}</span></div>}
-            {showSettle.subsOwed  > 0 && <div className="flex justify-between text-xs text-zinc-500"><span>Subs</span><span className="text-blue-400">£{showSettle.subsOwed.toFixed(2)}</span></div>}
-          </div>
-          <div className="flex gap-2">
-            <Btn variant="success" className="flex-1" onClick={() => settleAll(showSettle.id)}>Settle All</Btn>
-            <Btn variant="ghost" className="flex-1" onClick={() => setShowSettle(null)}>Cancel</Btn>
           </div>
         </Modal>
       )}

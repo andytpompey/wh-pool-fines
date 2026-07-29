@@ -141,7 +141,7 @@ function MatchDetail({ match, players, fineTypes, seasons, team, membership, pla
       <div className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900 px-1.5 py-3">
         <div className="flex items-start justify-between gap-3 px-1.5">
           <h2 className="min-w-0 font-display text-lg font-bold text-white">
-            {formatDate(match.date)}{match.opponent ? ` vs ${match.opponent}` : ''}
+            {formatDate(match.date)}{match.opponent ? ` vs ${match.opponent}` : ''} ({match.venue === 'away' ? 'Away' : 'Home'})
           </h2>
           {season && (
             <span className="max-w-[40%] shrink-0 truncate text-right font-display text-lg font-bold text-zinc-300">
