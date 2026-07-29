@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
-export const TEAM_LOGO_INPUT_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+export const TEAM_LOGO_INPUT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+const TEAM_LOGO_INPUT_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif']
 export const TEAM_LOGO_MAX_INPUT_BYTES = 5 * 1024 * 1024
 export const TEAM_LOGO_MAX_OUTPUT_BYTES = 1024 * 1024
 export const TEAM_LOGO_WIDTH = 1200
@@ -27,14 +28,15 @@ function canvasToBlob(canvas, quality) {
     canvas.toBlob(blob => {
       if (blob) resolve(blob)
       else reject(new Error('The team logo could not be resized.'))
-    }, 'image/webp', quality)
+    }, 'image/jpeg', quality)
   })
 }
 
 export function validateTeamLogo(file) {
   if (!file) throw new Error('Choose an image first.')
-  if (!TEAM_LOGO_INPUT_TYPES.includes(file.type)) {
-    throw new Error('Use a JPG, PNG, or WebP image.')
+  const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
+  if (!TEAM_LOGO_INPUT_TYPES.includes(file.type) && !TEAM_LOGO_INPUT_EXTENSIONS.includes(extension)) {
+    throw new Error('Use a JPG, PNG, WebP, HEIC, or HEIF image.')
   }
   if (file.size > TEAM_LOGO_MAX_INPUT_BYTES) {
     throw new Error('The selected image must be 5 MB or smaller.')
@@ -56,7 +58,8 @@ export async function prepareTeamLogo(file) {
   const x = Math.round((TEAM_LOGO_WIDTH - width) / 2)
   const y = Math.round((TEAM_LOGO_HEIGHT - height) / 2)
 
-  context.clearRect(0, 0, TEAM_LOGO_WIDTH, TEAM_LOGO_HEIGHT)
+  context.fillStyle = '#09090b'
+  context.fillRect(0, 0, TEAM_LOGO_WIDTH, TEAM_LOGO_HEIGHT)
   context.imageSmoothingEnabled = true
   context.imageSmoothingQuality = 'high'
   context.drawImage(image, x, y, width, height)
@@ -71,10 +74,10 @@ export async function prepareTeamLogo(file) {
 export async function uploadTeamLogo({ teamId, file }) {
   if (!teamId) throw new Error('Team is required.')
   const logo = await prepareTeamLogo(file)
-  const path = `${teamId}/logo.webp`
+  const path = `${teamId}/logo.jpg`
   const { error } = await supabase.storage
     .from('team-logos')
-    .upload(path, logo, { contentType: 'image/webp', upsert: true, cacheControl: '3600' })
+    .upload(path, logo, { contentType: 'image/jpeg', upsert: true, cacheControl: '3600' })
   if (error) throw error
 
   const { data } = supabase.storage.from('team-logos').getPublicUrl(path)

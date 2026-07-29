@@ -187,6 +187,7 @@ function TeamSettingsTab({ team, canManageTeam, saving, onUpdateTeamSettings }) 
   })
   const [logoFile, setLogoFile] = useState(null)
   const [logoPreview, setLogoPreview] = useState('')
+  const [savedLogoUrl, setSavedLogoUrl] = useState(team?.logoUrl ?? '')
   const [status, setStatus] = useState({ error: '', success: '' })
 
   useEffect(() => {
@@ -197,6 +198,7 @@ function TeamSettingsTab({ team, canManageTeam, saving, onUpdateTeamSettings }) 
     })
     setLogoFile(null)
     setLogoPreview('')
+    setSavedLogoUrl(team?.logoUrl ?? '')
     setStatus({ error: '', success: '' })
   }, [team?.id, team?.subsEnabled, team?.driversVoidSubs, team?.subAmount, team?.logoUrl])
 
@@ -222,10 +224,14 @@ function TeamSettingsTab({ team, canManageTeam, saving, onUpdateTeamSettings }) 
   const saveSettings = async () => {
     setStatus({ error: '', success: '' })
     try {
-      await onUpdateTeamSettings(settings, logoFile)
+      const saved = await onUpdateTeamSettings(settings, logoFile)
+      setSavedLogoUrl(saved?.logoUrl ?? team?.logoUrl ?? '')
       setLogoFile(null)
       setLogoPreview('')
-      setStatus({ error: '', success: 'Team settings saved.' })
+      setStatus({
+        error: '',
+        success: logoFile ? 'Team settings saved and logo uploaded.' : 'Team settings saved.',
+      })
     } catch (err) {
       setStatus({ error: err?.message ?? 'Failed to save team settings.', success: '' })
     }
@@ -283,14 +289,17 @@ function TeamSettingsTab({ team, canManageTeam, saving, onUpdateTeamSettings }) 
       <div className="rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-3">
         <p className="text-sm font-bold text-white">Team logo</p>
         <p className="mt-1 text-xs text-zinc-400">
-          Best results: a 1200 × 400 px landscape JPG, PNG, or WebP. Maximum upload 5 MB. The app resizes and optimises it automatically.
+          Best results: a 1200 × 400 px landscape image. JPG, PNG, WebP, HEIC, and HEIF are supported up to 5 MB and optimised automatically.
         </p>
-        {(logoPreview || team?.logoUrl) && (
+        {(logoPreview || savedLogoUrl) && (
           <div className="mt-3 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950">
             <img
-              src={logoPreview || team.logoUrl}
+              src={logoPreview || savedLogoUrl}
               alt={`${team?.name ?? 'Team'} logo preview`}
               className="h-28 w-full object-contain"
+              onError={() => {
+                if (!logoPreview) setStatus({ error: 'The saved logo URL could not be loaded. Try uploading the image again.', success: '' })
+              }}
             />
           </div>
         )}
@@ -302,13 +311,14 @@ function TeamSettingsTab({ team, canManageTeam, saving, onUpdateTeamSettings }) 
           Choose image
           <input
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/*,.heic,.heif"
             onChange={chooseLogo}
             disabled={!canManageTeam || saving}
             className="sr-only"
           />
         </label>
         {logoFile && <p className="mt-2 text-xs text-emerald-400">Ready to upload: {logoFile.name}</p>}
+        {!logoFile && savedLogoUrl && <p className="mt-2 text-xs text-emerald-400">Current team logo saved.</p>}
       </div>
 
       {status.error && <p className="text-sm text-red-400">{status.error}</p>}
