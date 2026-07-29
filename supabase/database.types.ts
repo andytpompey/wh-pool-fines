@@ -74,6 +74,8 @@ export type Database = {
           unlock_code_hash: string | null
           unlock_code_last_rotated_at: string | null
           unlock_code_reset_required: boolean
+          subs_enabled: boolean
+          drivers_void_subs: boolean
           created_at: string
         }
         Insert: {
@@ -84,6 +86,8 @@ export type Database = {
           unlock_code_hash?: string | null
           unlock_code_last_rotated_at?: string | null
           unlock_code_reset_required?: boolean
+          subs_enabled?: boolean
+          drivers_void_subs?: boolean
           created_at?: string
         }
         Update: {
@@ -94,6 +98,8 @@ export type Database = {
           unlock_code_hash?: string | null
           unlock_code_last_rotated_at?: string | null
           unlock_code_reset_required?: boolean
+          subs_enabled?: boolean
+          drivers_void_subs?: boolean
           created_at?: string
         }
       }

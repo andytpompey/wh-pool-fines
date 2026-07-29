@@ -39,6 +39,8 @@ export async function loadAll({ teamId } = {}) {
     fines: fineRows.data.filter(f => f.match_id === m.id).map(normalFine),
     subs: subRows.data.filter(s => s.match_id === m.id).map(normalSub),
     playerIds: mpRows.data.filter(p => p.match_id === m.id).map(p => p.player_id),
+    driverIds: mpRows.data.filter(p => p.match_id === m.id && p.is_driver).map(p => p.player_id),
+    venue: m.venue ?? 'home',
   }))
 
   return {
@@ -161,6 +163,7 @@ export async function addMatch(match) {
     season_id: match.seasonId,
     opponent: match.opponent,
     submitted: match.submitted,
+    venue: match.venue ?? 'home',
     team_id: match.teamId ?? null,
   }).select().single())
   return { ...match, ...row, seasonId: row.season_id }
@@ -172,12 +175,17 @@ export async function updateMatch(match) {
     season_id: match.seasonId,
     opponent: match.opponent,
     submitted: match.submitted,
+    venue: match.venue ?? 'home',
     team_id: match.teamId ?? null,
   }).eq('id', match.id))
 
   handle(await supabase.from('match_players').delete().eq('match_id', match.id))
   if (match.playerIds?.length) {
-    handle(await supabase.from('match_players').insert(match.playerIds.map(pid => ({ match_id: match.id, player_id: pid }))))
+    handle(await supabase.from('match_players').insert(match.playerIds.map(pid => ({
+      match_id: match.id,
+      player_id: pid,
+      is_driver: (match.driverIds ?? []).includes(pid),
+    }))))
   }
 
   handle(await supabase.from('fines').delete().eq('match_id', match.id))
@@ -277,8 +285,8 @@ export async function importAll({ players, fineTypes, seasons, matches }) {
   if (seasons.length) handle(await supabase.from('seasons').insert(seasons.map(s => ({ id: s.id, name: s.name, type: s.type, team_id: s.teamId ?? null }))))
 
   for (const m of matches) {
-    handle(await supabase.from('matches').insert({ id: m.id, date: m.date, season_id: m.seasonId, opponent: m.opponent, submitted: m.submitted, team_id: m.teamId ?? null }))
-    if (m.playerIds?.length) handle(await supabase.from('match_players').insert(m.playerIds.map(pid => ({ match_id: m.id, player_id: pid }))))
+    handle(await supabase.from('matches').insert({ id: m.id, date: m.date, season_id: m.seasonId, opponent: m.opponent, venue: m.venue ?? 'home', submitted: m.submitted, team_id: m.teamId ?? null }))
+    if (m.playerIds?.length) handle(await supabase.from('match_players').insert(m.playerIds.map(pid => ({ match_id: m.id, player_id: pid, is_driver: (m.driverIds ?? []).includes(pid) }))))
     if (m.fines?.length) handle(await supabase.from('fines').insert(m.fines.map(f => ({ id: f.id, match_id: m.id, player_id: f.playerId, fine_type_id: f.fineTypeId, player_name: f.playerName, fine_name: f.fineName, cost: f.cost, paid: f.paid }))))
     if (m.subs?.length) handle(await supabase.from('subs').insert(m.subs.map(s => ({ id: s.id, match_id: m.id, player_id: s.playerId, player_name: s.playerName, amount: s.amount, paid: s.paid }))))
   }

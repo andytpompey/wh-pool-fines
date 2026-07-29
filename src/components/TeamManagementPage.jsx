@@ -9,6 +9,7 @@ const TABS = [
   { id: 'invites', label: 'Invites' },
   { id: 'fines', label: 'Fines' },
   { id: 'seasons', label: 'Seasons' },
+  { id: 'settings', label: 'Settings' },
   { id: 'security', label: 'Security' },
 ]
 
@@ -48,6 +49,7 @@ export default function TeamManagementPage({
   onAddSeason,
   onUpdateSeason,
   onDeleteSeason,
+  onUpdateTeamSettings,
   onSetUnlockCode,
   onChangeUnlockCode,
   onRequestUnlockCodeReset,
@@ -165,6 +167,84 @@ export default function TeamManagementPage({
           onAdminResetUnlockCode={onAdminResetUnlockCode}
         />
       )}
+
+      {activeTab === 'settings' && (
+        <TeamSettingsTab
+          team={team}
+          canManageTeam={canManageTeam}
+          saving={saving}
+          onUpdateTeamSettings={onUpdateTeamSettings}
+        />
+      )}
+    </div>
+  )
+}
+
+function TeamSettingsTab({ team, canManageTeam, saving, onUpdateTeamSettings }) {
+  const [settings, setSettings] = useState({
+    subsEnabled: team?.subsEnabled !== false,
+    driversVoidSubs: team?.driversVoidSubs !== false,
+  })
+  const [status, setStatus] = useState({ error: '', success: '' })
+
+  useEffect(() => {
+    setSettings({
+      subsEnabled: team?.subsEnabled !== false,
+      driversVoidSubs: team?.driversVoidSubs !== false,
+    })
+    setStatus({ error: '', success: '' })
+  }, [team?.id, team?.subsEnabled, team?.driversVoidSubs])
+
+  const saveSettings = async () => {
+    setStatus({ error: '', success: '' })
+    try {
+      await onUpdateTeamSettings(settings)
+      setStatus({ error: '', success: 'Team settings saved.' })
+    } catch (err) {
+      setStatus({ error: err?.message ?? 'Failed to save team settings.', success: '' })
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+        <h3 className="font-bold text-white">Match and subs settings</h3>
+        <p className="mt-1 text-xs text-zinc-400">Control how this team records match subs and driver exemptions.</p>
+      </div>
+
+      <label className="flex items-center justify-between gap-3 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-3">
+        <div>
+          <p className="text-sm font-bold text-white">Enable subs</p>
+          <p className="text-xs text-zinc-400">Add the standard sub charge when players are selected.</p>
+        </div>
+        <input
+          type="checkbox"
+          checked={settings.subsEnabled}
+          onChange={event => setSettings(current => ({ ...current, subsEnabled: event.target.checked }))}
+          disabled={!canManageTeam || saving}
+          className="h-5 w-5 accent-amber-500"
+        />
+      </label>
+
+      <label className={`flex items-center justify-between gap-3 rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-3 ${!settings.subsEnabled ? 'opacity-50' : ''}`}>
+        <div>
+          <p className="text-sm font-bold text-white">Drivers void subs</p>
+          <p className="text-xs text-zinc-400">On away matches, marked drivers do not pay a sub.</p>
+        </div>
+        <input
+          type="checkbox"
+          checked={settings.driversVoidSubs}
+          onChange={event => setSettings(current => ({ ...current, driversVoidSubs: event.target.checked }))}
+          disabled={!canManageTeam || saving || !settings.subsEnabled}
+          className="h-5 w-5 accent-amber-500"
+        />
+      </label>
+
+      {status.error && <p className="text-sm text-red-400">{status.error}</p>}
+      {status.success && <p className="text-sm text-emerald-400">{status.success}</p>}
+      <Btn onClick={saveSettings} disabled={!canManageTeam || saving}>
+        {saving ? 'Saving...' : 'Save settings'}
+      </Btn>
     </div>
   )
 }
