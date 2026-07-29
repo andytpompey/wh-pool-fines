@@ -118,7 +118,12 @@ export default function FinesTab({ players, seasons, matches, setMatches, withSa
   return (
     <div>
       <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 px-1.5 py-3">
-        <h2 className="px-1.5 text-lg font-bold text-white">Balances and payments</h2>
+        <div className={TITLE_ACTION_GRID}>
+          <h2 className="col-span-2 self-center px-1.5 text-lg font-bold text-white">Balances and payments</h2>
+          {canManageFines && selectedPlayer && (
+            <TitleAction onClick={openSettlement}>Settle All</TitleAction>
+          )}
+        </div>
         <div className={`mt-3 ${TITLE_ACTION_GRID}`}>
           <select
             value={filterSeason}
@@ -149,11 +154,6 @@ export default function FinesTab({ players, seasons, matches, setMatches, withSa
             {[...players].sort((a, b) => a.name.localeCompare(b.name)).map(player => <option key={player.id} value={player.id}>{player.name}</option>)}
           </select>
         </div>
-        {canManageFines && selectedPlayer && (
-          <div className={`mt-2 ${TITLE_ACTION_GRID}`}>
-            <TitleAction className="col-start-3" onClick={openSettlement}>Settle All</TitleAction>
-          </div>
-        )}
       </div>
 
       <SegmentedControl
