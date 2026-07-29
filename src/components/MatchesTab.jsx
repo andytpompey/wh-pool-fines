@@ -104,52 +104,26 @@ function MatchDetail({ match, players, fineTypes, seasons, membership, platformR
 
   // ── Totals ────────────────────────────────────────────────────────────────
   const finesTotal = match.fines.reduce((s, f) => s + f.cost, 0)
-  const finesPaid  = match.fines.filter(f => f.paid).reduce((s, f) => s + f.cost, 0)
   const subsTotal  = subs.reduce((s, sub) => s + sub.amount, 0)
-  const subsPaid   = subs.filter(s => s.paid).reduce((s, sub) => s + sub.amount, 0)
-  const grandTotal = finesTotal + subsTotal
-  const grandPaid  = finesPaid + subsPaid
-  const grandOwed  = grandTotal - grandPaid
 
   const sections = [
-    { key: 'fines',   label: `Fines (${match.fines.length})` },
+    { key: 'fines',   label: `Fines (£${finesTotal.toFixed(2)})` },
     { key: 'players', label: `Players (${playerIds.length})` },
-    { key: 'subs',    label: `Subs (${subs.length})` },
+    { key: 'subs',    label: `Subs (£${subsTotal.toFixed(2)})` },
   ]
 
   return (
     <div>
       <div className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
-        <div className="flex items-center gap-3">
-          <button onClick={onBack} className="text-amber-400 hover:text-amber-300 font-bold text-sm">← Back</button>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Match</p>
-            <h2 className="font-display font-bold text-white text-lg">{formatDate(match.date)}</h2>
-            {match.opponent && <p className="text-zinc-400 text-xs truncate">vs {match.opponent}</p>}
-          </div>
-          {readonly ? <Badge color="green">Submitted</Badge> : <Badge color="amber">Draft</Badge>}
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="min-w-0 font-display text-lg font-bold text-white">
+            {formatDate(match.date)}{match.opponent ? ` vs ${match.opponent}` : ''}
+          </h2>
+          {season && <Badge color={season.type === 'Cup' ? 'amber' : 'blue'}>{season.name}</Badge>}
         </div>
-      </div>
-
-      {season && <div className="mb-3"><Badge color={season.type === 'Cup' ? 'amber' : 'blue'}>{season.name} · {season.type}</Badge></div>}
-
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        {[['Total', `£${grandTotal.toFixed(2)}`, 'text-white'], ['Paid', `£${grandPaid.toFixed(2)}`, 'text-emerald-400'], ['Owed', `£${grandOwed.toFixed(2)}`, 'text-red-400']].map(([l, v, c]) => (
-          <div key={l} className="bg-zinc-800 rounded-xl p-3 text-center">
-            <div className={`font-bold text-lg ${c}`}>{v}</div>
-            <div className="text-zinc-500 text-xs">{l}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 flex justify-between items-center">
-          <span className="text-zinc-400 text-xs">Fines</span>
-          <span className="text-amber-400 font-bold text-sm">£{finesTotal.toFixed(2)}</span>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 flex justify-between items-center">
-          <span className="text-zinc-400 text-xs">Subs ({subs.length} × 50p)</span>
-          <span className="text-blue-400 font-bold text-sm">£{subsTotal.toFixed(2)}</span>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <button onClick={onBack} className="text-sm font-bold text-amber-400 hover:text-amber-300">← Back</button>
+          {canCreateOrEdit && <Btn size="sm" onClick={() => setShowAddFine(true)}>+ Add Fine</Btn>}
         </div>
       </div>
 
@@ -184,7 +158,6 @@ function MatchDetail({ match, players, fineTypes, seasons, membership, platformR
       {/* Fines */}
       {activeSection === 'fines' && (
         <div className="mb-4">
-          {canCreateOrEdit && <div className="flex justify-end mb-2"><Btn size="sm" onClick={() => setShowAddFine(true)}>+ Add Fine</Btn></div>}
           <div className="space-y-2">
             {match.fines.map(f => (
               <div key={f.id} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 border ${f.paid ? 'bg-emerald-950/40 border-emerald-800/50' : 'bg-zinc-800 border-zinc-700'}`}>
