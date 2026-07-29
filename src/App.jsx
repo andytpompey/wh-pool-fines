@@ -8,6 +8,7 @@ import { TEAM_ROLE, canAssignTeamRole, canEditPlayerProfileInTeam, normaliseTeam
 import { APP_ACTION, assertActionAccess, canAccessAction } from './lib/accessControl'
 import { resolveCurrentTeamContext } from './lib/currentTeam'
 import { resolveAuthenticatedPlayerContext } from './lib/memberships'
+import { uploadTeamLogo } from './lib/teamLogo'
 import SetupTab from './components/SetupTab'
 import MatchesTab from './components/MatchesTab'
 import FinesTab   from './components/FinesTab'
@@ -16,7 +17,6 @@ import AuthGate   from './components/AuthGate'
 import TeamManagementPage from './components/TeamManagementPage'
 
 export const ADMIN_PIN = '1234'
-export const SUB_AMOUNT = 0.50
 const APP_BANNER_PATHS = [
   '/images/roo-bin-banner.png',
   '/images/roo-bin-banner.png.PNG',
@@ -202,32 +202,6 @@ function ErrorScreen({ error, onRetry }) {
   )
 }
 
-function TeamSwitcher({ memberships, currentTeamId, onSwitchTeam }) {
-  if (!memberships.length) return null
-
-  const currentMembership = memberships.find(membership => membership.team.id === currentTeamId) ?? memberships[0]
-
-  return (
-    <div className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2.5">
-      <div className="flex items-center gap-2 mb-2">
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Team</p>
-        {currentMembership && <Badge color="amber">{teamModel.getRoleLabel(currentMembership.role)}</Badge>}
-      </div>
-      <select
-        value={currentTeamId ?? ''}
-        onChange={event => onSwitchTeam(event.target.value)}
-        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-amber-500 text-sm"
-      >
-        {memberships.map(membership => (
-          <option key={membership.team.id} value={membership.team.id}>
-            {membership.team.name} · {teamModel.getRoleLabel(membership.role)}
-          </option>
-        ))}
-      </select>
-    </div>
-  )
-}
-
 function TeamSwitchModal({ memberships, currentTeamId, onSwitchTeam, onClose }) {
   return (
     <Modal title="Switch Team" onClose={onClose}>
@@ -304,7 +278,7 @@ function JoinTeamPage({ onJoinTeam, onCreateTeam, saving }) {
   )
 }
 
-function PlayerProfilePage({ profile, currentUser, players, memberships, currentTeamId, onSwitchTeam, onSaveProfile, onCreateTeam, onJoinTeam, onSignOut, saving }) {
+function PlayerProfilePage({ profile, currentUser, players, memberships, onSaveProfile, onCreateTeam, onJoinTeam, onSignOut, saving }) {
   const [displayName, setDisplayName] = useState(profile?.displayName ?? '')
   const [preferredAuthMethod, setPreferredAuthMethod] = useState(profile?.preferredAuthMethod ?? 'email')
   const [linkedPlayerId, setLinkedPlayerId] = useState(profile?.playerId ?? '')
@@ -403,17 +377,6 @@ function PlayerProfilePage({ profile, currentUser, players, memberships, current
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div>
-            <h3 className="font-bold text-white">Current team context</h3>
-            <p className="text-xs text-zinc-400">Profile is now the single place to view and change the active team used throughout the app.</p>
-          </div>
-          <Badge color={memberships.length ? 'amber' : 'gray'}>{memberships.length ? 'Switcher available' : 'No teams'}</Badge>
-        </div>
-        <TeamSwitcher memberships={memberships} currentTeamId={currentTeamId} onSwitchTeam={onSwitchTeam} />
-      </div>
-
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <div>
             <h3 className="font-bold text-white">Team memberships</h3>
             <p className="text-xs text-zinc-400">Your current active memberships across teams.</p>
           </div>
@@ -485,6 +448,7 @@ export default function App() {
   const [teamRoster, setTeamRoster] = useState({ members: [], invites: [] })
   const [showBanner, setShowBanner] = useState(true)
   const [bannerPathIndex, setBannerPathIndex] = useState(0)
+  const [failedTeamLogoUrl, setFailedTeamLogoUrl] = useState('')
   const [players, setPlayers] = useState([])
   const [fineTypes, setFineTypes] = useState([])
   const [seasons,   setSeasons]   = useState([])
@@ -1065,12 +1029,21 @@ export default function App() {
     setSeasons(prev => prev.filter(item => item.id !== season.id))
   }, 'Unlock code verification is required to delete seasons.'), [currentTeamId, currentTeamMembership?.role, withProtectedAction])
 
-  const handleUpdateTeamSettings = useCallback((settings) => withSave(async () => {
+  const handleUpdateTeamSettings = useCallback((settings, logoFile = null) => withSave(async () => {
     if (!currentTeamId || !currentTeamMembership) throw new Error('Select a team first.')
+    const subAmount = Number(settings.subAmount)
+    if (!Number.isFinite(subAmount) || subAmount < 0 || subAmount > 100) {
+      throw new Error('Sub value must be between £0.00 and £100.00.')
+    }
+    const logoUrl = logoFile
+      ? await uploadTeamLogo({ teamId: currentTeamId, file: logoFile })
+      : currentTeamMembership.team.logoUrl
     await teamModel.updateTeamSettings({
       teamId: currentTeamId,
       subsEnabled: settings.subsEnabled,
       driversVoidSubs: settings.driversVoidSubs,
+      subAmount,
+      logoUrl,
       actorMembership: currentTeamMembership,
       platformRole: memberContext.platformRole,
     })
@@ -1129,6 +1102,10 @@ export default function App() {
     TEAM_ROLE.CAPTAIN,
     TEAM_ROLE.VICE_CAPTAIN,
   ].includes(normaliseTeamRole(currentTeamMembership.role))
+  const teamLogoUrl = currentTeamMembership?.team.logoUrl
+  const headerLogoUrl = teamLogoUrl && failedTeamLogoUrl !== teamLogoUrl
+    ? teamLogoUrl
+    : APP_BANNER_PATHS[bannerPathIndex]
 
   const openPrimaryTab = (nextTab) => {
     setTab(nextTab)
@@ -1151,10 +1128,14 @@ export default function App() {
         {showBanner && (
           <div className="max-w-lg mx-auto">
             <img
-              src={APP_BANNER_PATHS[bannerPathIndex]}
-              alt="Roo Bin banner"
+              src={headerLogoUrl}
+              alt={teamLogoUrl && failedTeamLogoUrl !== teamLogoUrl ? `${currentTeamMembership.team.name} logo` : 'Roo Bin banner'}
               className="h-28 sm:h-36 w-full bg-zinc-950 object-contain object-center"
               onError={() => {
+                if (teamLogoUrl && failedTeamLogoUrl !== teamLogoUrl) {
+                  setFailedTeamLogoUrl(teamLogoUrl)
+                  return
+                }
                 if (bannerPathIndex < APP_BANNER_PATHS.length - 1) {
                   setBannerPathIndex(prev => prev + 1)
                   return
@@ -1194,8 +1175,6 @@ export default function App() {
                 currentUser={session?.user}
                 players={players}
                 memberships={memberContext.memberships}
-                currentTeamId={currentTeamId}
-                onSwitchTeam={teamId => switchTeam(teamId, 'app')}
                 onSaveProfile={handleSaveProfile}
                 onCreateTeam={() => navigate('/teams/new')}
                 onJoinTeam={() => navigate('/teams/join')}

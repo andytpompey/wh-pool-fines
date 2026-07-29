@@ -543,6 +543,8 @@ const normaliseMembership = row => ({
     unlockCodeLastRotatedAt: row.teams.unlock_code_last_rotated_at,
     subsEnabled: row.teams.subs_enabled !== false,
     driversVoidSubs: row.teams.drivers_void_subs !== false,
+    subAmount: Number(row.teams.sub_amount ?? 0.50),
+    logoUrl: row.teams.logo_url ?? '',
   } : null,
 })
 
@@ -550,7 +552,7 @@ export async function listMembershipsForPlayer(playerId) {
   if (!playerId) return []
   const rows = handle(await supabase
     .from('team_memberships')
-    .select('id, role, status, joined_at, teams ( id, name, join_code, created_at, unlock_code_reset_required, unlock_code_last_rotated_at, subs_enabled, drivers_void_subs )')
+    .select('id, role, status, joined_at, teams ( id, name, join_code, created_at, unlock_code_reset_required, unlock_code_last_rotated_at, subs_enabled, drivers_void_subs, sub_amount, logo_url )')
     .eq('player_id', playerId)
     .eq('status', 'active')
     .order('joined_at'))
@@ -558,7 +560,7 @@ export async function listMembershipsForPlayer(playerId) {
   return (rows ?? []).map(normaliseMembership).filter(membership => membership.team)
 }
 
-export async function updateTeamSettings({ teamId, subsEnabled, driversVoidSubs, actorMembership, platformRole }) {
+export async function updateTeamSettings({ teamId, subsEnabled, driversVoidSubs, subAmount, logoUrl, actorMembership, platformRole }) {
   if (!teamId) throw new Error('Team is required.')
   assertActionAccess({
     action: APP_ACTION.MANAGE_TEAM_OPERATIONS,
@@ -572,6 +574,8 @@ export async function updateTeamSettings({ teamId, subsEnabled, driversVoidSubs,
     .update({
       subs_enabled: Boolean(subsEnabled),
       drivers_void_subs: Boolean(subsEnabled) && Boolean(driversVoidSubs),
+      sub_amount: Number(subAmount),
+      logo_url: logoUrl || null,
     })
     .eq('id', teamId)
     .select('*')

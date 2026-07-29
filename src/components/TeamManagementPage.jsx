@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Badge, Btn, Input, Modal, Sel, SegmentedControl } from '../App'
 import * as auth from '../lib/auth'
 import * as teamModel from '../lib/teamModel'
+import { validateTeamLogo } from '../lib/teamLogo'
 import { TEAM_ROLE } from '../lib/permissions'
 
 const TABS = [
@@ -182,21 +183,48 @@ function TeamSettingsTab({ team, canManageTeam, saving, onUpdateTeamSettings }) 
   const [settings, setSettings] = useState({
     subsEnabled: team?.subsEnabled !== false,
     driversVoidSubs: team?.driversVoidSubs !== false,
+    subAmount: Number(team?.subAmount ?? 0.50).toFixed(2),
   })
+  const [logoFile, setLogoFile] = useState(null)
+  const [logoPreview, setLogoPreview] = useState('')
   const [status, setStatus] = useState({ error: '', success: '' })
 
   useEffect(() => {
     setSettings({
       subsEnabled: team?.subsEnabled !== false,
       driversVoidSubs: team?.driversVoidSubs !== false,
+      subAmount: Number(team?.subAmount ?? 0.50).toFixed(2),
     })
+    setLogoFile(null)
+    setLogoPreview('')
     setStatus({ error: '', success: '' })
-  }, [team?.id, team?.subsEnabled, team?.driversVoidSubs])
+  }, [team?.id, team?.subsEnabled, team?.driversVoidSubs, team?.subAmount, team?.logoUrl])
+
+  useEffect(() => () => {
+    if (logoPreview) URL.revokeObjectURL(logoPreview)
+  }, [logoPreview])
+
+  const chooseLogo = event => {
+    const file = event.target.files?.[0] ?? null
+    if (!file) return
+    try {
+      validateTeamLogo(file)
+      if (logoPreview) URL.revokeObjectURL(logoPreview)
+      setLogoFile(file)
+      setLogoPreview(URL.createObjectURL(file))
+      setStatus({ error: '', success: '' })
+    } catch (err) {
+      event.target.value = ''
+      setStatus({ error: err?.message ?? 'Choose a valid image.', success: '' })
+    }
+  }
 
   const saveSettings = async () => {
     setStatus({ error: '', success: '' })
     try {
-      await onUpdateTeamSettings(settings)
+      await onUpdateTeamSettings(settings, logoFile)
+      setLogoFile(null)
+      setLogoPreview('')
       setStatus({ error: '', success: 'Team settings saved.' })
     } catch (err) {
       setStatus({ error: err?.message ?? 'Failed to save team settings.', success: '' })
@@ -237,6 +265,51 @@ function TeamSettingsTab({ team, canManageTeam, saving, onUpdateTeamSettings }) 
           className="h-5 w-5 accent-amber-500"
         />
       </label>
+
+      <div className={`rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-3 ${!settings.subsEnabled ? 'opacity-50' : ''}`}>
+        <Input
+          label="Sub value (£)"
+          type="number"
+          min="0"
+          max="100"
+          step="0.01"
+          value={settings.subAmount}
+          onChange={event => setSettings(current => ({ ...current, subAmount: event.target.value }))}
+          disabled={!canManageTeam || saving || !settings.subsEnabled}
+        />
+        <p className="-mt-2 text-xs text-zinc-400">Applied to players newly added to a match. Defaults to £0.50.</p>
+      </div>
+
+      <div className="rounded-xl border border-zinc-700 bg-zinc-800 px-3 py-3">
+        <p className="text-sm font-bold text-white">Team logo</p>
+        <p className="mt-1 text-xs text-zinc-400">
+          Best results: a 1200 × 400 px landscape JPG, PNG, or WebP. Maximum upload 5 MB. The app resizes and optimises it automatically.
+        </p>
+        {(logoPreview || team?.logoUrl) && (
+          <div className="mt-3 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950">
+            <img
+              src={logoPreview || team.logoUrl}
+              alt={`${team?.name ?? 'Team'} logo preview`}
+              className="h-28 w-full object-contain"
+            />
+          </div>
+        )}
+        <label className={`mt-3 inline-flex cursor-pointer items-center justify-center rounded-lg px-4 py-2 text-sm font-bold transition ${
+          canManageTeam && !saving
+            ? 'bg-zinc-700 text-white hover:bg-zinc-600'
+            : 'cursor-not-allowed bg-zinc-700 text-zinc-500'
+        }`}>
+          Choose image
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={chooseLogo}
+            disabled={!canManageTeam || saving}
+            className="sr-only"
+          />
+        </label>
+        {logoFile && <p className="mt-2 text-xs text-emerald-400">Ready to upload: {logoFile.name}</p>}
+      </div>
 
       {status.error && <p className="text-sm text-red-400">{status.error}</p>}
       {status.success && <p className="text-sm text-emerald-400">{status.success}</p>}

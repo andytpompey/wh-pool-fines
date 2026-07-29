@@ -232,6 +232,8 @@ create table if not exists teams (
   unlock_code_reset_required boolean not null default true,
   subs_enabled boolean not null default true,
   drivers_void_subs boolean not null default true,
+  sub_amount numeric(10, 2) not null default 0.50 check (sub_amount >= 0 and sub_amount <= 100),
+  logo_url text,
   created_at timestamptz not null default now()
 );
 
@@ -277,6 +279,8 @@ alter table players add column if not exists receive_team_notifications boolean 
 alter table players add column if not exists dashboard_season_preferences jsonb not null default '{}'::jsonb;
 alter table teams add column if not exists subs_enabled boolean not null default true;
 alter table teams add column if not exists drivers_void_subs boolean not null default true;
+alter table teams add column if not exists sub_amount numeric(10, 2) not null default 0.50;
+alter table teams add column if not exists logo_url text;
 alter table matches add column if not exists venue text not null default 'home' check (venue in ('home', 'away'));
 alter table match_players add column if not exists is_driver boolean not null default false;
 
