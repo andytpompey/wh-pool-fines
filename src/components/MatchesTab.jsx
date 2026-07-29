@@ -395,21 +395,20 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
       <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Matches</p>
-            <h2 className="mt-1 text-lg font-bold text-white">Match log</h2>
+            <h2 className="text-lg font-bold text-white">Match Log</h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-32 flex-col gap-2">
             <button
               type="button"
               onClick={() => setShowSeasonPicker(true)}
               aria-haspopup="dialog"
               aria-expanded={showSeasonPicker}
-              className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
             >
-              <span className="max-w-28 truncate">{selectedSeasonLabel}</span>
+              <span className="min-w-0 truncate">{selectedSeasonLabel}</span>
               <span aria-hidden="true" className="text-zinc-400">⌄</span>
             </button>
-            <Btn size="sm" onClick={() => setShowNew(true)} disabled={!canManageMatches}>New match</Btn>
+            <Btn size="sm" className="min-h-10 w-full" onClick={() => setShowNew(true)} disabled={!canManageMatches}>New match</Btn>
           </div>
         </div>
       </div>
