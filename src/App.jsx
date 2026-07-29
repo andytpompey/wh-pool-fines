@@ -17,22 +17,12 @@ import TeamManagementPage from './components/TeamManagementPage'
 
 export const ADMIN_PIN = '1234'
 export const SUB_AMOUNT = 0.50
-const LAST_UPDATED = import.meta.env.VITE_LAST_UPDATED
 const APP_BANNER_PATHS = [
   '/images/roo-bin-banner.png',
   '/images/roo-bin-banner.png.PNG',
   '/images/roo-bin-banner.PNG',
 ]
 const TEAM_STORAGE_KEY = 'wh_current_team_id'
-
-function formatLastUpdated(value) {
-  if (!value) return 'Not available'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Not available'
-  return date.toLocaleString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  })
-}
 
 function getRoute() {
   const path = window.location.pathname || '/'
@@ -1205,13 +1195,19 @@ export default function App() {
           </div>
         )}
         <div className="max-w-lg mx-auto px-4 pb-2.5 flex items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-2 text-[11px] text-zinc-300 bg-zinc-900/80 border border-zinc-700 rounded-md px-2.5 py-1">
-            <span className="text-amber-400">🕒</span>
-            <span>Last updated: {formatLastUpdated(LAST_UPDATED)}</span>
-          </div>
+          {currentTeamMembership ? (
+            <div className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-900/80 px-2.5 py-1 text-[11px]">
+              <span aria-hidden="true" className="text-amber-400">◆</span>
+              <span className="shrink-0 text-zinc-500">Current team:</span>
+              <span className="truncate font-bold text-zinc-200">{currentTeamMembership.team.name}</span>
+            </div>
+          ) : <div />}
           {currentPlayer && (
-            <div className="text-xs text-zinc-500">
-              {profile?.displayName || currentPlayer.name}
+            <div className="shrink-0 text-right text-xs text-zinc-500">
+              <span>{profile?.displayName || currentPlayer.name}</span>
+              {currentTeamMembership && (
+                <span> - {teamModel.getRoleLabel(currentTeamMembership.role)}</span>
+              )}
             </div>
           )}
         </div>
@@ -1223,15 +1219,6 @@ export default function App() {
         <>
           <div className="max-w-lg mx-auto px-4 pt-3">
             {!!saveError && <div className="mb-3 text-sm text-red-400 bg-red-950/40 border border-red-800/50 rounded-xl px-3 py-2">{saveError}</div>}
-            {route.name !== 'profile' && currentTeamMembership ? (
-              <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2.5">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Current team</p>
-                  <p className="truncate text-sm font-medium text-white">{currentTeamMembership.team.name}</p>
-                </div>
-                <Badge color="amber">{teamModel.getRoleLabel(currentTeamMembership.role)}</Badge>
-              </div>
-            ) : null}
 
             {route.name === 'profile' ? (
               <PlayerProfilePage
