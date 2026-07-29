@@ -114,8 +114,8 @@ function MatchDetail({ match, players, fineTypes, seasons, membership, platformR
 
   return (
     <div>
-      <div className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
-        <div className="flex items-start justify-between gap-3">
+      <div className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900 px-1.5 py-3">
+        <div className="flex items-start justify-between gap-3 px-1.5">
           <h2 className="min-w-0 font-display text-lg font-bold text-white">
             {formatDate(match.date)}{match.opponent ? ` vs ${match.opponent}` : ''}
           </h2>
@@ -382,8 +382,8 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
 
   return (
     <div>
-      <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
-        <h2 className="text-lg font-bold text-white">Match Log</h2>
+      <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 px-1.5 py-3">
+        <h2 className="px-1.5 text-lg font-bold text-white">Match Log</h2>
         <div className={`mt-3 ${TITLE_ACTION_GRID}`}>
           <TitleAction onClick={() => setShowNew(true)} disabled={!canManageMatches}>New match</TitleAction>
           <button
@@ -391,7 +391,7 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
             onClick={() => setShowSeasonPicker(true)}
             aria-haspopup="dialog"
             aria-expanded={showSeasonPicker}
-            className={`col-start-3 inline-flex ${TITLE_ACTION_SIZE} items-center justify-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400`}
+            className={`col-start-3 inline-flex ${TITLE_ACTION_SIZE} items-center justify-center gap-2 border border-zinc-600 bg-zinc-800 px-3 py-2 text-xs font-bold leading-tight text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400`}
           >
             <span className="min-w-0 truncate">{selectedSeasonLabel}</span>
             <span aria-hidden="true" className="text-zinc-400">⌄</span>

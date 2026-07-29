@@ -128,13 +128,20 @@ export function Btn({ children, variant = 'primary', size = 'md', className = ''
   return <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...props}>{children}</button>
 }
 
-// Title-screen navigation is amber and uses the same three-column sizing as section navigation.
-// Dark outlined controls are reserved for selectors, menus, and popups.
+// Title-screen navigation uses the same dark geometry and three-column sizing as section navigation.
+// Amber is reserved for selected states and high-emphasis confirmations.
 export const TITLE_ACTION_GRID = 'grid grid-cols-3 gap-2'
-export const TITLE_ACTION_SIZE = 'min-h-11 w-full'
+export const TITLE_ACTION_SIZE = 'min-h-11 w-full rounded-xl'
 
 export function TitleAction({ children, className = '', ...props }) {
-  return <Btn {...props} variant="primary" size="sm" className={`${TITLE_ACTION_SIZE} ${className}`}>{children}</Btn>
+  return (
+    <button
+      {...props}
+      className={`${TITLE_ACTION_SIZE} inline-flex items-center justify-center border border-zinc-700 bg-zinc-800/80 px-3 py-2 text-center text-xs font-bold leading-tight text-zinc-300 transition-all hover:border-zinc-600 hover:bg-zinc-700 hover:text-white active:scale-95 disabled:opacity-50 ${className}`}
+    >
+      {children}
+    </button>
+  )
 }
 
 export function SegmentedControl({ options, value, onChange, className = '', itemClassName = '', fullWidth = false, scrollable = false, wrap = false, minItemWidth = '7rem' }) {
