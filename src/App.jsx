@@ -9,6 +9,7 @@ import { APP_ACTION, assertActionAccess, canAccessAction } from './lib/accessCon
 import { resolveCurrentTeamContext } from './lib/currentTeam'
 import { resolveAuthenticatedPlayerContext } from './lib/memberships'
 import { uploadTeamLogo } from './lib/teamLogo'
+import * as rackem from './lib/rackem'
 import SetupTab from './components/SetupTab'
 import MatchesTab from './components/MatchesTab'
 import FinesTab   from './components/FinesTab'
@@ -1035,6 +1036,9 @@ export default function App() {
     if (!Number.isFinite(subAmount) || subAmount < 0 || subAmount > 100) {
       throw new Error('Sub value must be between £0.00 and £100.00.')
     }
+    if (settings.rackemImportEnabled && (!settings.rackemLeagueSlug || !settings.rackemTeamId)) {
+      throw new Error('Select both a RackEmApp league and team.')
+    }
     const logoUrl = logoFile
       ? await uploadTeamLogo({ teamId: currentTeamId, file: logoFile })
       : currentTeamMembership.team.logoUrl
@@ -1044,11 +1048,64 @@ export default function App() {
       driversVoidSubs: settings.driversVoidSubs,
       subAmount,
       logoUrl,
+      rackemImportEnabled: settings.rackemImportEnabled,
+      rackemLeagueSlug: settings.rackemLeagueSlug,
+      rackemLeagueName: settings.rackemLeagueName,
+      rackemTeamId: settings.rackemTeamId,
+      rackemTeamName: settings.rackemTeamName,
+      rackemTeamUrl: settings.rackemTeamUrl,
       actorMembership: currentTeamMembership,
       platformRole: memberContext.platformRole,
     })
     await refreshMemberContext(session?.user)
   }), [currentTeamId, currentTeamMembership, memberContext.platformRole, refreshMemberContext, session?.user])
+
+  const handleImportRackemSeason = useCallback((rackemSeason) => withSave(async () => {
+    if (!currentTeamId || !currentTeamMembership?.team?.rackemImportEnabled) {
+      throw new Error('Connect this team to RackEmApp in Settings first.')
+    }
+    assertActionAccess({
+      action: APP_ACTION.MANAGE_SEASONS,
+      membership: currentTeamMembership,
+      platformRole: memberContext.platformRole,
+      message: 'Only captains and vice-captains can import seasons.',
+    })
+    const teamPage = await rackem.getRackemTeamPage(
+      currentTeamMembership.team.rackemLeagueSlug,
+      rackemSeason.seasonTeamId,
+    )
+    const result = await db.importRackemSeason({
+      teamId: currentTeamId,
+      season: rackemSeason,
+      teamPage,
+      idFactory: uuid,
+    })
+    await load(currentTeamId)
+    return result
+  }), [currentTeamId, currentTeamMembership, load, memberContext.platformRole])
+
+  const handleRefreshRackemSeason = useCallback((season) => withSave(async () => {
+    if (!currentTeamId || season?.source !== 'rackem') throw new Error('This is not a RackEmApp season.')
+    assertActionAccess({
+      action: APP_ACTION.MANAGE_SEASONS,
+      membership: currentTeamMembership,
+      platformRole: memberContext.platformRole,
+      message: 'Only captains and vice-captains can refresh seasons.',
+    })
+    const teamPage = await rackem.getRackemTeamPage(season.sourceLeagueSlug, season.sourceSeasonTeamId)
+    const result = await db.importRackemSeason({
+      teamId: currentTeamId,
+      season: {
+        name: season.name,
+        seasonTeamId: season.sourceSeasonTeamId,
+        url: season.sourceUrl,
+      },
+      teamPage,
+      idFactory: uuid,
+    })
+    await load(currentTeamId)
+    return result
+  }), [currentTeamId, currentTeamMembership, load, memberContext.platformRole])
 
   const getCaptainContacts = useCallback(() => teamRoster.members
     .filter(member => member.role === TEAM_ROLE.CAPTAIN)
@@ -1219,6 +1276,8 @@ export default function App() {
                 onAddSeason={handleAddSeason}
                 onUpdateSeason={handleUpdateSeason}
                 onDeleteSeason={handleDeleteSeason}
+                onImportRackemSeason={handleImportRackemSeason}
+                onRefreshRackemSeason={handleRefreshRackemSeason}
                 onUpdateTeamSettings={handleUpdateTeamSettings}
                 onSetUnlockCode={handleSetUnlockCode}
                 onChangeUnlockCode={handleChangeUnlockCode}

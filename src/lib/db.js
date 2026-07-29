@@ -62,7 +62,18 @@ const normalPlayer   = r => ({
   authUserId: r.user_id ?? r.auth_user_id ?? null,
 })
 const normalFineType = r => ({ id: r.id, name: r.name, cost: Number(r.cost), teamId: r.team_id ?? null })
-const normalSeason = r => ({ id: r.id, name: r.name, type: r.type, teamId: r.team_id ?? null })
+const normalSeason = r => ({
+  id: r.id,
+  name: r.name,
+  type: r.type,
+  teamId: r.team_id ?? null,
+  source: r.source ?? null,
+  sourceLeagueSlug: r.source_league_slug ?? null,
+  sourceSeasonTeamId: r.source_season_team_id ?? null,
+  sourceUrl: r.source_url ?? null,
+  sourceLastRefreshedAt: r.source_last_refreshed_at ?? null,
+  sourceLastRefreshStatus: r.source_last_refresh_status ?? null,
+})
 const normalFine = r => ({
   id: r.id, matchId: r.match_id, playerId: r.player_id,
   fineTypeId: r.fine_type_id, playerName: r.player_name,
@@ -131,11 +142,111 @@ export async function deleteFineTypeWithAudit({ id, teamId, actorMembership, pla
 }
 
 export async function addSeason(season) {
-  return normalSeason(handle(await supabase.from('seasons').insert({ id: season.id, name: season.name, type: season.type, team_id: season.teamId ?? null }).select().single()))
+  return normalSeason(handle(await supabase.from('seasons').insert({
+    id: season.id,
+    name: season.name,
+    type: season.type,
+    team_id: season.teamId ?? null,
+    source: season.source ?? null,
+    source_league_slug: season.sourceLeagueSlug ?? null,
+    source_season_team_id: season.sourceSeasonTeamId ?? null,
+    source_url: season.sourceUrl ?? null,
+    source_last_refreshed_at: season.sourceLastRefreshedAt ?? null,
+    source_last_refresh_status: season.sourceLastRefreshStatus ?? null,
+  }).select().single()))
 }
 
 export async function updateSeason(season) {
-  return normalSeason(handle(await supabase.from('seasons').update({ name: season.name, type: season.type, team_id: season.teamId ?? null }).eq('id', season.id).select().single()))
+  return normalSeason(handle(await supabase.from('seasons').update({
+    name: season.name,
+    type: season.type,
+    team_id: season.teamId ?? null,
+    source_last_refreshed_at: season.sourceLastRefreshedAt ?? null,
+    source_last_refresh_status: season.sourceLastRefreshStatus ?? null,
+  }).eq('id', season.id).select().single()))
+}
+
+export async function importRackemSeason({ teamId, season, teamPage, idFactory }) {
+  if (!teamId || !season?.seasonTeamId || !teamPage) throw new Error('RackEm season data is incomplete.')
+  const now = new Date().toISOString()
+  const existingSeason = handle(await supabase
+    .from('seasons')
+    .select('*')
+    .eq('team_id', teamId)
+    .eq('source', 'rackem')
+    .eq('source_season_team_id', season.seasonTeamId)
+    .maybeSingle())
+
+  const seasonPayload = {
+    name: season.name,
+    type: 'League',
+    team_id: teamId,
+    source: 'rackem',
+    source_league_slug: teamPage.leagueSlug,
+    source_season_team_id: season.seasonTeamId,
+    source_url: season.url,
+    source_last_refreshed_at: now,
+    source_last_refresh_status: 'success',
+  }
+  const seasonRow = existingSeason
+    ? handle(await supabase.from('seasons').update(seasonPayload).eq('id', existingSeason.id).select().single())
+    : handle(await supabase.from('seasons').insert({ id: idFactory(), ...seasonPayload }).select().single())
+
+  const existingMatches = handle(await supabase
+    .from('matches')
+    .select('id, source_identity, date, source_matchday, source_home_team_id, source_away_team_id')
+    .eq('team_id', teamId)
+    .eq('season_id', seasonRow.id)
+    .eq('source', 'rackem'))
+  const existingByIdentity = new Map((existingMatches ?? []).map(match => [match.source_identity, match.id]))
+  const existingByFixture = new Map((existingMatches ?? []).map(match => [[
+    match.date,
+    match.source_matchday,
+    match.source_home_team_id,
+    match.source_away_team_id,
+  ].join(':'), match.id]))
+
+  let created = 0
+  let updated = 0
+  for (const match of teamPage.matches) {
+    const isHome = match.homeTeam.id === season.seasonTeamId
+    const opponent = isHome ? match.awayTeam : match.homeTeam
+    const fixtureIdentity = [match.date, match.matchday, match.homeTeam.id, match.awayTeam.id].join(':')
+    const existingId = existingByIdentity.get(match.sourceIdentity) ?? existingByFixture.get(fixtureIdentity)
+    const payload = {
+      date: match.date,
+      season_id: seasonRow.id,
+      opponent: opponent.name,
+      submitted: false,
+      venue: isHome ? 'home' : 'away',
+      team_id: teamId,
+      source: 'rackem',
+      source_identity: match.sourceIdentity,
+      source_scorecard_id: match.scorecardId,
+      source_matchday: match.matchday,
+      source_status: match.status,
+      source_home_score: match.homeScore ?? null,
+      source_away_score: match.awayScore ?? null,
+      source_home_team_id: match.homeTeam.id,
+      source_away_team_id: match.awayTeam.id,
+      source_venue_name: match.venue?.name ?? null,
+      source_last_seen_at: now,
+    }
+    if (existingId) {
+      handle(await supabase.from('matches').update(payload).eq('id', existingId))
+      updated += 1
+    } else {
+      handle(await supabase.from('matches').insert({ id: idFactory(), ...payload }))
+      created += 1
+    }
+  }
+
+  return {
+    season: normalSeason(seasonRow),
+    created,
+    updated,
+    total: teamPage.matches.length,
+  }
 }
 
 export async function deleteSeason(id) {
