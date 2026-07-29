@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Badge, Modal, Input, Sel, Btn, TitleAction, TITLE_ACTION_GRID, TITLE_ACTION_SIZE, SUB_AMOUNT, uuid, SegmentedControl, formatDate } from '../App'
+import { Badge, Modal, Input, Sel, Btn, TitleAction, TITLE_ACTION_GRID, TITLE_ACTION_SIZE, uuid, SegmentedControl, formatDate } from '../App'
 import * as db from '../lib/db'
 import * as teamModel from '../lib/teamModel'
 import { APP_ACTION, canAccessAction } from '../lib/accessControl'
@@ -26,6 +26,7 @@ function MatchDetail({ match, players, fineTypes, seasons, team, membership, pla
   const subs      = match.subs      ?? []
   const subsEnabled = team?.subsEnabled !== false
   const driversVoidSubs = team?.driversVoidSubs !== false
+  const subAmount = Number(team?.subAmount ?? 0.50)
   const isAway = match.venue === 'away'
 
   const save = patch => onSave(match.id, patch)
@@ -41,7 +42,7 @@ function MatchDetail({ match, players, fineTypes, seasons, team, membership, pla
       newDriverIds = driverIds.filter(id => id !== playerId)
     } else if (subsEnabled && !subs.some(s => s.playerId === playerId)) {
       const player = players.find(p => p.id === playerId)
-      newSubs = [...subs, { id: uuid(), playerId, playerName: player?.name ?? 'Unknown', amount: SUB_AMOUNT, paid: false }]
+      newSubs = [...subs, { id: uuid(), playerId, playerName: player?.name ?? 'Unknown', amount: subAmount, paid: false }]
     }
     save({ playerIds: newIds, driverIds: newDriverIds, subs: newSubs })
   }
@@ -57,7 +58,7 @@ function MatchDetail({ match, players, fineTypes, seasons, team, membership, pla
         nextSubs = subs.filter(sub => sub.playerId !== playerId)
       } else if (subsEnabled && !subs.some(sub => sub.playerId === playerId)) {
         const player = players.find(item => item.id === playerId)
-        nextSubs = [...subs, { id: uuid(), playerId, playerName: player?.name ?? 'Unknown', amount: SUB_AMOUNT, paid: false }]
+        nextSubs = [...subs, { id: uuid(), playerId, playerName: player?.name ?? 'Unknown', amount: subAmount, paid: false }]
       }
     }
 
