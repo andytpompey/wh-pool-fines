@@ -1,27 +1,31 @@
 import { useState } from 'react'
-import { Badge, Modal, Input, Btn, SegmentedControl, TITLE_ACTION_GRID, TITLE_ACTION_SIZE, formatDate } from '../App'
+import { Badge, Modal, Input, Sel, Btn, TitleAction, SegmentedControl, TITLE_ACTION_GRID, TITLE_ACTION_SIZE, formatDate } from '../App'
 import * as db from '../lib/db'
 import * as teamModel from '../lib/teamModel'
 import { APP_ACTION, canAccessAction } from '../lib/accessControl'
 
-export default function FinesTab({ players, matches, setMatches, withSave, currentTeamId, membership, platformRole }) {
+export default function FinesTab({ players, seasons, matches, setMatches, withSave, currentTeamId, membership, platformRole }) {
+  const [filterSeason, setFilterSeason] = useState('all')
   const [filterPlayer, setFilterPlayer] = useState('all')
   const canManageFines = canAccessAction({ action: APP_ACTION.MANAGE_PAYMENTS, membership, platformRole })
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterType,   setFilterType]   = useState('all')
   const [pendingDelete, setPendingDelete] = useState(null)
+  const [showSettle, setShowSettle] = useState(false)
+  const [settleSeason, setSettleSeason] = useState('all')
   const [pinInput,  setPinInput]  = useState('')
   const [pinError,  setPinError]  = useState('')
 
-  const allFines = matches.flatMap(m => m.fines.map(f => ({ ...f, kind: 'fine', amount: f.cost, matchDate: m.date, matchId: m.id })))
-  const allSubs  = matches.flatMap(m => (m.subs ?? []).map(s => ({ ...s, kind: 'sub', matchDate: m.date, matchId: m.id })))
+  const allFines = matches.flatMap(m => m.fines.map(f => ({ ...f, kind: 'fine', amount: f.cost, matchDate: m.date, matchId: m.id, seasonId: m.seasonId })))
+  const allSubs  = matches.flatMap(m => (m.subs ?? []).map(s => ({ ...s, kind: 'sub', matchDate: m.date, matchId: m.id, seasonId: m.seasonId })))
 
   const allItems = [
-    ...allFines.map(f => ({ id: f.id, matchId: f.matchId, kind: 'fine', playerId: f.playerId, playerName: f.playerName, label: f.fineName, amount: f.cost, paid: f.paid, matchDate: f.matchDate })),
-    ...allSubs.map(s  => ({ id: s.id, matchId: s.matchId, kind: 'sub',  playerId: s.playerId, playerName: s.playerName, label: 'Sub',      amount: s.amount, paid: s.paid, matchDate: s.matchDate })),
+    ...allFines.map(f => ({ id: f.id, matchId: f.matchId, seasonId: f.seasonId, kind: 'fine', playerId: f.playerId, playerName: f.playerName, label: f.fineName, amount: f.cost, paid: f.paid, matchDate: f.matchDate })),
+    ...allSubs.map(s  => ({ id: s.id, matchId: s.matchId, seasonId: s.seasonId, kind: 'sub',  playerId: s.playerId, playerName: s.playerName, label: 'Sub',      amount: s.amount, paid: s.paid, matchDate: s.matchDate })),
   ].sort((a, b) => b.matchDate.localeCompare(a.matchDate) || a.playerName.localeCompare(b.playerName))
 
   const filtered = allItems.filter(item => {
+    if (filterSeason !== 'all' && item.seasonId !== filterSeason) return false
     if (filterPlayer !== 'all' && item.playerId !== filterPlayer) return false
     if (filterStatus === 'paid'        && !item.paid) return false
     if (filterStatus === 'outstanding' &&  item.paid) return false
@@ -32,6 +36,39 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
 
   const totalAmt = filtered.reduce((s, i) => s + i.amount, 0)
   const paidAmt  = filtered.filter(i => i.paid).reduce((s, i) => s + i.amount, 0)
+  const selectedPlayer = players.find(player => player.id === filterPlayer) ?? null
+
+  const settlementItems = showSettle ? allItems.filter(item => {
+    if (!selectedPlayer || item.playerId !== selectedPlayer.id) return false
+    if (settleSeason !== 'all' && item.seasonId !== settleSeason) return false
+    if (filterStatus === 'paid' && !item.paid) return false
+    if (filterStatus === 'outstanding' && item.paid) return false
+    if (filterType === 'fines' && item.kind !== 'fine') return false
+    if (filterType === 'subs' && item.kind !== 'sub') return false
+    return !item.paid
+  }) : []
+  const settlementTotal = settlementItems.reduce((sum, item) => sum + item.amount, 0)
+
+  const openSettlement = () => {
+    setSettleSeason(filterSeason)
+    setShowSettle(true)
+  }
+
+  const settleFiltered = () => withSave(async () => {
+    if (!canManageFines || !selectedPlayer || !settlementItems.length) return
+    const fineIds = new Set(settlementItems.filter(item => item.kind === 'fine').map(item => item.id))
+    const subIds = new Set(settlementItems.filter(item => item.kind === 'sub').map(item => item.id))
+    const changedMatchIds = new Set(settlementItems.map(item => item.matchId))
+    const updatedMatches = matches.map(match => changedMatchIds.has(match.id) ? {
+      ...match,
+      fines: match.fines.map(fine => fineIds.has(fine.id) ? { ...fine, paid: true } : fine),
+      subs: (match.subs ?? []).map(sub => subIds.has(sub.id) ? { ...sub, paid: true } : sub),
+    } : match)
+
+    await Promise.all(updatedMatches.filter(match => changedMatchIds.has(match.id)).map(match => db.updateMatch({ ...match, teamId: currentTeamId })))
+    setMatches(updatedMatches)
+    setShowSettle(false)
+  })
 
   const togglePaid = item => withSave(async () => {
     if (!canManageFines) throw new Error('You do not have permission to manage payments.')
@@ -84,25 +121,39 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
         <h2 className="px-1.5 text-lg font-bold text-white">Balances and payments</h2>
         <div className={`mt-3 ${TITLE_ACTION_GRID}`}>
           <select
-            value={filterPlayer}
-            onChange={event => setFilterPlayer(event.target.value)}
-            aria-label="Filter by player"
-            className={`${TITLE_ACTION_SIZE} bg-zinc-800 border border-zinc-600 px-3 py-2 text-zinc-200 text-xs font-bold focus:outline-none focus:border-amber-500`}
+            value={filterSeason}
+            onChange={event => setFilterSeason(event.target.value)}
+            aria-label="Filter by season"
+            className={`${TITLE_ACTION_SIZE} min-w-0 bg-zinc-800 border border-zinc-600 px-3 py-2 text-zinc-200 text-xs font-bold focus:outline-none focus:border-amber-500`}
           >
-            <option value="all">All Players</option>
-            {[...players].sort((a, b) => a.name.localeCompare(b.name)).map(player => <option key={player.id} value={player.id}>{player.name}</option>)}
+            <option value="all">All Seasons</option>
+            {[...seasons].sort((a, b) => a.name.localeCompare(b.name)).map(season => <option key={season.id} value={season.id}>{season.name}</option>)}
           </select>
           <select
             value={filterStatus}
             onChange={event => setFilterStatus(event.target.value)}
             aria-label="Filter by payment status"
-            className={`col-start-3 ${TITLE_ACTION_SIZE} bg-zinc-800 border border-zinc-600 px-3 py-2 text-zinc-200 text-xs font-bold focus:outline-none focus:border-amber-500`}
+            className={`${TITLE_ACTION_SIZE} min-w-0 bg-zinc-800 border border-zinc-600 px-3 py-2 text-zinc-200 text-xs font-bold focus:outline-none focus:border-amber-500`}
           >
             <option value="all">All Status</option>
             <option value="paid">Paid</option>
             <option value="outstanding">Outstanding</option>
           </select>
+          <select
+            value={filterPlayer}
+            onChange={event => setFilterPlayer(event.target.value)}
+            aria-label="Filter by player"
+            className={`${TITLE_ACTION_SIZE} min-w-0 bg-zinc-800 border border-zinc-600 px-3 py-2 text-zinc-200 text-xs font-bold focus:outline-none focus:border-amber-500`}
+          >
+            <option value="all">All Players</option>
+            {[...players].sort((a, b) => a.name.localeCompare(b.name)).map(player => <option key={player.id} value={player.id}>{player.name}</option>)}
+          </select>
         </div>
+        {canManageFines && selectedPlayer && (
+          <div className={`mt-2 ${TITLE_ACTION_GRID}`}>
+            <TitleAction className="col-start-3" onClick={openSettlement}>Settle All</TitleAction>
+          </div>
+        )}
       </div>
 
       <SegmentedControl
@@ -165,6 +216,28 @@ export default function FinesTab({ players, matches, setMatches, withSave, curre
           <div className="flex gap-2">
             <Btn variant="danger" className="flex-1" onClick={confirmDelete}>Delete</Btn>
             <Btn variant="ghost" className="flex-1" onClick={() => { setPendingDelete(null); setPinInput(''); setPinError('') }}>Cancel</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {showSettle && selectedPlayer && (
+        <Modal title={`Settle ${selectedPlayer.name}`} onClose={() => setShowSettle(false)}>
+          <Sel label="Season" value={settleSeason} onChange={event => setSettleSeason(event.target.value)}>
+            <option value="all">All Seasons</option>
+            {[...seasons].sort((a, b) => a.name.localeCompare(b.name)).map(season => <option key={season.id} value={season.id}>{season.name}</option>)}
+          </Sel>
+          <div className="mb-4 rounded-xl border border-zinc-700 bg-zinc-800 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-zinc-400">Outstanding to settle</span>
+              <span className="text-lg font-bold text-red-400">£{settlementTotal.toFixed(2)}</span>
+            </div>
+            <p className="mt-1 text-xs text-zinc-500">
+              {settlementItems.length} {settlementItems.length === 1 ? 'entry' : 'entries'} matching the current status and type filters
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Btn variant="success" className="flex-1" onClick={settleFiltered} disabled={!settlementItems.length}>Settle</Btn>
+            <Btn variant="ghost" className="flex-1" onClick={() => setShowSettle(false)}>Cancel</Btn>
           </div>
         </Modal>
       )}

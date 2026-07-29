@@ -1342,7 +1342,7 @@ export default function App() {
                     onSeasonPreferenceChange={handleDashboardSeasonPreferenceChange}
                   />
                 )}
-                {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} membership={currentTeamMembership} platformRole={memberContext.platformRole} />}
+                {tab === 2 && <FinesTab players={players} seasons={seasons} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} membership={currentTeamMembership} platformRole={memberContext.platformRole} />}
                 {isMoreMenuOpen && (
                   <SetupTab
                     onOpenProfile={() => { setIsMoreMenuOpen(false); navigate('/profile') }}
