@@ -119,7 +119,6 @@ export function Btn({ children, variant = 'primary', size = 'md', className = ''
   const base = 'font-bold rounded-lg transition-all active:scale-95 inline-flex items-center justify-center gap-1 disabled:opacity-50'
   const variants = {
     primary: 'bg-amber-500 hover:bg-amber-400 text-zinc-900',
-    secondary: 'border border-zinc-600 bg-zinc-800 text-zinc-200 hover:border-zinc-500 hover:bg-zinc-700',
     danger: 'bg-red-600 hover:bg-red-500 text-white',
     ghost: 'bg-zinc-700 hover:bg-zinc-600 text-white',
     success: 'bg-emerald-600 hover:bg-emerald-500 text-white',
@@ -129,11 +128,13 @@ export function Btn({ children, variant = 'primary', size = 'md', className = ''
   return <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...props}>{children}</button>
 }
 
-// Title-screen actions use equal 8rem × 2.5rem controls on a bottom-aligned action row.
-export const TITLE_ACTION_SIZE = 'min-h-10 w-32'
+// Title-screen navigation is amber and uses the same three-column sizing as section navigation.
+// Dark outlined controls are reserved for selectors, menus, and popups.
+export const TITLE_ACTION_GRID = 'grid grid-cols-3 gap-2'
+export const TITLE_ACTION_SIZE = 'min-h-11 w-full'
 
 export function TitleAction({ children, className = '', ...props }) {
-  return <Btn size="sm" className={`${TITLE_ACTION_SIZE} ${className}`} {...props}>{children}</Btn>
+  return <Btn {...props} variant="primary" size="sm" className={`${TITLE_ACTION_SIZE} ${className}`}>{children}</Btn>
 }
 
 export function SegmentedControl({ options, value, onChange, className = '', itemClassName = '', fullWidth = false, scrollable = false, wrap = false, minItemWidth = '7rem' }) {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Badge, Modal, Input, Sel, Btn, TitleAction, TITLE_ACTION_SIZE, SUB_AMOUNT, uuid, SegmentedControl, formatDate } from '../App'
+import { Badge, Modal, Input, Sel, Btn, TitleAction, TITLE_ACTION_GRID, TITLE_ACTION_SIZE, SUB_AMOUNT, uuid, SegmentedControl, formatDate } from '../App'
 import * as db from '../lib/db'
 import * as teamModel from '../lib/teamModel'
 import { APP_ACTION, canAccessAction } from '../lib/accessControl'
@@ -121,9 +121,9 @@ function MatchDetail({ match, players, fineTypes, seasons, membership, platformR
           </h2>
           {season && <Badge color={season.type === 'Cup' ? 'amber' : 'blue'}>{season.name}</Badge>}
         </div>
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <TitleAction variant="secondary" onClick={onBack}>← Back</TitleAction>
-          {canCreateOrEdit && <TitleAction onClick={() => setShowAddFine(true)}>+ Add Fine</TitleAction>}
+        <div className={`mt-4 ${TITLE_ACTION_GRID}`}>
+          <TitleAction onClick={onBack}>← Back</TitleAction>
+          {canCreateOrEdit && <TitleAction className="col-start-3" onClick={() => setShowAddFine(true)}>+ Add Fine</TitleAction>}
         </div>
       </div>
 
@@ -384,14 +384,14 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
     <div>
       <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
         <h2 className="text-lg font-bold text-white">Match Log</h2>
-        <div className="mt-3 flex items-center justify-between gap-3">
+        <div className={`mt-3 ${TITLE_ACTION_GRID}`}>
           <TitleAction onClick={() => setShowNew(true)} disabled={!canManageMatches}>New match</TitleAction>
           <button
             type="button"
             onClick={() => setShowSeasonPicker(true)}
             aria-haspopup="dialog"
             aria-expanded={showSeasonPicker}
-            className={`inline-flex ${TITLE_ACTION_SIZE} items-center justify-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400`}
+            className={`col-start-3 inline-flex ${TITLE_ACTION_SIZE} items-center justify-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400`}
           >
             <span className="min-w-0 truncate">{selectedSeasonLabel}</span>
             <span aria-hidden="true" className="text-zinc-400">⌄</span>
