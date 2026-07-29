@@ -1127,6 +1127,18 @@ export default function App() {
     setSeasons(prev => prev.filter(item => item.id !== season.id))
   }, 'Unlock code verification is required to delete seasons.'), [currentTeamId, currentTeamMembership?.role, withProtectedAction])
 
+  const handleUpdateTeamSettings = useCallback((settings) => withSave(async () => {
+    if (!currentTeamId || !currentTeamMembership) throw new Error('Select a team first.')
+    await teamModel.updateTeamSettings({
+      teamId: currentTeamId,
+      subsEnabled: settings.subsEnabled,
+      driversVoidSubs: settings.driversVoidSubs,
+      actorMembership: currentTeamMembership,
+      platformRole: memberContext.platformRole,
+    })
+    await refreshMemberContext(session?.user)
+  }), [currentTeamId, currentTeamMembership, memberContext.platformRole, refreshMemberContext, session?.user])
+
   const getCaptainContacts = useCallback(() => teamRoster.members
     .filter(member => member.role === TEAM_ROLE.CAPTAIN)
     .map(member => ({
@@ -1296,6 +1308,7 @@ export default function App() {
                 onAddSeason={handleAddSeason}
                 onUpdateSeason={handleUpdateSeason}
                 onDeleteSeason={handleDeleteSeason}
+                onUpdateTeamSettings={handleUpdateTeamSettings}
                 onSetUnlockCode={handleSetUnlockCode}
                 onChangeUnlockCode={handleChangeUnlockCode}
                 onRequestUnlockCodeReset={handleRequestUnlockCodeReset}

@@ -541,6 +541,8 @@ const normaliseMembership = row => ({
     createdAt: row.teams.created_at,
     unlockCodeResetRequired: Boolean(row.teams.unlock_code_reset_required),
     unlockCodeLastRotatedAt: row.teams.unlock_code_last_rotated_at,
+    subsEnabled: row.teams.subs_enabled !== false,
+    driversVoidSubs: row.teams.drivers_void_subs !== false,
   } : null,
 })
 
@@ -548,12 +550,32 @@ export async function listMembershipsForPlayer(playerId) {
   if (!playerId) return []
   const rows = handle(await supabase
     .from('team_memberships')
-    .select('id, role, status, joined_at, teams ( id, name, join_code, created_at, unlock_code_reset_required, unlock_code_last_rotated_at )')
+    .select('id, role, status, joined_at, teams ( id, name, join_code, created_at, unlock_code_reset_required, unlock_code_last_rotated_at, subs_enabled, drivers_void_subs )')
     .eq('player_id', playerId)
     .eq('status', 'active')
     .order('joined_at'))
 
   return (rows ?? []).map(normaliseMembership).filter(membership => membership.team)
+}
+
+export async function updateTeamSettings({ teamId, subsEnabled, driversVoidSubs, actorMembership, platformRole }) {
+  if (!teamId) throw new Error('Team is required.')
+  assertActionAccess({
+    action: APP_ACTION.MANAGE_TEAM_OPERATIONS,
+    membership: actorMembership,
+    platformRole,
+    message: 'Only captains and vice-captains can update team settings.',
+  })
+
+  return handle(await supabase
+    .from('teams')
+    .update({
+      subs_enabled: Boolean(subsEnabled),
+      drivers_void_subs: Boolean(subsEnabled) && Boolean(driversVoidSubs),
+    })
+    .eq('id', teamId)
+    .select('*')
+    .single())
 }
 
 export async function getTeamMembershipCount(teamId) {

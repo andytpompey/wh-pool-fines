@@ -230,6 +230,8 @@ create table if not exists teams (
   unlock_code_last_rotated_at timestamptz,
   unlock_code_reset_requested_at timestamptz,
   unlock_code_reset_required boolean not null default true,
+  subs_enabled boolean not null default true,
+  drivers_void_subs boolean not null default true,
   created_at timestamptz not null default now()
 );
 
@@ -273,6 +275,10 @@ alter table players add column if not exists display_name text;
 alter table players add column if not exists user_id uuid;
 alter table players add column if not exists receive_team_notifications boolean not null default true;
 alter table players add column if not exists dashboard_season_preferences jsonb not null default '{}'::jsonb;
+alter table teams add column if not exists subs_enabled boolean not null default true;
+alter table teams add column if not exists drivers_void_subs boolean not null default true;
+alter table matches add column if not exists venue text not null default 'home' check (venue in ('home', 'away'));
+alter table match_players add column if not exists is_driver boolean not null default false;
 
 update players set display_name = coalesce(display_name, name) where display_name is null;
 update players set user_id = auth_user_id where user_id is null and auth_user_id is not null;

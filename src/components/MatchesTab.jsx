@@ -5,7 +5,7 @@ import * as teamModel from '../lib/teamModel'
 import { APP_ACTION, canAccessAction } from '../lib/accessControl'
 
 // ─── Match Detail ─────────────────────────────────────────────────────────────
-function MatchDetail({ match, players, fineTypes, seasons, membership, platformRole, currentTeamId, onBack, onSave, onDelete }) {
+function MatchDetail({ match, players, fineTypes, seasons, team, membership, platformRole, currentTeamId, onBack, onSave, onDelete }) {
   const [showAddFine,       setShowAddFine]       = useState(false)
   const [editFine,          setEditFine]           = useState(null)
   const [showAdminPin,      setShowAdminPin]       = useState(false)
@@ -20,9 +20,13 @@ function MatchDetail({ match, players, fineTypes, seasons, membership, platformR
   const readonly  = match.submitted
   const canManageMatches = canAccessAction({ action: APP_ACTION.EDIT_MATCH, membership, platformRole })
   const canCreateOrEdit = canManageMatches && !readonly
-  const canUnlockMatch = canAccessAction({ action: APP_ACTION.UNLOCK_MATCH, membership, platformRole })
+  const canUnlockMatch = canManageMatches && platformRole !== 'admin'
   const playerIds = match.playerIds ?? []
+  const driverIds = match.driverIds ?? []
   const subs      = match.subs      ?? []
+  const subsEnabled = team?.subsEnabled !== false
+  const driversVoidSubs = team?.driversVoidSubs !== false
+  const isAway = match.venue === 'away'
 
   const save = patch => onSave(match.id, patch)
 
@@ -31,13 +35,33 @@ function MatchDetail({ match, players, fineTypes, seasons, membership, platformR
     const isIn    = playerIds.includes(playerId)
     const newIds  = isIn ? playerIds.filter(id => id !== playerId) : [...playerIds, playerId]
     let newSubs   = subs
+    let newDriverIds = driverIds
     if (isIn) {
       newSubs = subs.filter(s => s.playerId !== playerId)
-    } else if (!subs.some(s => s.playerId === playerId)) {
+      newDriverIds = driverIds.filter(id => id !== playerId)
+    } else if (subsEnabled && !subs.some(s => s.playerId === playerId)) {
       const player = players.find(p => p.id === playerId)
       newSubs = [...subs, { id: uuid(), playerId, playerName: player?.name ?? 'Unknown', amount: SUB_AMOUNT, paid: false }]
     }
-    save({ playerIds: newIds, subs: newSubs })
+    save({ playerIds: newIds, driverIds: newDriverIds, subs: newSubs })
+  }
+
+  const toggleDriver = playerId => {
+    if (!isAway || !playerIds.includes(playerId)) return
+    const isDriver = driverIds.includes(playerId)
+    const nextDriverIds = isDriver ? driverIds.filter(id => id !== playerId) : [...driverIds, playerId]
+    let nextSubs = subs
+
+    if (driversVoidSubs) {
+      if (!isDriver) {
+        nextSubs = subs.filter(sub => sub.playerId !== playerId)
+      } else if (subsEnabled && !subs.some(sub => sub.playerId === playerId)) {
+        const player = players.find(item => item.id === playerId)
+        nextSubs = [...subs, { id: uuid(), playerId, playerName: player?.name ?? 'Unknown', amount: SUB_AMOUNT, paid: false }]
+      }
+    }
+
+    save({ driverIds: nextDriverIds, subs: nextSubs })
   }
 
   const toggleSubPaid   = subId  => save({ subs: subs.map(s => s.id === subId ? { ...s, paid: !s.paid } : s) })
@@ -142,16 +166,31 @@ function MatchDetail({ match, players, fineTypes, seasons, membership, platformR
       {/* Players */}
       {activeSection === 'players' && (
         <div className="mb-4">
-          <p className="text-zinc-500 text-xs mb-2">{readonly ? 'Players who played in this match' : 'Tap to toggle. Each adds a 50p sub.'}</p>
           <div className="space-y-1.5">
             {[...players].sort((a, b) => a.name.localeCompare(b.name)).map(p => {
               const isIn = playerIds.includes(p.id)
+              const isDriver = driverIds.includes(p.id)
               return (
-                <button key={p.id} disabled={readonly || !canManageMatches} onClick={() => togglePlayer(p.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-all text-left ${isIn ? 'bg-amber-500/10 border-amber-600 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'} ${readonly || !canManageMatches ? 'opacity-75 cursor-default' : 'hover:border-amber-500 active:scale-[0.99]'}`}>
-                  <span className="font-medium text-sm">{p.name}</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isIn ? 'bg-amber-500 text-zinc-900' : 'bg-zinc-700 text-zinc-500'}`}>{isIn ? 'Playing' : 'Not playing'}</span>
-                </button>
+                <div key={p.id} className={`flex items-center gap-2 rounded-xl border px-2 py-2 transition-all ${isIn ? 'border-amber-600 bg-amber-500/10' : 'border-zinc-700 bg-zinc-800'}`}>
+                  <button
+                    disabled={readonly || !canManageMatches}
+                    onClick={() => togglePlayer(p.id)}
+                    className={`flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg px-1 py-0.5 text-left ${readonly || !canManageMatches ? 'cursor-default opacity-75' : 'active:scale-[0.99]'}`}
+                  >
+                    <span className={`truncate text-sm font-medium ${isIn ? 'text-white' : 'text-zinc-400'}`}>{p.name}</span>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${isIn ? 'bg-amber-500 text-zinc-900' : 'bg-zinc-700 text-zinc-500'}`}>{isIn ? 'Playing' : 'Not playing'}</span>
+                  </button>
+                  {isAway && isIn && (
+                    <button
+                      type="button"
+                      disabled={readonly || !canManageMatches}
+                      onClick={() => toggleDriver(p.id)}
+                      className={`shrink-0 rounded-lg border px-2 py-1 text-xs font-bold transition-colors ${isDriver ? 'border-blue-500 bg-blue-600/30 text-blue-200' : 'border-zinc-600 bg-zinc-800 text-zinc-400 hover:text-white'} disabled:opacity-60`}
+                    >
+                      Driver
+                    </button>
+                  )}
+                </div>
               )
             })}
             {!players.length && <p className="text-zinc-500 text-sm text-center py-4">No players set up yet</p>}
@@ -189,11 +228,9 @@ function MatchDetail({ match, players, fineTypes, seasons, membership, platformR
       {/* Subs */}
       {activeSection === 'subs' && (
         <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-zinc-500 text-xs">50p per player per match</p>
-            {canCreateOrEdit && subs.some(s => !s.paid) && <Btn size="sm" variant="success" onClick={settleAllSubs}>Settle All Subs</Btn>}
-          </div>
-          {!subs.length && <p className="text-zinc-500 text-sm text-center py-6">No players selected yet</p>}
+          {canCreateOrEdit && subs.some(s => !s.paid) && <div className="mb-2 flex justify-end"><Btn size="sm" variant="success" onClick={settleAllSubs}>Settle All Subs</Btn></div>}
+          {!subsEnabled && <p className="text-zinc-500 text-sm text-center py-6">Subs are disabled for this team</p>}
+          {subsEnabled && !subs.length && <p className="text-zinc-500 text-sm text-center py-6">No players selected yet</p>}
           <div className="space-y-2">
             {[...subs].sort((a, b) => a.playerName.localeCompare(b.playerName)).map(s => (
               <div key={s.id} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 border ${s.paid ? 'bg-emerald-950/40 border-emerald-800/50' : 'bg-zinc-800 border-zinc-700'}`}>
@@ -324,7 +361,7 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
   const [showNew,    setShowNew]    = useState(false)
   const [showSeasonPicker, setShowSeasonPicker] = useState(false)
   const [seasonFilter, setSeasonFilter] = useState(preferredSeasonId)
-  const [newMatch,   setNewMatch]   = useState({ date: '', seasonId: '', opponent: '' })
+  const [newMatch,   setNewMatch]   = useState({ date: '', seasonId: '', opponent: '', venue: 'home' })
   const canManageMatches = canAccessAction({ action: APP_ACTION.CREATE_MATCH, membership, platformRole })
 
   useEffect(() => {
@@ -347,11 +384,11 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
 
   const createMatch = () => withSave(async () => {
     if (!newMatch.date) return
-    const m = { id: uuid(), date: newMatch.date, seasonId: newMatch.seasonId, opponent: newMatch.opponent.trim(), submitted: false, fines: [], playerIds: [], subs: [] }
+    const m = { id: uuid(), date: newMatch.date, seasonId: newMatch.seasonId, opponent: newMatch.opponent.trim(), venue: newMatch.venue, submitted: false, fines: [], playerIds: [], driverIds: [], subs: [] }
     if (!canManageMatches) throw new Error('You do not have permission to create matches.')
     await db.addMatch({ ...m, teamId: currentTeamId })
     setMatches(prev => [m, ...prev])
-    setNewMatch({ date: '', seasonId: '', opponent: '' })
+    setNewMatch({ date: '', seasonId: '', opponent: '', venue: 'home' })
     setShowNew(false)
     setSelectedId(m.id)
   })
@@ -376,7 +413,7 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
 
   if (selectedId && currentMatch) {
     return (
-      <MatchDetail match={currentMatch} players={players} fineTypes={fineTypes} seasons={seasons} membership={membership} platformRole={platformRole} currentTeamId={currentTeamId}
+      <MatchDetail match={currentMatch} players={players} fineTypes={fineTypes} seasons={seasons} team={membership?.team} membership={membership} platformRole={platformRole} currentTeamId={currentTeamId}
         onBack={() => setSelectedId(null)}
         onSave={updateMatch}
         onDelete={() => db.deleteMatchWithAudit({ id: currentMatch.id, teamId: currentTeamId, actorMembership: membership, platformRole, matchDate: currentMatch.date }).then(() => { setMatches(prev => prev.filter(m => m.id !== currentMatch.id)); setSelectedId(null) })}
@@ -467,6 +504,10 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
         <Modal title="New Match" onClose={() => setShowNew(false)}>
           <Input label="Date" type="date" value={newMatch.date} onChange={e => setNewMatch(n => ({ ...n, date: e.target.value }))} />
           <Input label="Opponent (optional)" value={newMatch.opponent} onChange={e => setNewMatch(n => ({ ...n, opponent: e.target.value }))} placeholder="e.g. Red Lion" />
+          <Sel label="Home or away" value={newMatch.venue} onChange={e => setNewMatch(n => ({ ...n, venue: e.target.value }))}>
+            <option value="home">Home</option>
+            <option value="away">Away</option>
+          </Sel>
           <Sel label="Season (optional)" value={newMatch.seasonId} onChange={e => setNewMatch(n => ({ ...n, seasonId: e.target.value }))}>
             <option value="">No Season</option>
             {[...seasons].sort((a, b) => a.name.localeCompare(b.name)).map(s => <option key={s.id} value={s.id}>{s.name} · {s.type}</option>)}
