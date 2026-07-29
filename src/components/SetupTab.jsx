@@ -20,7 +20,15 @@ function MenuOption({ icon, title, description, onClick }) {
   )
 }
 
-export default function SetupTab({ onOpenProfile, onOpenTeams, onClose }) {
+export default function SetupTab({
+  onOpenProfile,
+  onSwitchTeam,
+  onManageTeam,
+  onCreateTeam,
+  canSwitchTeam,
+  canManageTeam,
+  onClose,
+}) {
   const touchStartYRef = useRef(null)
   const [dragOffset, setDragOffset] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
@@ -68,11 +76,6 @@ export default function SetupTab({ onOpenProfile, onOpenTeams, onClose }) {
         </div>
 
         <div className="px-5 pb-6">
-          <div className="mb-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">More</p>
-            <h2 className="mt-1 text-lg font-bold text-white">Quick links</h2>
-            <p className="mt-1 text-sm text-zinc-400">Jump to account and team areas without leaving the current flow.</p>
-          </div>
           <div className="space-y-2">
             <MenuOption
               icon="👤"
@@ -80,11 +83,27 @@ export default function SetupTab({ onOpenProfile, onOpenTeams, onClose }) {
               description="Open your account details and preferences."
               onClick={onOpenProfile}
             />
+            {canSwitchTeam && (
+              <MenuOption
+                icon="🔄"
+                title="Switch Team"
+                description="Choose which team is active across the app."
+                onClick={onSwitchTeam}
+              />
+            )}
+            {canManageTeam && (
+              <MenuOption
+                icon="👥"
+                title="Manage Team"
+                description="Open settings for the currently active team."
+                onClick={onManageTeam}
+              />
+            )}
             <MenuOption
-              icon="👥"
-              title="Teams"
-              description="Switch teams and open your current team view."
-              onClick={onOpenTeams}
+              icon="➕"
+              title="Create Team"
+              description="Set up a new team and become its captain."
+              onClick={onCreateTeam}
             />
           </div>
         </div>
