@@ -1313,7 +1313,21 @@ export default function App() {
                     onSeasonPreferenceChange={handleDashboardSeasonPreferenceChange}
                   />
                 )}
-                {tab === 1 && <MatchesTab players={players} fineTypes={fineTypes} seasons={seasons} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} membership={currentTeamMembership} platformRole={memberContext.platformRole} />}
+                {tab === 1 && (
+                  <MatchesTab
+                    players={players}
+                    fineTypes={fineTypes}
+                    seasons={seasons}
+                    matches={matches}
+                    setMatches={setMatches}
+                    withSave={withSave}
+                    currentTeamId={currentTeamId}
+                    membership={currentTeamMembership}
+                    platformRole={memberContext.platformRole}
+                    preferredSeasonId={profile?.dashboardSeasonPreferences?.[currentTeamId] ?? 'all'}
+                    onSeasonPreferenceChange={handleDashboardSeasonPreferenceChange}
+                  />
+                )}
                 {tab === 2 && <FinesTab players={players} matches={matches} setMatches={setMatches} withSave={withSave} currentTeamId={currentTeamId} membership={currentTeamMembership} platformRole={memberContext.platformRole} />}
                 {isMoreMenuOpen && (
                   <SetupTab

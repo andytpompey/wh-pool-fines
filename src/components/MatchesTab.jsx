@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Badge, Modal, Input, Sel, Btn, SUB_AMOUNT, uuid, SegmentedControl, formatDate } from '../App'
 import * as db from '../lib/db'
 import * as teamModel from '../lib/teamModel'
@@ -325,11 +325,31 @@ function MatchDetail({ match, players, fineTypes, seasons, membership, platformR
 }
 
 // ─── Matches Tab ──────────────────────────────────────────────────────────────
-export default function MatchesTab({ players, fineTypes, seasons, matches, setMatches, withSave, currentTeamId, membership, platformRole }) {
+export default function MatchesTab({ players, fineTypes, seasons, matches, setMatches, withSave, currentTeamId, membership, platformRole, preferredSeasonId = 'all', onSeasonPreferenceChange }) {
   const [selectedId, setSelectedId] = useState(null)
   const [showNew,    setShowNew]    = useState(false)
+  const [showSeasonPicker, setShowSeasonPicker] = useState(false)
+  const [seasonFilter, setSeasonFilter] = useState(preferredSeasonId)
   const [newMatch,   setNewMatch]   = useState({ date: '', seasonId: '', opponent: '' })
   const canManageMatches = canAccessAction({ action: APP_ACTION.CREATE_MATCH, membership, platformRole })
+
+  useEffect(() => {
+    const isAvailable = preferredSeasonId === 'all' || seasons.some(season => season.id === preferredSeasonId)
+    setSeasonFilter(isAvailable ? preferredSeasonId : 'all')
+    if (!isAvailable) onSeasonPreferenceChange?.('all')
+  }, [preferredSeasonId, seasons, onSeasonPreferenceChange])
+
+  const selectedSeasonLabel = seasonFilter === 'all'
+    ? 'All seasons'
+    : seasons.find(season => season.id === seasonFilter)?.name ?? 'All seasons'
+
+  const filteredMatches = matches.filter(match => seasonFilter === 'all' || match.seasonId === seasonFilter)
+
+  const selectSeason = (seasonId) => {
+    setSeasonFilter(seasonId)
+    setShowSeasonPicker(false)
+    onSeasonPreferenceChange?.(seasonId)
+  }
 
   const createMatch = () => withSave(async () => {
     if (!newMatch.date) return
@@ -377,38 +397,82 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500">Matches</p>
             <h2 className="mt-1 text-lg font-bold text-white">Match log</h2>
-            <p className="mt-1 text-xs text-zinc-400">Create new matches and open past match sheets for the selected team.</p>
           </div>
-          <Btn size="sm" onClick={() => setShowNew(true)} disabled={!canManageMatches}>New match</Btn>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowSeasonPicker(true)}
+              aria-haspopup="dialog"
+              aria-expanded={showSeasonPicker}
+              className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            >
+              <span className="max-w-28 truncate">{selectedSeasonLabel}</span>
+              <span aria-hidden="true" className="text-zinc-400">⌄</span>
+            </button>
+            <Btn size="sm" onClick={() => setShowNew(true)} disabled={!canManageMatches}>New match</Btn>
+          </div>
         </div>
       </div>
 
       <div className="space-y-2">
-        {[...matches].sort((a, b) => b.date.localeCompare(a.date)).map(m => {
+        {[...filteredMatches].sort((a, b) => b.date.localeCompare(a.date)).map(m => {
           const season = seasons.find(s => s.id === m.seasonId)
           const total  = (m.fines ?? []).reduce((s, f) => s + f.cost, 0) + (m.subs ?? []).reduce((s, sub) => s + sub.amount, 0)
           const paid   = (m.fines ?? []).filter(f => f.paid).reduce((s, f) => s + f.cost, 0) + (m.subs ?? []).filter(s => s.paid).reduce((s, sub) => s + sub.amount, 0)
           return (
             <button key={m.id} onClick={() => setSelectedId(m.id)}
               className="w-full text-left bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 hover:border-amber-600 transition-all active:scale-[0.99]">
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-bold text-white">{formatDate(m.date)}</span>
+              <div className="flex items-start justify-between gap-3">
+                <span className="min-w-0 font-bold text-white">
+                  {formatDate(m.date)}{m.opponent ? ` - vs ${m.opponent}` : ''}
+                </span>
                 {m.submitted ? <Badge color="green">Submitted</Badge> : <Badge color="amber">Draft</Badge>}
               </div>
-              <div className="flex items-center gap-3 text-xs text-zinc-400">
-                {m.opponent && <span>vs {m.opponent}</span>}
-                {season && <Badge color={season.type === 'Cup' ? 'amber' : 'blue'}>{season.name}</Badge>}
-                <span className="ml-auto">
+              <div className="mt-2 flex items-center justify-between gap-3 text-xs text-zinc-400">
+                <span>
                   <span className="text-amber-400 font-bold">£{total.toFixed(2)}</span>
                   {' · '}
                   <span className="text-red-400">£{(total - paid).toFixed(2)} owed</span>
                 </span>
+                {season && <Badge color={season.type === 'Cup' ? 'amber' : 'blue'}>{season.name}</Badge>}
               </div>
             </button>
           )
         })}
-        {!matches.length && <p className="text-zinc-500 text-sm text-center py-12">No matches yet. Create your first match to get started.</p>}
+        {!filteredMatches.length && (
+          <p className="text-zinc-500 text-sm text-center py-12">
+            {seasonFilter === 'all' ? 'No matches yet. Create your first match to get started.' : `No matches found for ${selectedSeasonLabel}.`}
+          </p>
+        )}
       </div>
+
+      {showSeasonPicker && (
+        <Modal title="Select season" onClose={() => setShowSeasonPicker(false)}>
+          <div className="space-y-2" role="radiogroup" aria-label="Matches season">
+            {[{ id: 'all', name: 'All seasons' }, ...seasons].map(season => {
+              const isSelected = season.id === seasonFilter
+              return (
+                <button
+                  key={season.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => selectSeason(season.id)}
+                  className={[
+                    'flex min-h-12 w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-bold transition-colors',
+                    isSelected
+                      ? 'border-amber-400 bg-amber-500 text-zinc-950'
+                      : 'border-zinc-700 bg-zinc-800 text-zinc-200 hover:border-zinc-600 hover:bg-zinc-700',
+                  ].join(' ')}
+                >
+                  <span>{season.name}</span>
+                  <span aria-hidden="true">{isSelected ? '✓' : ''}</span>
+                </button>
+              )
+            })}
+          </div>
+        </Modal>
+      )}
 
       {showNew && (
         <Modal title="New Match" onClose={() => setShowNew(false)}>
