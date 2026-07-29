@@ -119,7 +119,11 @@ function MatchDetail({ match, players, fineTypes, seasons, membership, platformR
           <h2 className="min-w-0 font-display text-lg font-bold text-white">
             {formatDate(match.date)}{match.opponent ? ` vs ${match.opponent}` : ''}
           </h2>
-          {season && <Badge color={season.type === 'Cup' ? 'amber' : 'blue'}>{season.name}</Badge>}
+          {season && (
+            <span className="max-w-[40%] shrink-0 truncate text-right font-display text-lg font-bold text-zinc-300">
+              {season.name}
+            </span>
+          )}
         </div>
         <div className={`mt-4 ${TITLE_ACTION_GRID}`}>
           <TitleAction onClick={onBack}>← Back</TitleAction>
@@ -213,14 +217,14 @@ function MatchDetail({ match, players, fineTypes, seasons, membership, platformR
       )}
 
       {/* Actions */}
-      <div className="border-t border-zinc-700 pt-4 space-y-2">
+      <div className={`border-t border-zinc-700 pt-4 ${TITLE_ACTION_GRID}`}>
         {!readonly ? (
           <>
-            {canManageMatches && <Btn variant="success" className="w-full" onClick={() => setShowConfirmSubmit(true)}>Submit Match</Btn>}
-            {canManageMatches && <Btn variant="danger"  className="w-full" onClick={() => openPin('deleteMatch')}>Delete Match</Btn>}
+            {canManageMatches && <TitleAction onClick={() => setShowConfirmSubmit(true)}>Submit</TitleAction>}
+            {canManageMatches && <TitleAction className="col-start-3" onClick={() => openPin('deleteMatch')}>Delete</TitleAction>}
           </>
         ) : (
-          <Btn variant="outline" className="w-full" onClick={() => openPin('unlock')} disabled={!canUnlockMatch}>Unlock with team code</Btn>
+          <TitleAction onClick={() => openPin('unlock')} disabled={!canUnlockMatch}>Unlock</TitleAction>
         )}
       </div>
 

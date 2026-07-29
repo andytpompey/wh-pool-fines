@@ -1212,10 +1212,8 @@ export default function App() {
         )}
         <div className="max-w-lg mx-auto px-4 pb-2.5 flex items-center justify-between gap-3">
           {currentTeamMembership ? (
-            <div className="inline-flex min-w-0 items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-900/80 px-2.5 py-1 text-[11px]">
-              <span aria-hidden="true" className="text-amber-400">◆</span>
-              <span className="shrink-0 text-zinc-500">Current team:</span>
-              <span className="truncate font-bold text-zinc-200">{currentTeamMembership.team.name}</span>
+            <div className="min-w-0 truncate text-xs font-bold text-zinc-300">
+              {currentTeamMembership.team.name}
             </div>
           ) : <div />}
           {currentPlayer && (
