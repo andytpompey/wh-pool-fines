@@ -27,6 +27,7 @@ function MatchDetail({ match, players, fineTypes, seasons, team, membership, pla
   const subsEnabled = team?.subsEnabled !== false
   const driversVoidSubs = team?.driversVoidSubs !== false
   const subAmount = Number(team?.subAmount ?? 0.50)
+  const isAway = match.venue === 'away'
   const save = patch => onSave(match.id, patch)
 
   // ── Players ───────────────────────────────────────────────────────────────
@@ -46,7 +47,7 @@ function MatchDetail({ match, players, fineTypes, seasons, team, membership, pla
   }
 
   const toggleDriver = playerId => {
-    if (!playerIds.includes(playerId)) return
+    if (!isAway || !playerIds.includes(playerId)) return
     const isDriver = driverIds.includes(playerId)
     const nextDriverIds = isDriver ? driverIds.filter(id => id !== playerId) : [...driverIds, playerId]
     let nextSubs = subs
@@ -186,7 +187,7 @@ function MatchDetail({ match, players, fineTypes, seasons, team, membership, pla
                     <span className={`truncate text-sm font-medium ${isIn ? 'text-white' : 'text-zinc-400'}`}>{p.name}</span>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${isIn ? 'bg-amber-500 text-zinc-900' : 'bg-zinc-700 text-zinc-500'}`}>{isIn ? 'Playing' : 'Not playing'}</span>
                   </button>
-                  {isIn && (
+                  {isAway && isIn && (
                     <button
                       type="button"
                       disabled={readonly || !canManageMatches}

@@ -38,6 +38,10 @@ export async function loadAll({ teamId } = {}) {
     teamId: m.team_id,
     sourceCompetitionId: m.source_competition_id ?? null,
     sourceCompetitionName: m.source_competition_name ?? null,
+    sourceTeamRole: m.source_team_role ?? null,
+    sourceVenueId: m.source_venue_id ?? null,
+    sourceTeamVenueId: m.source_team_venue_id ?? null,
+    sourceTeamVenueName: m.source_team_venue_name ?? null,
     fines: fineRows.data.filter(f => f.match_id === m.id).map(normalFine),
     subs: subRows.data.filter(s => s.match_id === m.id).map(normalSub),
     playerIds: mpRows.data.filter(p => p.match_id === m.id).map(p => p.player_id),
@@ -212,6 +216,10 @@ export async function importRackemSeason({ teamId, season, teamPage, idFactory }
   let updated = 0
   for (const match of teamPage.matches) {
     const isHome = match.homeTeam.id === season.seasonTeamId
+    const hasVenueComparison = Boolean(match.venue?.id && teamPage.venue?.id)
+    const isAtTeamVenue = hasVenueComparison
+      ? match.venue.id === teamPage.venue.id
+      : isHome
     const opponent = isHome ? match.awayTeam : match.homeTeam
     const fixtureIdentity = [match.date, match.matchday, match.homeTeam.id, match.awayTeam.id].join(':')
     const existingId = existingByIdentity.get(match.sourceIdentity) ?? existingByFixture.get(fixtureIdentity)
@@ -220,7 +228,7 @@ export async function importRackemSeason({ teamId, season, teamPage, idFactory }
       season_id: seasonRow.id,
       opponent: opponent.name,
       submitted: false,
-      venue: isHome ? 'home' : 'away',
+      venue: isAtTeamVenue ? 'home' : 'away',
       team_id: teamId,
       source: 'rackem',
       source_identity: match.sourceIdentity,
@@ -233,7 +241,11 @@ export async function importRackemSeason({ teamId, season, teamPage, idFactory }
       source_away_score: match.awayScore ?? null,
       source_home_team_id: match.homeTeam.id,
       source_away_team_id: match.awayTeam.id,
+      source_team_role: isHome ? 'home' : 'away',
+      source_venue_id: match.venue?.id ?? null,
       source_venue_name: match.venue?.name ?? null,
+      source_team_venue_id: teamPage.venue?.id ?? null,
+      source_team_venue_name: teamPage.venue?.name ?? null,
       source_last_seen_at: now,
     }
     if (existingId) {
