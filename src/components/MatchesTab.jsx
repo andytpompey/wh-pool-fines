@@ -369,6 +369,7 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
   const [showNew,    setShowNew]    = useState(false)
   const [showSeasonPicker, setShowSeasonPicker] = useState(false)
   const [seasonFilter, setSeasonFilter] = useState(preferredSeasonId)
+  const [statusFilter, setStatusFilter] = useState('draft')
   const [newMatch,   setNewMatch]   = useState({ date: '', seasonId: '', opponent: '', venue: 'home' })
   const canManageMatches = canAccessAction({ action: APP_ACTION.CREATE_MATCH, membership, platformRole })
 
@@ -382,7 +383,13 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
     ? 'All seasons'
     : seasons.find(season => season.id === seasonFilter)?.name ?? 'All seasons'
 
-  const filteredMatches = matches.filter(match => seasonFilter === 'all' || match.seasonId === seasonFilter)
+  const filteredMatches = matches
+    .filter(match => seasonFilter === 'all' || match.seasonId === seasonFilter)
+    .filter(match => (
+      statusFilter === 'all'
+      || (statusFilter === 'submitted' ? match.submitted : !match.submitted)
+    ))
+    .sort((a, b) => b.date.localeCompare(a.date))
 
   const selectSeason = (seasonId) => {
     setSeasonFilter(seasonId)
@@ -448,8 +455,20 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
         </div>
       </div>
 
+      <SegmentedControl
+        className="mb-3"
+        options={[
+          { value: 'draft', label: 'Draft' },
+          { value: 'submitted', label: 'Submitted' },
+          { value: 'all', label: 'All' },
+        ]}
+        value={statusFilter}
+        onChange={setStatusFilter}
+        fullWidth
+      />
+
       <div className="space-y-2">
-        {[...filteredMatches].sort((a, b) => b.date.localeCompare(a.date)).map(m => {
+        {filteredMatches.map(m => {
           const season = seasons.find(s => s.id === m.seasonId)
           const total  = (m.fines ?? []).reduce((s, f) => s + f.cost, 0) + (m.subs ?? []).reduce((s, sub) => s + sub.amount, 0)
           const paid   = (m.fines ?? []).filter(f => f.paid).reduce((s, f) => s + f.cost, 0) + (m.subs ?? []).filter(s => s.paid).reduce((s, sub) => s + sub.amount, 0)
@@ -480,7 +499,13 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
         })}
         {!filteredMatches.length && (
           <p className="text-zinc-500 text-sm text-center py-12">
-            {seasonFilter === 'all' ? 'No matches yet. Create your first match to get started.' : `No matches found for ${selectedSeasonLabel}.`}
+            {statusFilter === 'draft'
+              ? 'No draft matches found.'
+              : statusFilter === 'submitted'
+                ? 'No submitted matches found.'
+                : seasonFilter === 'all'
+                  ? 'No matches yet. Create your first match to get started.'
+                  : `No matches found for ${selectedSeasonLabel}.`}
           </p>
         )}
       </div>
