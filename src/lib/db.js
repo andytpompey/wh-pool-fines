@@ -269,6 +269,26 @@ export async function deleteSeason(id) {
   handle(await supabase.from('seasons').delete().eq('id', id))
 }
 
+export async function getSeasonOutstandingFines(seasonId) {
+  const matchRows = handle(await supabase
+    .from('matches')
+    .select('id')
+    .eq('season_id', seasonId))
+  const matchIds = (matchRows ?? []).map(match => match.id)
+  if (!matchIds.length) return { count: 0, total: 0 }
+
+  const fineRows = handle(await supabase
+    .from('fines')
+    .select('id, cost')
+    .in('match_id', matchIds)
+    .eq('paid', false))
+
+  return {
+    count: fineRows?.length ?? 0,
+    total: (fineRows ?? []).reduce((sum, fine) => sum + Number(fine.cost ?? 0), 0),
+  }
+}
+
 export async function deleteSeasonWithAudit({ id, teamId, actorMembership, platformRole = null, seasonName = null }) {
   await deleteSeason(id)
   await logAuditEventSafely({

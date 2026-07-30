@@ -898,6 +898,7 @@ function SeasonsTab({
   const [confirmDeleteSeason, setConfirmDeleteSeason] = useState(null)
   const [deletePinInput, setDeletePinInput] = useState('')
   const [deletePinError, setDeletePinError] = useState('')
+  const [deleteFineWarning, setDeleteFineWarning] = useState(null)
   const [rackemPreview, setRackemPreview] = useState(null)
   const [selectedRackemSeasons, setSelectedRackemSeasons] = useState([])
   const [rackemStatus, setRackemStatus] = useState({ loading: false, error: '', success: '' })
@@ -1026,7 +1027,7 @@ function SeasonsTab({
                       Refresh
                     </button>
                   )}
-                  <button onClick={() => { setConfirmDeleteSeason(season); setDeletePinInput(''); setDeletePinError('') }} className="text-xs px-2 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 font-bold">Delete</button>
+                  <button onClick={() => { setConfirmDeleteSeason(season); setDeletePinInput(''); setDeletePinError(''); setDeleteFineWarning(null) }} className="text-xs px-2 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 font-bold">Delete</button>
                 </div>
               )}
             </div>
@@ -1090,22 +1091,36 @@ function SeasonsTab({
       )}
 
       {confirmDeleteSeason && (
-        <Modal title="Delete Season" onClose={() => setConfirmDeleteSeason(null)}>
-          <p className="text-zinc-400 text-sm mb-3">Delete <strong className="text-white">{confirmDeleteSeason.name}</strong>? Enter the team unlock code to confirm.</p>
-          <Input label="Team unlock code" type="password" value={deletePinInput} onChange={event => setDeletePinInput(event.target.value)} />
+        <Modal title="Delete Season" onClose={() => { setConfirmDeleteSeason(null); setDeleteFineWarning(null) }}>
+          {deleteFineWarning ? (
+            <p className="mb-3 rounded-lg border border-red-800/60 bg-red-950/30 px-3 py-3 text-sm text-red-200">
+              <strong>{confirmDeleteSeason.name}</strong> has {deleteFineWarning.count} outstanding {deleteFineWarning.count === 1 ? 'fine' : 'fines'} worth £{deleteFineWarning.total.toFixed(2)}. Are you sure you want to delete it? All season data will be lost.
+            </p>
+          ) : (
+            <>
+              <p className="text-zinc-400 text-sm mb-3">Delete <strong className="text-white">{confirmDeleteSeason.name}</strong>? Enter the team unlock code to confirm.</p>
+              <Input label="Team unlock code" type="password" value={deletePinInput} onChange={event => setDeletePinInput(event.target.value)} />
+            </>
+          )}
           {deletePinError && <p className="text-red-400 text-sm mb-2">{deletePinError}</p>}
           <div className="flex gap-2">
             <Btn variant="danger" className="flex-1" onClick={async () => {
               try {
-                await onDeleteSeason(confirmDeleteSeason, deletePinInput)
+                const result = await onDeleteSeason(confirmDeleteSeason, deletePinInput, Boolean(deleteFineWarning))
+                if (result?.requiresConfirmation) {
+                  setDeleteFineWarning(result.outstandingFines)
+                  setDeletePinError('')
+                  return
+                }
                 setConfirmDeleteSeason(null)
                 setDeletePinInput('')
                 setDeletePinError('')
+                setDeleteFineWarning(null)
               } catch (error) {
                 setDeletePinError(error?.message ?? 'Season could not be deleted.')
               }
-            }}>Delete Season</Btn>
-            <Btn variant="ghost" className="flex-1" onClick={() => setConfirmDeleteSeason(null)}>Cancel</Btn>
+            }}>{deleteFineWarning ? 'Delete Anyway' : 'Delete Season'}</Btn>
+            <Btn variant="ghost" className="flex-1" onClick={() => { setConfirmDeleteSeason(null); setDeleteFineWarning(null) }}>Cancel</Btn>
           </div>
         </Modal>
       )}
