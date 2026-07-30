@@ -141,9 +141,16 @@ function MatchDetail({ match, players, fineTypes, seasons, team, membership, pla
     <div>
       <div className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900 px-1.5 py-3">
         <div className="flex items-start justify-between gap-3 px-1.5">
-          <h2 className="min-w-0 font-display text-lg font-bold text-white">
-            {formatDate(match.date)}{match.opponent ? ` vs ${match.opponent}` : ''} ({match.venue === 'away' ? 'Away' : 'Home'})
-          </h2>
+          <div className="min-w-0">
+            <h2 className="font-display text-lg font-bold text-white">
+              {formatDate(match.date)}{match.opponent ? ` vs ${match.opponent}` : ''} ({match.venue === 'away' ? 'Away' : 'Home'})
+            </h2>
+            {match.sourceCompetitionName && (
+              <p className="mt-1 truncate text-xs font-semibold text-amber-300" title={match.sourceCompetitionName}>
+                {match.sourceCompetitionName}
+              </p>
+            )}
+          </div>
           {season && (
             <span className="max-w-[40%] shrink-0 truncate text-right font-display text-lg font-bold text-zinc-300">
               {season.name}
@@ -455,6 +462,11 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
                 </span>
                 {m.submitted ? <MatchCardPill color="green">Submitted</MatchCardPill> : <MatchCardPill color="amber">Draft</MatchCardPill>}
               </div>
+              {m.sourceCompetitionName && (
+                <p className="mt-1 truncate text-xs font-semibold text-amber-300" title={m.sourceCompetitionName}>
+                  {m.sourceCompetitionName}
+                </p>
+              )}
               <div className="mt-2 flex items-center justify-between gap-3 text-xs text-zinc-400">
                 <span>
                   <span className="text-amber-400 font-bold">£{total.toFixed(2)}</span>

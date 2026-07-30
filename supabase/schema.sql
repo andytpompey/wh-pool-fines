@@ -297,6 +297,8 @@ alter table matches add column if not exists source text;
 alter table matches add column if not exists source_identity text;
 alter table matches add column if not exists source_scorecard_id text;
 alter table matches add column if not exists source_matchday text;
+alter table matches add column if not exists source_competition_id text;
+alter table matches add column if not exists source_competition_name text;
 alter table matches add column if not exists source_status text;
 alter table matches add column if not exists source_home_score integer;
 alter table matches add column if not exists source_away_score integer;

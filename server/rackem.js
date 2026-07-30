@@ -38,6 +38,10 @@ function parseVenueHref(href = '') {
   return href.match(/\/venue\/(\d+)$/i)?.[1] ?? null
 }
 
+function parseCompetitionHref(href = '') {
+  return href.match(/\/competitions\/(\d+)$/i)?.[1] ?? null
+}
+
 function parseScore(text) {
   const match = clean(text).match(/^(\d+)\s*\|\s*(\d+)$/)
   return match ? { homeScore: Number(match[1]), awayScore: Number(match[2]) } : {}
@@ -111,6 +115,14 @@ export async function getRackemTeamPage(leagueSlug, seasonTeamId) {
   const divisionAnchor = profileCard.find('a[href*="/tables/"]').first()
   const venueAnchor = profileCard.find('a[href*="/venue/"]').first()
   const history = []
+  const competitions = new Map()
+
+  $('a[href*="/competitions/"]').each((_, element) => {
+    const id = parseCompetitionHref($(element).attr('href'))
+    const title = $(element).find('.sidenav-normal').first()
+    const name = clean(title.length ? title.text() : $(element).text())
+    if (id && name) competitions.set(id, name)
+  })
 
   $('a.link-primary.fw-bold[href*="/team/"]').each((_, element) => {
     const parsed = parseTeamHref($(element).attr('href'))
@@ -143,6 +155,11 @@ export async function getRackemTeamPage(leagueSlug, seasonTeamId) {
     if (teamAnchors.length !== 2) return
 
     const venueLink = row.find('a[href*="/venue/"]').first()
+    const competitionLink = header.find('a[href*="/competitions/"]').first()
+    const competitionId = parseCompetitionHref(competitionLink.attr('href'))
+    const competitionName = competitionId
+      ? competitions.get(competitionId) ?? `Competition ${competitionId}`
+      : 'League Match'
     const scoreButton = row.find('button[onclick*="GetScorecard"]').first()
     const scorecardId = scoreButton.attr('onclick')?.match(/GetScorecard\('[^']+',(\d+)\)/)?.[1] ?? null
     const score = parseScore(scoreButton.text())
@@ -156,6 +173,8 @@ export async function getRackemTeamPage(leagueSlug, seasonTeamId) {
       sourceIdentity,
       scorecardId,
       matchday,
+      competitionId,
+      competitionName,
       date,
       homeTeam,
       awayTeam,
