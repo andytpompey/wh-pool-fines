@@ -367,6 +367,7 @@ function MatchCardPill({ children, color }) {
 export default function MatchesTab({ players, fineTypes, seasons, matches, setMatches, withSave, currentTeamId, membership, platformRole, preferredSeasonId = 'all', onSeasonPreferenceChange }) {
   const [selectedId, setSelectedId] = useState(null)
   const [showNew,    setShowNew]    = useState(false)
+  const [showStatusPicker, setShowStatusPicker] = useState(false)
   const [showSeasonPicker, setShowSeasonPicker] = useState(false)
   const [seasonFilter, setSeasonFilter] = useState(preferredSeasonId)
   const [statusFilter, setStatusFilter] = useState('draft')
@@ -382,6 +383,12 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
   const selectedSeasonLabel = seasonFilter === 'all'
     ? 'All seasons'
     : seasons.find(season => season.id === seasonFilter)?.name ?? 'All seasons'
+  const statusOptions = [
+    { id: 'draft', name: 'Draft' },
+    { id: 'submitted', name: 'Submitted' },
+    { id: 'all', name: 'All matches' },
+  ]
+  const selectedStatusLabel = statusOptions.find(option => option.id === statusFilter)?.name ?? 'Draft'
 
   const filteredMatches = matches
     .filter(match => seasonFilter === 'all' || match.seasonId === seasonFilter)
@@ -389,7 +396,7 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
       statusFilter === 'all'
       || (statusFilter === 'submitted' ? match.submitted : !match.submitted)
     ))
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort((a, b) => a.date.localeCompare(b.date))
 
   const selectSeason = (seasonId) => {
     setSeasonFilter(seasonId)
@@ -444,6 +451,16 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
           <TitleAction onClick={() => setShowNew(true)} disabled={!canManageMatches}>New match</TitleAction>
           <button
             type="button"
+            onClick={() => setShowStatusPicker(true)}
+            aria-haspopup="dialog"
+            aria-expanded={showStatusPicker}
+            className={`col-start-2 inline-flex ${TITLE_ACTION_SIZE} items-center justify-center gap-2 border border-zinc-600 bg-zinc-800 px-3 py-2 text-xs font-bold leading-tight text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-amber-400`}
+          >
+            <span className="min-w-0 truncate">{selectedStatusLabel}</span>
+            <span aria-hidden="true" className="text-zinc-400">⌄</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setShowSeasonPicker(true)}
             aria-haspopup="dialog"
             aria-expanded={showSeasonPicker}
@@ -454,18 +471,6 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
           </button>
         </div>
       </div>
-
-      <SegmentedControl
-        className="mb-3"
-        options={[
-          { value: 'draft', label: 'Draft' },
-          { value: 'submitted', label: 'Submitted' },
-          { value: 'all', label: 'All' },
-        ]}
-        value={statusFilter}
-        onChange={setStatusFilter}
-        fullWidth
-      />
 
       <div className="space-y-2">
         {filteredMatches.map(m => {
@@ -509,6 +514,37 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
           </p>
         )}
       </div>
+
+      {showStatusPicker && (
+        <Modal title="Select match status" onClose={() => setShowStatusPicker(false)}>
+          <div className="space-y-2" role="radiogroup" aria-label="Match status">
+            {statusOptions.map(option => {
+              const isSelected = option.id === statusFilter
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={isSelected}
+                  onClick={() => {
+                    setStatusFilter(option.id)
+                    setShowStatusPicker(false)
+                  }}
+                  className={[
+                    'flex min-h-12 w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm font-bold transition-colors',
+                    isSelected
+                      ? 'border-amber-400 bg-amber-500 text-zinc-950'
+                      : 'border-zinc-700 bg-zinc-800 text-zinc-200 hover:border-zinc-600 hover:bg-zinc-700',
+                  ].join(' ')}
+                >
+                  <span>{option.name}</span>
+                  <span aria-hidden="true">{isSelected ? '✓' : ''}</span>
+                </button>
+              )
+            })}
+          </div>
+        </Modal>
+      )}
 
       {showSeasonPicker && (
         <Modal title="Select season" onClose={() => setShowSeasonPicker(false)}>
