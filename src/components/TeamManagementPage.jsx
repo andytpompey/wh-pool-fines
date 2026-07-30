@@ -851,10 +851,14 @@ function FineTypesTab({ fineTypes, canManageTeam, saving, onAddFineType, onUpdat
           {finePinError && <p className="text-red-400 text-sm mb-2">{finePinError}</p>}
           <div className="flex gap-2">
             <Btn variant="danger" className="flex-1" onClick={async () => {
-              await onDeleteFineType(confirmDeleteFine, finePinInput)
-              setConfirmDeleteFine(null)
-              setFinePinInput('')
-              setFinePinError('')
+              try {
+                await onDeleteFineType(confirmDeleteFine, finePinInput)
+                setConfirmDeleteFine(null)
+                setFinePinInput('')
+                setFinePinError('')
+              } catch (error) {
+                setFinePinError(error?.message ?? 'Fine type could not be deleted.')
+              }
             }}>Delete Fine Type</Btn>
             <Btn variant="ghost" className="flex-1" onClick={() => setConfirmDeleteFine(null)}>Cancel</Btn>
           </div>
@@ -1092,10 +1096,14 @@ function SeasonsTab({
           {deletePinError && <p className="text-red-400 text-sm mb-2">{deletePinError}</p>}
           <div className="flex gap-2">
             <Btn variant="danger" className="flex-1" onClick={async () => {
-              await onDeleteSeason(confirmDeleteSeason, deletePinInput)
-              setConfirmDeleteSeason(null)
-              setDeletePinInput('')
-              setDeletePinError('')
+              try {
+                await onDeleteSeason(confirmDeleteSeason, deletePinInput)
+                setConfirmDeleteSeason(null)
+                setDeletePinInput('')
+                setDeletePinError('')
+              } catch (error) {
+                setDeletePinError(error?.message ?? 'Season could not be deleted.')
+              }
             }}>Delete Season</Btn>
             <Btn variant="ghost" className="flex-1" onClick={() => setConfirmDeleteSeason(null)}>Cancel</Btn>
           </div>

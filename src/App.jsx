@@ -932,7 +932,7 @@ export default function App() {
 
     await teamModel.removeTeamMember({ membershipId: member.id, actorMembership: currentTeamMembership, teamId: currentTeamId, targetPlayerId: member.playerId, previousRole: member.role })
     await Promise.all([load(currentTeamId), loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
-  }, 'Unlock code verification is required to remove team members.'), [currentTeamId, currentTeamMembership, load, loadTeamRoster, refreshMemberContext, session?.user, withProtectedAction])
+  }, 'Unlock code verification is required to remove team members.')(unlockCode), [currentTeamId, currentTeamMembership, load, loadTeamRoster, refreshMemberContext, session?.user, withProtectedAction])
 
   const handleRevokeInvite = useCallback((invite) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
@@ -1001,7 +1001,7 @@ export default function App() {
     assertActionAccess({ action: APP_ACTION.MANAGE_FINE_TYPES, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can manage fine types.' })
     await db.deleteFineTypeWithAudit({ id: fineType.id, teamId: currentTeamId, actorMembership: currentTeamMembership, platformRole: memberContext.platformRole, fineTypeName: fineType.name })
     setFineTypes(prev => prev.filter(item => item.id !== fineType.id))
-  }, 'Unlock code verification is required to delete fine types.'), [currentTeamId, currentTeamMembership?.role, withProtectedAction])
+  }, 'Unlock code verification is required to delete fine types.')(unlockCode), [currentTeamId, currentTeamMembership?.role, withProtectedAction])
 
   const handleAddSeason = useCallback((payload) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
@@ -1028,7 +1028,7 @@ export default function App() {
     assertActionAccess({ action: APP_ACTION.MANAGE_SEASONS, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can manage seasons.' })
     await db.deleteSeasonWithAudit({ id: season.id, teamId: currentTeamId, actorMembership: currentTeamMembership, platformRole: memberContext.platformRole, seasonName: season.name })
     setSeasons(prev => prev.filter(item => item.id !== season.id))
-  }, 'Unlock code verification is required to delete seasons.'), [currentTeamId, currentTeamMembership?.role, withProtectedAction])
+  }, 'Unlock code verification is required to delete seasons.')(unlockCode), [currentTeamId, currentTeamMembership?.role, withProtectedAction])
 
   const handleUpdateTeamSettings = useCallback((settings, logoFile = null) => withSave(async () => {
     if (!currentTeamId || !currentTeamMembership) throw new Error('Select a team first.')
