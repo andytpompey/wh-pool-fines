@@ -1023,11 +1023,16 @@ export default function App() {
     return updated
   }), [currentTeamId, currentTeamMembership?.role])
 
-  const handleDeleteSeason = useCallback((season, unlockCode) => withProtectedAction(APP_ACTION.DELETE_SEASON, async () => {
+  const handleDeleteSeason = useCallback((season, unlockCode, confirmOutstandingFines = false) => withProtectedAction(APP_ACTION.DELETE_SEASON, async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
     assertActionAccess({ action: APP_ACTION.MANAGE_SEASONS, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can manage seasons.' })
+    const outstandingFines = await db.getSeasonOutstandingFines(season.id)
+    if (outstandingFines.count > 0 && !confirmOutstandingFines) {
+      return { requiresConfirmation: true, outstandingFines }
+    }
     await db.deleteSeasonWithAudit({ id: season.id, teamId: currentTeamId, actorMembership: currentTeamMembership, platformRole: memberContext.platformRole, seasonName: season.name })
     setSeasons(prev => prev.filter(item => item.id !== season.id))
+    return { deleted: true }
   }, 'Unlock code verification is required to delete seasons.')(unlockCode), [currentTeamId, currentTeamMembership?.role, withProtectedAction])
 
   const handleUpdateTeamSettings = useCallback((settings, logoFile = null) => withSave(async () => {
