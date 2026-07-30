@@ -27,8 +27,6 @@ function MatchDetail({ match, players, fineTypes, seasons, team, membership, pla
   const subsEnabled = team?.subsEnabled !== false
   const driversVoidSubs = team?.driversVoidSubs !== false
   const subAmount = Number(team?.subAmount ?? 0.50)
-  const isAway = match.venue === 'away'
-
   const save = patch => onSave(match.id, patch)
 
   // ── Players ───────────────────────────────────────────────────────────────
@@ -48,7 +46,7 @@ function MatchDetail({ match, players, fineTypes, seasons, team, membership, pla
   }
 
   const toggleDriver = playerId => {
-    if (!isAway || !playerIds.includes(playerId)) return
+    if (!playerIds.includes(playerId)) return
     const isDriver = driverIds.includes(playerId)
     const nextDriverIds = isDriver ? driverIds.filter(id => id !== playerId) : [...driverIds, playerId]
     let nextSubs = subs
@@ -188,7 +186,7 @@ function MatchDetail({ match, players, fineTypes, seasons, team, membership, pla
                     <span className={`truncate text-sm font-medium ${isIn ? 'text-white' : 'text-zinc-400'}`}>{p.name}</span>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${isIn ? 'bg-amber-500 text-zinc-900' : 'bg-zinc-700 text-zinc-500'}`}>{isIn ? 'Playing' : 'Not playing'}</span>
                   </button>
-                  {isAway && isIn && (
+                  {isIn && (
                     <button
                       type="button"
                       disabled={readonly || !canManageMatches}
@@ -482,7 +480,7 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
               className="w-full text-left bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 hover:border-amber-600 transition-all active:scale-[0.99]">
               <div className="flex items-start justify-between gap-3">
                 <span className="min-w-0 font-bold text-white">
-                  {formatDate(m.date)}{m.opponent ? ` - vs ${m.opponent}` : ''}
+                  {formatDate(m.date)}{m.opponent ? ` - vs ${m.opponent}` : ''} ({m.venue === 'away' ? 'Away' : 'Home'})
                 </span>
                 {m.submitted ? <MatchCardPill color="green">Submitted</MatchCardPill> : <MatchCardPill color="amber">Draft</MatchCardPill>}
               </div>
