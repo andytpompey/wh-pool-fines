@@ -79,7 +79,7 @@ async function fulfilCheckout(admin: ReturnType<typeof createClient>, session: S
 
 async function findSubscriptionByPaymentIntent(admin: ReturnType<typeof createClient>, paymentIntentId: string | null) {
   if (!paymentIntentId) return null
-  const { data, error } = await admin.from('commercial_subscriptions').select('id')
+  const { data, error } = await admin.from('commercial_subscriptions').select('id,offering_id,commercial_offerings(refund_policy)')
     .contains('metadata', { payment_intent_id: paymentIntentId }).maybeSingle()
   if (error) throw error
   return data
@@ -138,6 +138,7 @@ function promotionCodeId(value: unknown): string | null {
 async function recordRefund(admin: ReturnType<typeof createClient>, charge: Stripe.Charge) {
   const paymentIntentId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id ?? null
   const subscription = await findSubscriptionByPaymentIntent(admin, paymentIntentId)
+  const refundPolicy = (subscription?.commercial_offerings as unknown as { refund_policy?: { partialRefundAccess?: string } } | null)?.refund_policy ?? { partialRefundAccess: 'operator_review' }
   for (const refund of charge.refunds?.data ?? []) {
     const result = await admin.from('commercial_financial_entries').upsert({
       subscription_id: subscription?.id ?? null, provider: 'stripe', provider_reference: refund.id,
@@ -149,8 +150,8 @@ async function recordRefund(admin: ReturnType<typeof createClient>, charge: Stri
     await openOperatorCase(admin, {
       case_type: 'refund', state: charge.amount_refunded >= charge.amount ? 'resolved' : 'open',
       priority: 'normal', subscription_id: subscription?.id ?? null, provider_reference: refund.id,
-      summary: charge.amount_refunded >= charge.amount ? 'Full Stripe refund reconciled' : 'Partial Stripe refund requires access-policy review',
-      safe_details: { refundAmountMinor: refund.amount, cumulativeRefundMinor: charge.amount_refunded, originalChargeMinor: charge.amount, currency: refund.currency.toUpperCase() },
+      summary: charge.amount_refunded >= charge.amount ? 'Full Stripe refund reconciled' : refundPolicy.partialRefundAccess === 'operator_review' ? 'Partial Stripe refund requires access-policy review' : `Partial Stripe refund applied with ${refundPolicy.partialRefundAccess} access policy`,
+      safe_details: { refundAmountMinor: refund.amount, cumulativeRefundMinor: charge.amount_refunded, originalChargeMinor: charge.amount, currency: refund.currency.toUpperCase(), partialRefundAccess: refundPolicy.partialRefundAccess },
       resolved_at: charge.amount_refunded >= charge.amount ? new Date().toISOString() : null,
     })
   }
@@ -158,6 +159,9 @@ async function recordRefund(admin: ReturnType<typeof createClient>, charge: Stri
     await admin.from('commercial_subscriptions').update({ state: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', subscription.id)
     await admin.from('team_season_entitlements').update({ state: 'refunded', updated_at: new Date().toISOString() }).eq('subscription_id', subscription.id)
     await enqueueLifecycleNotification(admin, subscription.id, 'refunded', `refund:${charge.id}`)
+  } else if (subscription && refundPolicy.partialRefundAccess === 'end_immediately') {
+    await admin.from('commercial_subscriptions').update({ state: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', subscription.id)
+    await admin.from('team_season_entitlements').update({ state: 'cancelled', valid_until: new Date().toISOString(), grace_until: null, updated_at: new Date().toISOString() }).eq('subscription_id', subscription.id)
   }
 }
 

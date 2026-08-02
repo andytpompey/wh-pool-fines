@@ -601,7 +601,7 @@ Acceptance:
 
 #### COM-029 — Cancel, refund and dispute a subscription
 
-Status: in progress — cancellation, full/partial immutable refund adjustments and deduplicated refund/dispute operator cases are reconciled idempotently without deleting data; partial-refund access-policy UI and cooling-off approval remain.
+Status: in progress — versioned cancellation/refund policy, pre-portal customer explanation, full/partial immutable adjustments and deduplicated refund/dispute operator cases are implemented without deleting data; final cooling-off approval and production journey evidence remain.
 
 As a billing customer or authorised operator, I need cancellations, refunds and
 disputes handled consistently so that access and financial records agree.

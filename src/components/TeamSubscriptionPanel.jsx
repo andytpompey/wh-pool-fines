@@ -15,6 +15,7 @@ export default function TeamSubscriptionPanel({ team, seasons, canManageTeam }) 
   const [billingProfile, setBillingProfile] = useState({ name: '', email: '', line1: '', line2: '', city: '', postcode: '', countryCode: 'GB', taxIdentifier: '', reason: '' })
   const [billingContact, setBillingContact] = useState({ email: '', role: 'viewer', action: 'grant', reason: '' })
   const [status, setStatus] = useState({ loading: true, buying: '', error: '' })
+  const [billingReview, setBillingReview] = useState(false)
 
   useEffect(() => {
     let live = true
@@ -57,10 +58,11 @@ export default function TeamSubscriptionPanel({ team, seasons, canManageTeam }) 
           <Badge color="amber">{offer ? `${commercial.formatMoney(offer.price.amount_minor, offer.price.currency)} / season` : 'Offer unavailable'}</Badge>
         </div>
         <p className="mt-3 text-xs text-zinc-500">Web checkout is securely hosted by Stripe. Apple Pay appears automatically on supported devices. iPhone in-app purchases use Apple&apos;s App Store checkout.</p>
-        {canManageTeam && <Btn variant="outline" size="sm" className="mt-3" onClick={async () => {
+        {canManageTeam && !billingReview && <Btn variant="outline" size="sm" className="mt-3" onClick={() => setBillingReview(true)}>Review billing options</Btn>}
+        {canManageTeam && billingReview && <div className="mt-3 rounded-xl border border-zinc-700 bg-zinc-950 p-3 text-xs text-zinc-300"><p className="font-bold text-white">Before opening secure billing</p><p className="mt-1">The standard team-season purchase does not renew automatically. Cancellation is normally effective at the end of the displayed paid period. Partial refunds require RooBin operator review and do not silently remove team data. The approved cooling-off treatment for your market is shown in the purchase terms.</p><div className="mt-2 flex gap-2"><Btn variant="outline" size="sm" onClick={async () => {
           try { await commercial.openBillingPortal(team.id) }
           catch (error) { setStatus(current => ({ ...current, error: error?.message ?? 'Billing portal is unavailable.' })) }
-        }}>Manage web billing</Btn>}
+        }}>Continue to Stripe billing</Btn><Btn variant="ghost" size="sm" onClick={() => setBillingReview(false)}>Cancel</Btn></div></div>}
       </div>
 
       {status.error && <p role="alert" className="rounded-xl border border-red-900 bg-red-950/50 p-3 text-sm text-red-300">{status.error}</p>}

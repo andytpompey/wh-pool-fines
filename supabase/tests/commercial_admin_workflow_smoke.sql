@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(23);
 
 insert into auth.users(id,email,email_confirmed_at,created_at,updated_at) values
  ('1d000000-0000-0000-0000-000000000001','workflow-admin@example.test',now(),now(),now()),
@@ -17,6 +17,7 @@ set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"1d000000-0000-0000-0000-000000000001","role":"authenticated"}',true);
 select lives_ok($sql$select public.create_commercial_offering_draft(jsonb_build_object('productId',(select id from public.commercial_products where code='roobin-fines-team'),'code','workflow-team-season','version',1,'customerType','team','billingUnit','team_season','billingInterval','season','currency','GBP','taxBehaviour','provider_calculated','entitlementDefinitionId',(select id from public.entitlement_definitions where code='fines-team-standard' and state='published' order by version desc limit 1),'minQuantity',1,'trialDays',0,'renewalBehaviour','manual','salesChannels',jsonb_build_array('web'),'eligibility','{}'::jsonb),'Workflow offering test')$sql$,'admin creates a structurally complete draft without database editing');
 select lives_ok($sql$select public.update_draft_commercial_recovery_policy((select id from public.commercial_offerings where code='workflow-team-season'),'{"retryDays":[1,3],"graceDays":5,"graceAccess":"read_only","permanentFailure":"read_only"}'::jsonb,'Workflow recovery policy')$sql$,'admin versions retry and grace behaviour on the draft offering');
+select lives_ok($sql$select public.update_draft_commercial_refund_policy((select id from public.commercial_offerings where code='workflow-team-season'),'{"cancellationTiming":"end_of_term","partialRefundAccess":"operator_review","coolingOffDays":14,"immediateCancellationRequiresRefund":true}'::jsonb,'Workflow refund policy')$sql$,'admin versions cancellation and partial-refund treatment on the draft offering');
 select lives_ok($sql$select public.schedule_commercial_price((select id from public.commercial_offerings where code='workflow-team-season'),1000,'GBP','provider_calculated','GB',now(),null,'retain','Initial workflow price')$sql$,'admin gives the draft a current versioned price');
 select lives_ok($sql$select public.publish_commercial_offering((select id from public.commercial_offerings where code='workflow-team-season'),'Workflow publication approval')$sql$,'complete priced draft can be published');
 reset role;
