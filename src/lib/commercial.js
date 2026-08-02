@@ -120,3 +120,36 @@ export async function createCommercialDiscount(input) {
   if (error) throw error
   return data
 }
+
+export async function cloneCommercialOffering(offeringId, code, reason) {
+  const { data, error } = await supabase.rpc('clone_commercial_offering', { source_offering_id: offeringId, new_code: code, reason })
+  if (error) throw error
+  return data
+}
+
+export async function publishCommercialOffering(offeringId, reason) {
+  const { data, error } = await supabase.rpc('publish_commercial_offering', { target_offering_id: offeringId, approval_reason: reason })
+  if (error) throw error
+  return data
+}
+
+export async function retireCommercialOffering(offeringId, reason) {
+  const { data, error } = await supabase.rpc('retire_commercial_offering', { target_offering_id: offeringId, retirement_reason: reason })
+  if (error) throw error
+  return data
+}
+
+export async function getSupportAdminQueue() {
+  const { data, error } = await supabase.rpc('get_support_admin_queue')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function updateSupportCase(input) {
+  const { data, error } = await supabase.rpc('update_support_case', {
+    target_case_id: input.caseId, new_status: input.status, new_priority: input.priority,
+    customer_message: input.customerMessage || '', internal_note: input.internalNote || '', reason: input.reason,
+  })
+  if (error) throw error
+  return data
+}

@@ -20,15 +20,19 @@ export default function CommercialAdminPage({ isPlatformAdmin, onBack }) {
   const [price, setPrice] = useState(initialPrice)
   const [discount, setDiscount] = useState(initialDiscount)
   const [enforcementReason, setEnforcementReason] = useState('Commercial launch readiness approved')
+  const [catalogueAction, setCatalogueAction] = useState({ offeringId: '', code: '', reason: '' })
+  const [supportCases, setSupportCases] = useState([])
   const [status, setStatus] = useState({ loading: true, saving: false, error: '', success: '' })
 
   const load = useCallback(async () => {
     if (!isPlatformAdmin) return
     setStatus(current => ({ ...current, loading: true, error: '' }))
     try {
-      const next = await commercial.getCommercialAdminDashboard()
+      const [next, queue] = await Promise.all([commercial.getCommercialAdminDashboard(), commercial.getSupportAdminQueue()])
       setDashboard(next)
+      setSupportCases(queue)
       setPrice(current => ({ ...current, offeringId: current.offeringId || next.offerings?.find(item => item.state === 'published')?.id || '' }))
+      setCatalogueAction(current => ({ ...current, offeringId: current.offeringId || next.offerings?.find(item => item.state === 'published')?.id || '' }))
       setStatus(current => ({ ...current, loading: false }))
     } catch (error) {
       setStatus(current => ({ ...current, loading: false, error: error?.message ?? 'Commercial dashboard is unavailable.' }))
@@ -70,6 +74,13 @@ export default function CommercialAdminPage({ isPlatformAdmin, onBack }) {
       <Btn size="sm" disabled={status.saving || !price.offeringId || !price.effectiveFrom || price.reason.trim().length < 8} onClick={() => act(() => commercial.scheduleCommercialPrice(price), 'Price scheduled and audited.')}>Schedule price</Btn>
     </Card>
 
+    <Card title="Offering lifecycle">
+      <Sel label="Offering" value={catalogueAction.offeringId} onChange={event => setCatalogueAction({ ...catalogueAction, offeringId: event.target.value })}>{dashboard?.offerings?.map(item => <option key={item.id} value={item.id}>{item.code} v{item.version} ({item.state})</option>)}</Sel>
+      <Input label="New code (clone only)" placeholder="team-season-next" value={catalogueAction.code} onChange={event => setCatalogueAction({ ...catalogueAction, code: event.target.value.toLowerCase() })}/>
+      <Input label="Approval/change reason" value={catalogueAction.reason} onChange={event => setCatalogueAction({ ...catalogueAction, reason: event.target.value })}/>
+      <div className="flex flex-wrap gap-2"><Btn size="sm" variant="outline" disabled={status.saving || !catalogueAction.code || catalogueAction.reason.trim().length < 8} onClick={() => act(() => commercial.cloneCommercialOffering(catalogueAction.offeringId, catalogueAction.code, catalogueAction.reason), 'Draft offering cloned.')}>Clone draft</Btn><Btn size="sm" disabled={status.saving || catalogueAction.reason.trim().length < 8 || dashboard?.offerings?.find(item => item.id === catalogueAction.offeringId)?.state !== 'draft'} onClick={() => act(() => commercial.publishCommercialOffering(catalogueAction.offeringId, catalogueAction.reason), 'Offering published.')}>Publish draft</Btn><Btn size="sm" variant="danger" disabled={status.saving || catalogueAction.reason.trim().length < 8 || dashboard?.offerings?.find(item => item.id === catalogueAction.offeringId)?.state !== 'published'} onClick={() => act(() => commercial.retireCommercialOffering(catalogueAction.offeringId, catalogueAction.reason), 'Offering retired for new sales.')}>Retire</Btn></div>
+    </Card>
+
     <Card title="Publish discount">
       <Input label="Discount name" value={discount.name} onChange={event => setDiscount({ ...discount, name: event.target.value })}/>
       <div className="grid grid-cols-2 gap-2"><Sel label="Type" value={discount.type} onChange={event => setDiscount({ ...discount, type: event.target.value })}><option value="percentage">Percentage</option><option value="fixed">Fixed pounds</option></Sel><Input label={discount.type === 'percentage' ? 'Percent' : 'Pounds'} type="number" min="0" step={discount.type === 'percentage' ? '1' : '0.01'} value={discount.value} onChange={event => setDiscount({ ...discount, value: event.target.value })}/></div>
@@ -82,5 +93,13 @@ export default function CommercialAdminPage({ isPlatformAdmin, onBack }) {
       <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-2xl font-bold">{dashboard?.reconciliationIssues?.length ?? 0}</p><p className="text-zinc-400">payment issues</p></div><div><p className="text-2xl font-bold">{dashboard?.support?.openCases ?? 0}</p><p className="text-zinc-400">open support cases</p></div></div>
       {(dashboard?.reconciliationIssues?.length > 0 || dashboard?.enforcementGaps?.length > 0) && <div className="mt-3 space-y-2">{dashboard.reconciliationIssues?.slice(0, 10).map(item => <p key={`${item.issue_type}-${item.entity_id}`} className="rounded-lg bg-zinc-800 p-2 text-xs text-zinc-300">{item.issue_type}: {item.entity_id}</p>)}{dashboard.enforcementGaps?.slice(0, 10).map(item => <p key={item.playing_cycle_id} className="rounded-lg bg-zinc-800 p-2 text-xs text-zinc-300">Access gap: {item.name}</p>)}</div>}
     </Card>
+    <Card title="Support queue">
+      {supportCases.length === 0 ? <p className="text-sm text-zinc-400">No open cases.</p> : <div className="space-y-3">{supportCases.slice(0, 20).map(item => <SupportCase key={item.id} item={item} saving={status.saving} onUpdate={input => act(() => commercial.updateSupportCase(input), `Support case ${item.reference} updated.`)}/>)}</div>}
+    </Card>
   </div>
+}
+
+function SupportCase({ item, saving, onUpdate }) {
+  const [form, setForm] = useState({ status: item.status, priority: item.priority, customerMessage: '', internalNote: '', reason: 'Support case triage update' })
+  return <div className="rounded-xl border border-zinc-800 bg-zinc-950 p-3"><div className="flex items-start justify-between gap-2"><div><p className="font-bold text-white">{item.reference}: {item.subject}</p><p className="text-xs text-zinc-400">{item.case_type} · {item.contact_email}</p></div><Badge color={item.priority === 'urgent' ? 'red' : item.priority === 'high' ? 'amber' : 'gray'}>{item.priority}</Badge></div><p className="mt-2 text-sm text-zinc-300">{item.description}</p><div className="mt-3 grid grid-cols-2 gap-2"><Sel label="State" value={form.status} onChange={event => setForm({ ...form, status: event.target.value })}><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="waiting_customer">Waiting customer</option><option value="resolved">Resolved</option><option value="closed">Closed</option></Sel><Sel label="Priority" value={form.priority} onChange={event => setForm({ ...form, priority: event.target.value })}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></Sel></div><Input label="Customer-visible update (optional)" value={form.customerMessage} onChange={event => setForm({ ...form, customerMessage: event.target.value })}/><Input label="Internal note (optional)" value={form.internalNote} onChange={event => setForm({ ...form, internalNote: event.target.value })}/><Btn size="sm" disabled={saving || form.reason.trim().length < 8} onClick={() => onUpdate({ caseId: item.id, ...form })}>Update case</Btn></div>
 }
