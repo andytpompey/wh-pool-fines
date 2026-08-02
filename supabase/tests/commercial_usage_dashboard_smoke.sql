@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(10);
 insert into auth.users(id,email,email_confirmed_at,created_at,updated_at) values ('12000000-1000-0000-0000-000000000001','usage-admin@example.test',now(),now(),now()),('12000000-1000-0000-0000-000000000002','usage-user@example.test',now(),now(),now());
 insert into public.app_users(id,is_platform_admin) values ('12000000-1000-0000-0000-000000000001',true),('12000000-1000-0000-0000-000000000002',false);
 set local role authenticated;
@@ -12,6 +12,8 @@ select lives_ok($$select public.record_commercial_platform_usage('2026-07-01','{
 select is(jsonb_array_length(public.get_commercial_usage_dashboard()->'usageMonths'),1,'usage dashboard returns the recorded month');
 select is((public.get_commercial_usage_dashboard()->'usageMonths'->0->>'fixed_cost_minor')::integer,500,'dashboard preserves fixed cost');
 select is((public.get_commercial_usage_dashboard()->'usageMonths'->0->>'variable_cost_minor')::integer,125,'dashboard preserves variable cost');
+select is(jsonb_array_length(public.get_commercial_usage_dashboard()->'unitEconomics'),1,'unit economics includes a cost-only month before live revenue exists');
+select is((public.get_commercial_usage_dashboard()->'unitEconomics'->0->>'platform_cost_minor')::integer,625,'unit economics combines fixed and variable platform cost');
 reset role;
 select is((select evidence->>'supabase' from public.commercial_platform_usage_months where month='2026-07-01'),'July invoice','provider evidence reference is retained');
 select is((select count(*)::integer from public.commercial_audit_log where action='usage.recorded'),1,'usage entry is audited');

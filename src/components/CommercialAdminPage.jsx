@@ -127,7 +127,7 @@ export default function CommercialAdminPage({ isPlatformAdmin, onBack }) {
     </Card>
 
     <Card title="Reconciliation and support">
-      <div className="grid grid-cols-2 gap-3 text-sm"><div><p className="text-2xl font-bold">{dashboard?.reconciliationIssues?.length ?? 0}</p><p className="text-zinc-400">payment issues</p></div><div><p className="text-2xl font-bold">{dashboard?.support?.openCases ?? 0}</p><p className="text-zinc-400">open support cases</p></div></div>
+      <div className="grid grid-cols-3 gap-3 text-sm"><div><p className="text-2xl font-bold">{dashboard?.reconciliationIssues?.length ?? 0}</p><p className="text-zinc-400">payment issues</p></div><div><p className="text-2xl font-bold">{dashboard?.support?.openCases ?? 0}</p><p className="text-zinc-400">open support cases</p></div><div><p className={`text-2xl font-bold ${(dashboard?.notifications?.failed??0)>0?'text-red-400':''}`}>{dashboard?.notifications?.failed ?? 0}</p><p className="text-zinc-400">failed notices</p></div></div>
       {(dashboard?.reconciliationIssues?.length > 0 || dashboard?.enforcementGaps?.length > 0) && <div className="mt-3 space-y-2">{dashboard.reconciliationIssues?.slice(0, 10).map(item => <p key={`${item.issue_type}-${item.entity_id}`} className="rounded-lg bg-zinc-800 p-2 text-xs text-zinc-300">{item.issue_type}: {item.entity_id}</p>)}{dashboard.enforcementGaps?.slice(0, 10).map(item => <p key={item.playing_cycle_id} className="rounded-lg bg-zinc-800 p-2 text-xs text-zinc-300">Access gap: {item.name}</p>)}</div>}
     </Card>
     <Card title="Offering performance">
