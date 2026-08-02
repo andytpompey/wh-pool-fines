@@ -210,6 +210,44 @@ export async function grantFoundingAccessBatch(input, previewOnly) {
   return data
 }
 
+export async function getCommercialGrantAudiences() {
+  const { data, error } = await supabase.rpc('get_commercial_grant_audiences')
+  if (error) throw error
+  if (!data) throw new Error('Platform administrator access is required.')
+  return data
+}
+
+export async function saveCommercialGrantAudience(input) {
+  const { data, error } = await supabase.rpc('save_commercial_grant_audience', {
+    target_audience_id: input.id || null,
+    audience_name: input.name,
+    audience_type: input.type,
+    parent_audience_id: input.type === 'division' ? input.parentAudienceId : null,
+    target_cycle_ids: input.cycleIds,
+    reason: input.reason,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function grantFoundingAudienceAccess(input, previewOnly) {
+  const { data, error } = await supabase.rpc('grant_founding_audience_access', {
+    operation_id: input.operationId,
+    target_audience_id: input.audienceId,
+    expected_cycle_ids: previewOnly ? null : input.preview?.audienceCycleIds,
+    grant_state: input.state,
+    valid_from: new Date(input.validFrom).toISOString(),
+    valid_until: new Date(input.validUntil).toISOString(),
+    agreed_price_minor: Math.round(Number(input.agreedPricePounds) * 100),
+    discount_minor: Math.round(Number(input.discountPounds) * 100),
+    grant_owner: null,
+    reason: input.reason,
+    preview_only: previewOnly,
+  })
+  if (error) throw error
+  return data
+}
+
 export async function getCommercialPilotDashboard() { const { data,error }=await supabase.rpc('get_commercial_pilot_dashboard'); if(error) throw error; return data??{pilots:[],feedbackPoints:[],adoption:[]} }
 export async function createCommercialPilot(configuration,reason) { const { data,error }=await supabase.rpc('create_commercial_pilot',{configuration,reason}); if(error) throw error; return data }
 export async function updateCommercialPilotEvaluation(input) { const { data,error }=await supabase.rpc('update_commercial_pilot_evaluation',{target_pilot_id:input.pilotId,new_state:input.state,feedback_point_id:input.feedbackPointId||null,aggregate_response:input.aggregateResponse||{},renewal_outcome:input.renewalOutcome||null,renewal_reasons:input.renewalReasons||[],reason:input.reason}); if(error) throw error; return data }

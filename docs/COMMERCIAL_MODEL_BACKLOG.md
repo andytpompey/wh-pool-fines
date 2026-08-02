@@ -363,7 +363,7 @@ Acceptance:
 
 #### COM-012 — Grant a controlled founding trial
 
-Status: in progress — the admin UI and server provide bounded idempotent preview/confirm grants across selected teams, recording dates, agreed price, discount, owner, reason, exclusions and audit; named league/division selection awaits the League data model.
+Status: complete — the admin UI and server provide bounded idempotent preview/confirm grants across selected teams or saved whole-league/division audiences, recording dates, agreed price, discount, owner, reason, exclusions and audit; changed audience membership invalidates confirmation.
 
 As a platform administrator, I need to grant a time-bounded pilot to selected
 teams or a complete league so that RooBin can be evaluated before self-service
