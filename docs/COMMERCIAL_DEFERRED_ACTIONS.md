@@ -54,7 +54,7 @@ added to the named story before it can move to Done.
 | COM-041 | On a physical iPhone, purchase and restore the non-renewing season product with an App Store sandbox account; verify entitlement recovery after reinstall | iPhone + App Store Connect sandbox | Before App Store submission |
 | COM-053 | Manually check the production public pages at 200 percent zoom and with keyboard-only navigation, then run VoiceOver over pricing, checkout return, billing and support journeys | Desktop/iPhone accessibility tools | Before public launch |
 | COM-056 | Open the public status page during a test incident and confirm component state, incident wording and recovery update render correctly without signing in | Production status page | Before production launch |
-| COM-059 | Configure the scheduled commercial lifecycle processor, run it first in observable dry-run/limited scope, then retain evidence for anonymisation and any required processor-side deletion | Supabase scheduled function + processor consoles | Before the first retention deadline |
+| COM-059 | Schedule `commercial-lifecycle` independently from notifications using `COMMERCIAL_CRON_SECRET`; call preview mode first, review its recorded run, then approve `{"mode":"apply","policyVersion":"v1.0"}` and retain processor-side deletion evidence | Supabase scheduled function + processor consoles | Before the first retention deadline |
 
 Browser checks are intentionally deferred to this list to conserve remote-session
 tokens. Automated unit, database, build, bundle and HTTP-level checks remain part

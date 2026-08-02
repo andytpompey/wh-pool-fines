@@ -928,7 +928,7 @@ Acceptance:
 
 #### COM-059 — Retain and delete commercial data correctly
 
-Status: in progress — per-record retention, anonymisation, observable run contracts and idempotent lifecycle execution are implemented and wired into the scheduled notification worker; production scheduling and processor-deletion evidence remain.
+Status: in progress — per-record retention, anonymisation, observable idempotent run contracts and a dedicated secret-protected preview/apply lifecycle endpoint are implemented independently of notifications; production scheduling and processor-deletion evidence remain.
 
 As a customer, I need commercial records retained only as required while valid
 financial and entitlement evidence is preserved.

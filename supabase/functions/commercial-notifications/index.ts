@@ -60,8 +60,7 @@ Deno.serve(async request => {
       failed++
     }
   }
-  const retention = await admin.rpc('run_commercial_retention', { target_policy_version: 'v1.0', preview_only: false })
-  return json({ processed: (due ?? []).length + (lifecycleResult.data?.length ?? 0), delivered, failed, retention: retention.error ? 'failed' : 'completed' })
+  return json({ processed: (due ?? []).length + (lifecycleResult.data?.length ?? 0), delivered, failed })
 })
 
 function money(amountMinor: number | null, currency: string | null) {
