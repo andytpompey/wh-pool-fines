@@ -216,6 +216,24 @@ export async function getAccountingExport(from, to) {
   return data ?? []
 }
 
+export async function getPendingBillingRecoveries() {
+  const { data, error } = await supabase.rpc('get_pending_billing_recoveries')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function createBillingRecoveryRequest(input) {
+  const { data, error } = await supabase.rpc('create_billing_recovery_request', { target_billing_customer_id: input.billingCustomerId, replacement_email: input.email, evidence_reference: input.evidenceReference, recovery_reason: input.reason })
+  if (error) throw error
+  return data
+}
+
+export async function approveBillingRecoveryRequest(requestId, reason) {
+  const { data, error } = await supabase.rpc('approve_billing_recovery_request', { target_request_id: requestId, approval_reason: reason })
+  if (error) throw error
+  return data
+}
+
 export async function getTeamBillingContext(teamId) {
   const { data, error } = await supabase.rpc('my_team_billing_context', { target_team_id: teamId })
   if (error) throw error

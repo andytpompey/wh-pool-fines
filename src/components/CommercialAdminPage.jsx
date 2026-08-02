@@ -29,15 +29,18 @@ export default function CommercialAdminPage({ isPlatformAdmin, onBack }) {
   const [bulkCorrection, setBulkCorrection] = useState({ ids: [], state: 'active', validUntil: '', reason: '', operationId: '', preview: null })
   const [incident, setIncident] = useState({ title: '', impact: 'minor', message: '', components: ['web'], reason: '' })
   const [exportPeriod, setExportPeriod] = useState({ from: '', to: '' })
+  const [recoveries, setRecoveries] = useState([])
+  const [recovery, setRecovery] = useState({ billingCustomerId: '', email: '', evidenceReference: '', reason: '', approvalReason: '' })
   const [status, setStatus] = useState({ loading: true, saving: false, error: '', success: '' })
 
   const load = useCallback(async () => {
     if (!isPlatformAdmin) return
     setStatus(current => ({ ...current, loading: true, error: '' }))
     try {
-      const [next, queue] = await Promise.all([commercial.getCommercialAdminDashboard(), commercial.getSupportAdminQueue()])
+      const [next, queue, pendingRecoveries] = await Promise.all([commercial.getCommercialAdminDashboard(), commercial.getSupportAdminQueue(), commercial.getPendingBillingRecoveries()])
       setDashboard(next)
       setSupportCases(queue)
+      setRecoveries(pendingRecoveries)
       setPrice(current => ({ ...current, offeringId: current.offeringId || next.offerings?.find(item => item.state === 'published')?.id || '' }))
       setCatalogueAction(current => ({ ...current, offeringId: current.offeringId || next.offerings?.find(item => item.state === 'published')?.id || '' }))
       setStatus(current => ({ ...current, loading: false }))
@@ -126,6 +129,10 @@ export default function CommercialAdminPage({ isPlatformAdmin, onBack }) {
     </Card>
     <Card title="Accounting export">
       <div className="grid grid-cols-2 gap-2"><Input label="From" type="date" value={exportPeriod.from} onChange={event => setExportPeriod({ ...exportPeriod, from: event.target.value })}/><Input label="To (exclusive)" type="date" value={exportPeriod.to} onChange={event => setExportPeriod({ ...exportPeriod, to: event.target.value })}/></div><Btn size="sm" variant="outline" disabled={!exportPeriod.from || !exportPeriod.to} onClick={async () => { try { const rows = await commercial.getAccountingExport(exportPeriod.from, exportPeriod.to); downloadAccountingCsv(rows, exportPeriod) } catch (error) { setStatus(current => ({ ...current, error: error?.message ?? 'Accounting export failed.' })) } }}>Download CSV</Btn>
+    </Card>
+    <Card title="High-risk billing recovery">
+      <p className="text-xs text-zinc-400">Use only when the previous billing owner is unavailable. A second platform administrator must approve; provider customer, invoices, subscriptions and entitlements are preserved.</p><Input label="Billing customer ID" value={recovery.billingCustomerId} onChange={event => setRecovery({ ...recovery,billingCustomerId:event.target.value })}/><Input label="Verified replacement email" type="email" value={recovery.email} onChange={event => setRecovery({ ...recovery,email:event.target.value })}/><Input label="Evidence reference (no secrets)" value={recovery.evidenceReference} onChange={event => setRecovery({ ...recovery,evidenceReference:event.target.value })}/><Input label="Detailed recovery reason" value={recovery.reason} onChange={event => setRecovery({ ...recovery,reason:event.target.value })}/><Btn size="sm" variant="danger" disabled={status.saving || !recovery.billingCustomerId || !recovery.email || recovery.evidenceReference.trim().length < 8 || recovery.reason.trim().length < 12} onClick={() => act(() => commercial.createBillingRecoveryRequest(recovery),'Recovery request recorded for independent approval.')}>Request recovery</Btn>
+      {recoveries.map(item => <div key={item.id} className="mt-3 rounded-lg border border-red-900 bg-red-950/30 p-3"><p className="text-sm font-bold">{item.teamName ?? item.billingCustomerId}</p><p className="text-xs text-zinc-400">Evidence: {item.evidenceReference} · expires {new Date(item.expiresAt).toLocaleString('en-GB')}</p><Input label="Independent approval reason" value={recovery.approvalReason} onChange={event => setRecovery({ ...recovery,approvalReason:event.target.value })}/><Btn size="sm" variant="danger" disabled={status.saving || recovery.approvalReason.trim().length < 12} onClick={() => act(() => commercial.approveBillingRecoveryRequest(item.id,recovery.approvalReason),'High-risk billing recovery approved and audited.')}>Approve as second administrator</Btn></div>)}
     </Card>
     <Card title="Support queue">
       {supportCases.length === 0 ? <p className="text-sm text-zinc-400">No open cases.</p> : <div className="space-y-3">{supportCases.slice(0, 20).map(item => <SupportCase key={item.id} item={item} saving={status.saving} onUpdate={input => act(() => commercial.updateSupportCase(input), `Support case ${item.reference} updated.`)}/>)}</div>}

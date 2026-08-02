@@ -734,7 +734,7 @@ Acceptance:
 
 #### COM-037 — Transfer subscription administration safely
 
-Status: in progress — billing ownership is independent of team roles, and nominated recent-auth handover with recipient acceptance, expiry, contact synchronisation and audit is implemented; production notification delivery and the high-risk support recovery drill remain.
+Status: in progress — normal dual-confirmed handover and four-eyes high-risk recovery with verified replacement, evidence reference, recent authentication, independent approval and immutable audit are implemented without changing financial history; production confirmations and recovery drill remain.
 
 As an organisation whose volunteers change, we need subscription administration
 transferred without moving ownership of historical financial records.
