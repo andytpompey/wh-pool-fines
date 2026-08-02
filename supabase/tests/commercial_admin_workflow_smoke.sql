@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(17);
 
 insert into auth.users(id,email,email_confirmed_at,created_at,updated_at) values
  ('1d000000-0000-0000-0000-000000000001','workflow-admin@example.test',now(),now(),now()),
@@ -35,6 +35,12 @@ reset role;
 select is((select owner_user_id from public.billing_customers where id='4d000000-0000-0000-0000-000000000001'),'1d000000-0000-0000-0000-000000000003'::uuid,'billing ownership transfers without replacing the customer');
 select is((select role from public.billing_customer_contacts where billing_customer_id='4d000000-0000-0000-0000-000000000001' and user_id='1d000000-0000-0000-0000-000000000002'),'administrator','previous billing owner remains a confirmed administrator');
 select is((select count(*)::integer from public.commercial_audit_log where action like 'billing_transfer.%'),2,'both transfer steps are audited');
+set local role authenticated;
+select set_config('request.jwt.claims',jsonb_build_object('sub','1d000000-0000-0000-0000-000000000003','role','authenticated','iat',extract(epoch from now())::bigint)::text,true);
+select lives_ok($$select public.update_billing_customer_profile('4d000000-0000-0000-0000-000000000001','Workflow Club','accounts@example.test',jsonb_build_object('line1','1 League Street','city','Wolverhampton','postcode','WV1 1AA','countryCode','GB'),'','Verified payer update')$$,'recently authenticated billing owner updates the separate billing profile');
+select lives_ok($$select public.manage_billing_customer_contact('4d000000-0000-0000-0000-000000000001','workflow-owner@example.test','viewer','grant','Treasurer read access')$$,'billing owner grants a verified billing-only contact');
+reset role;
+select is((select role from public.billing_customer_contacts where billing_customer_id='4d000000-0000-0000-0000-000000000001' and user_id='1d000000-0000-0000-0000-000000000002'),'viewer','billing contact role changes without changing team authority');
 
 insert into public.team_playing_cycles(id,team_id,name,sport,starts_on,ends_on,status) values ('5d000000-0000-0000-0000-000000000001','3d000000-0000-0000-0000-000000000001','Correction Cycle','pool',current_date,current_date+90,'active');
 insert into public.team_season_entitlements(id,team_id,playing_cycle_id,entitlement_definition_id,state,valid_from,valid_until,source) select '6d000000-0000-0000-0000-000000000001','3d000000-0000-0000-0000-000000000001','5d000000-0000-0000-0000-000000000001',id,'trial',now(),now()+interval '14 days','trial' from public.entitlement_definitions where code='fines-team-standard' and state='published' order by version desc limit 1;

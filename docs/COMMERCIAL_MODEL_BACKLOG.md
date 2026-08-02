@@ -381,7 +381,7 @@ Acceptance:
 
 #### COM-013 — Show trial and paid status to captains
 
-Status: in progress — web and iOS team-cycle status plus captain/billing-contact 30/14/3-day reminders are implemented; purchaser identity display and production delivery test remain.
+Status: in progress — web and iOS team-cycle status, purchaser identity, configurable captain/billing-contact reminders and distinct payment-failure versus awaiting-activation copy are implemented; production delivery evidence remains.
 
 As a captain, I need a clear access-status screen so that I know what is
 included, when it ends and what action is required.
@@ -526,7 +526,7 @@ Acceptance:
 
 #### COM-025 — Manage the billing customer and payer
 
-Status: in progress — billing identity is separated from player/team records and provider references are protected; contact transfer and recent-authenticated billing profile changes remain.
+Status: complete — billing identity, address, tax/contact data and protected provider references are separate from playing records; recent-authenticated audited profile, verified contact grant/removal and dual-confirmed ownership transfer are implemented without changing team authority.
 
 As a purchaser, I need my billing identity kept separately from my playing
 profile so that team or organisation purchases remain valid when roles change.

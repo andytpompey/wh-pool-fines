@@ -209,6 +209,18 @@ export async function getTeamBillingContext(teamId) {
   return data
 }
 
+export async function updateBillingCustomerProfile(customerId, profile) {
+  const { data, error } = await supabase.rpc('update_billing_customer_profile', { target_billing_customer_id: customerId, new_name: profile.name, new_email: profile.email, new_address: { line1: profile.line1, line2: profile.line2 || null, city: profile.city, postcode: profile.postcode, countryCode: profile.countryCode.toUpperCase() }, new_tax_identifier: profile.taxIdentifier || '', reason: profile.reason })
+  if (error) throw error
+  return data
+}
+
+export async function manageBillingCustomerContact(customerId, input) {
+  const { data, error } = await supabase.rpc('manage_billing_customer_contact', { target_billing_customer_id: customerId, contact_email: input.email, new_role: input.role, contact_action: input.action, reason: input.reason })
+  if (error) throw error
+  return data
+}
+
 export async function getPendingBillingTransfers() {
   const { data, error } = await supabase.rpc('my_pending_billing_transfers')
   if (error) throw error
