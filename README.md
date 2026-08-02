@@ -2,6 +2,14 @@
 
 A mobile-first web app for tracking pool match fines and subs. Built with React + Vite + Tailwind CSS, backed by Supabase (Postgres).
 
+## Product backlog
+
+- [Master product backlog](docs/ROOBIN_MASTER_BACKLOG.md)
+- [Cross-product story register](docs/BACKLOG_REGISTER.md)
+- [Commercial model backlog](docs/COMMERCIAL_MODEL_BACKLOG.md)
+- [League Management backlog](docs/LEAGUE_MANAGEMENT_BACKLOG.md)
+- [iOS delivery backlog](docs/ios/IOS_BACKLOG.md)
+
 ---
 
 ## Stack
