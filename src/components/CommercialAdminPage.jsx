@@ -73,6 +73,9 @@ export default function CommercialAdminPage({ isPlatformAdmin, onBack }) {
     catch (error) { setStatus(current => ({ ...current, saving: false, error: error?.message ?? 'The commercial change failed.' })) }
   }
   const metrics = dashboard?.metrics?.[0]
+  const enforcementMode = typeof dashboard?.enforcement === 'string'
+    ? dashboard.enforcement
+    : dashboard?.enforcement?.mode ?? 'observe'
 
   return <div className="space-y-4 pb-8">
     <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wider text-amber-400">Restricted</p><h1 className="font-display text-2xl font-bold">Commercial operations</h1></div><Btn variant="outline" size="sm" onClick={onBack}>Back to app</Btn></div>
@@ -90,7 +93,7 @@ export default function CommercialAdminPage({ isPlatformAdmin, onBack }) {
     </Card>
 
     <Card title="Entitlement enforcement">
-      <div className="flex flex-wrap items-center gap-2"><Badge color={dashboard?.enforcement === 'enforce' ? 'green' : 'amber'}>{dashboard?.enforcement ?? 'observe'}</Badge><span className="text-xs text-zinc-400">Enforce cannot be enabled while readiness gaps remain.</span></div>
+      <div className="flex flex-wrap items-center gap-2"><Badge color={enforcementMode === 'enforce' ? 'green' : 'amber'}>{enforcementMode}</Badge><span className="text-xs text-zinc-400">Enforce cannot be enabled while readiness gaps remain.</span></div>
       <Input label="Approval reason" value={enforcementReason} onChange={event => setEnforcementReason(event.target.value)} />
       <div className="flex gap-2"><Btn size="sm" variant="outline" disabled={status.saving} onClick={() => act(() => commercial.setCommercialEnforcement('observe', enforcementReason), 'Observe mode enabled.')}>Observe</Btn><Btn size="sm" disabled={status.saving || dashboard?.enforcementGaps?.length > 0} onClick={() => act(() => commercial.setCommercialEnforcement('enforce', enforcementReason), 'Enforcement enabled.')}>Enforce</Btn></div>
     </Card>
