@@ -18,6 +18,8 @@ function Card({ title, children }) {
 export default function CommercialAdminPage({ isPlatformAdmin, onBack }) {
   const [dashboard, setDashboard] = useState(null)
   const [price, setPrice] = useState(initialPrice)
+  const [usageDashboard, setUsageDashboard] = useState({ usageMonths: [], unitEconomics: [] })
+  const [usage, setUsage] = useState({ month: '', supabaseDatabaseBytes: '0', supabaseStorageBytes: '0', supabaseEgressBytes: '0', supabaseMau: '0', authenticationEmails: '0', vercelBandwidthBytes: '0', vercelFunctionInvocations: '0', variableCostPounds: '0.00', fixedCostPounds: '0.00', supabaseEvidence: '', vercelEvidence: '', reason: '' })
   const [discount, setDiscount] = useState(initialDiscount)
   const [enforcementReason, setEnforcementReason] = useState('Commercial launch readiness approved')
   const [catalogueAction, setCatalogueAction] = useState({ offeringId: '', code: '', reason: '' })
@@ -45,13 +47,14 @@ export default function CommercialAdminPage({ isPlatformAdmin, onBack }) {
     if (!isPlatformAdmin) return
     setStatus(current => ({ ...current, loading: true, error: '' }))
     try {
-      const [next, queue, pendingRecoveries, nextPilotDashboard, nextGrantAudiences, nextIncidentQueue] = await Promise.all([commercial.getCommercialAdminDashboard(), commercial.getSupportAdminQueue(), commercial.getPendingBillingRecoveries(), commercial.getCommercialPilotDashboard(), commercial.getCommercialGrantAudiences(), commercial.getIncidentAdminQueue()])
+      const [next, queue, pendingRecoveries, nextPilotDashboard, nextGrantAudiences, nextIncidentQueue, nextUsageDashboard] = await Promise.all([commercial.getCommercialAdminDashboard(), commercial.getSupportAdminQueue(), commercial.getPendingBillingRecoveries(), commercial.getCommercialPilotDashboard(), commercial.getCommercialGrantAudiences(), commercial.getIncidentAdminQueue(), commercial.getCommercialUsageDashboard()])
       setDashboard(next)
       setSupportCases(queue)
       setRecoveries(pendingRecoveries)
       setPilotDashboard(nextPilotDashboard)
       setGrantAudiences(nextGrantAudiences)
       setIncidentQueue(nextIncidentQueue)
+      setUsageDashboard(nextUsageDashboard)
       setPrice(current => ({ ...current, offeringId: current.offeringId || next.offerings?.find(item => item.state === 'published')?.id || '' }))
       setCatalogueAction(current => ({ ...current, offeringId: current.offeringId || next.offerings?.find(item => item.state === 'published')?.id || '' }))
       setStatus(current => ({ ...current, loading: false }))
@@ -80,6 +83,11 @@ export default function CommercialAdminPage({ isPlatformAdmin, onBack }) {
       <Card title="Current month"><p className="text-2xl font-bold text-amber-400">{commercial.formatMoney(metrics?.gross_amount_minor ?? 0)}</p><p className="text-xs text-zinc-400">{metrics?.paid_team_seasons ?? 0} paid team-seasons</p></Card>
       <Card title="Readiness"><p className="text-2xl font-bold text-white">{dashboard?.enforcementGaps?.length ?? 0}</p><p className="text-xs text-zinc-400">uncovered active cycles</p></Card>
     </div>
+
+    <Card title="Monthly platform usage and unit economics">
+      <p className="mb-2 text-xs text-zinc-400">Record invoice/console totals once per month. Byte fields use provider-reported bytes; costs are entered in pounds. Evidence stores references, never secrets.</p><div className="grid grid-cols-2 gap-2"><Input label="Month" type="month" value={usage.month} onChange={event=>setUsage({...usage,month:event.target.value})}/><Input label="Supabase database bytes" type="number" min="0" value={usage.supabaseDatabaseBytes} onChange={event=>setUsage({...usage,supabaseDatabaseBytes:event.target.value})}/><Input label="Supabase storage bytes" type="number" min="0" value={usage.supabaseStorageBytes} onChange={event=>setUsage({...usage,supabaseStorageBytes:event.target.value})}/><Input label="Supabase egress bytes" type="number" min="0" value={usage.supabaseEgressBytes} onChange={event=>setUsage({...usage,supabaseEgressBytes:event.target.value})}/><Input label="Supabase MAU" type="number" min="0" value={usage.supabaseMau} onChange={event=>setUsage({...usage,supabaseMau:event.target.value})}/><Input label="Authentication emails" type="number" min="0" value={usage.authenticationEmails} onChange={event=>setUsage({...usage,authenticationEmails:event.target.value})}/><Input label="Vercel bandwidth bytes" type="number" min="0" value={usage.vercelBandwidthBytes} onChange={event=>setUsage({...usage,vercelBandwidthBytes:event.target.value})}/><Input label="Vercel function invocations" type="number" min="0" value={usage.vercelFunctionInvocations} onChange={event=>setUsage({...usage,vercelFunctionInvocations:event.target.value})}/><Input label="Variable cost £" type="number" min="0" step="0.01" value={usage.variableCostPounds} onChange={event=>setUsage({...usage,variableCostPounds:event.target.value})}/><Input label="Fixed cost £" type="number" min="0" step="0.01" value={usage.fixedCostPounds} onChange={event=>setUsage({...usage,fixedCostPounds:event.target.value})}/></div><Input label="Supabase evidence reference" value={usage.supabaseEvidence} onChange={event=>setUsage({...usage,supabaseEvidence:event.target.value})}/><Input label="Vercel evidence reference" value={usage.vercelEvidence} onChange={event=>setUsage({...usage,vercelEvidence:event.target.value})}/><Input label="Recording reason" value={usage.reason} onChange={event=>setUsage({...usage,reason:event.target.value})}/><Btn size="sm" disabled={status.saving||!usage.month||usage.reason.trim().length<8||!usage.supabaseEvidence.trim()||!usage.vercelEvidence.trim()} onClick={()=>act(()=>commercial.recordCommercialPlatformUsage(usage),'Monthly usage, costs and evidence recorded and audited.')}>Record monthly snapshot</Btn>
+      <div className="mt-3 space-y-2">{usageDashboard.unitEconomics.slice(0,6).map(item=><div key={item.month} className="rounded-lg bg-zinc-800 p-2 text-xs"><strong>{new Date(item.month).toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</strong> · platform cost {commercial.formatMoney(item.platform_cost_minor)} · {item.paid_team_seasons} paid team-seasons · cost per paid team-season {item.cost_per_paid_team_season_minor==null?'not available':commercial.formatMoney(Number(item.cost_per_paid_team_season_minor))}</div>)}</div>
+    </Card>
 
     <Card title="Entitlement enforcement">
       <div className="flex flex-wrap items-center gap-2"><Badge color={dashboard?.enforcement === 'enforce' ? 'green' : 'amber'}>{dashboard?.enforcement ?? 'observe'}</Badge><span className="text-xs text-zinc-400">Enforce cannot be enabled while readiness gaps remain.</span></div>

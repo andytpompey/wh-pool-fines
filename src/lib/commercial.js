@@ -78,6 +78,34 @@ export async function getCommercialAdminDashboard() {
   return data
 }
 
+export async function getCommercialUsageDashboard() {
+  const { data, error } = await supabase.rpc('get_commercial_usage_dashboard')
+  if (error) throw error
+  if (!data) throw new Error('Platform administrator access is required.')
+  return data
+}
+
+export async function recordCommercialPlatformUsage(input) {
+  const { data, error } = await supabase.rpc('record_commercial_platform_usage', {
+    target_month: `${input.month}-01`,
+    usage: {
+      supabaseDatabaseBytes: Number(input.supabaseDatabaseBytes),
+      supabaseStorageBytes: Number(input.supabaseStorageBytes),
+      supabaseEgressBytes: Number(input.supabaseEgressBytes),
+      supabaseMau: Number(input.supabaseMau),
+      authenticationEmails: Number(input.authenticationEmails),
+      vercelBandwidthBytes: Number(input.vercelBandwidthBytes),
+      vercelFunctionInvocations: Number(input.vercelFunctionInvocations),
+      variableCostMinor: Math.round(Number(input.variableCostPounds) * 100),
+      fixedCostMinor: Math.round(Number(input.fixedCostPounds) * 100),
+      currency: 'GBP', evidence: { supabase: input.supabaseEvidence, vercel: input.vercelEvidence },
+    },
+    reason: input.reason,
+  })
+  if (error) throw error
+  return data
+}
+
 export async function setCommercialEnforcement(mode, reason) {
   const { data, error } = await supabase.rpc('set_commercial_enforcement', {
     new_mode: mode,
