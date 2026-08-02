@@ -150,6 +150,7 @@ async function recordRefund(admin: ReturnType<typeof createClient>, charge: Stri
   if (subscription && charge.amount_refunded >= charge.amount) {
     await admin.from('commercial_subscriptions').update({ state: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', subscription.id)
     await admin.from('team_season_entitlements').update({ state: 'refunded', updated_at: new Date().toISOString() }).eq('subscription_id', subscription.id)
+    await enqueueLifecycleNotification(admin, subscription.id, 'refunded', `refund:${charge.id}`)
   }
 }
 
@@ -175,6 +176,7 @@ async function recordDispute(admin: ReturnType<typeof createClient>, eventType: 
       entity_id: subscription.id, reason: `Stripe dispute ${dispute.id} (${chargeId ?? 'charge unavailable'})`,
       after_data: { dispute_id: dispute.id, status: dispute.status },
     })
+    await enqueueLifecycleNotification(admin, subscription.id, resolvedInCustomerFavour ? 'payment_recovered' : 'dispute', `dispute:${dispute.id}:${dispute.status}`)
   }
 }
 
@@ -204,7 +206,28 @@ async function reconcileSubscription(admin: ReturnType<typeof createClient>, str
       state: state === 'active' || state === 'trialing' ? (state === 'trialing' ? 'trial' : 'active') : state === 'past_due' ? 'grace' : 'expired',
       valid_until: new Date(item.current_period_end * 1000).toISOString(), updated_at: new Date().toISOString(),
     }).eq('subscription_id', update.data.id)
+    const notificationType = event.type === 'invoice.payment_failed' ? 'payment_failed'
+      : event.type === 'invoice.paid' ? 'payment_recovered'
+        : event.type === 'customer.subscription.deleted' ? 'cancelled' : null
+    if (notificationType) await enqueueLifecycleNotification(admin, update.data.id, notificationType, `stripe:${event.id}`)
   }
+}
+
+async function enqueueLifecycleNotification(admin: ReturnType<typeof createClient>, subscriptionId: string, notificationType: string, notificationKey: string) {
+  const { data: subscription, error } = await admin.from('commercial_subscriptions').select('id,billing_customer_id,billing_customers(billing_email)').eq('id', subscriptionId).maybeSingle()
+  if (error || !subscription) return
+  const customer = subscription.billing_customers as unknown as { billing_email?: string | null }
+  if (!customer?.billing_email) return
+  await admin.from('commercial_notification_deliveries').upsert({
+    notification_key: notificationKey, notification_type: notificationType,
+    billing_customer_id: subscription.billing_customer_id, subscription_id: subscription.id,
+    recipient_digest: await sha256(customer.billing_email.toLowerCase()), status: 'queued', scheduled_for: new Date().toISOString(), attempt_count: 0,
+  }, { onConflict: 'notification_key', ignoreDuplicates: true })
+}
+
+async function sha256(value: string) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+  return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
 function safeErrorCode(error: unknown) {

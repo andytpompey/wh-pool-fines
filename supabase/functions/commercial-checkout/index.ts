@@ -57,11 +57,13 @@ Deno.serve(async (request) => {
   if (!membership || !['captain', 'vice_captain', 'admin'].includes(membership.role)) {
     return json({ message: 'Team leadership access required' }, 403)
   }
-  const { data: cycle } = await admin.from('team_playing_cycles').select('id, name, team_id, starts_on, ends_on, status')
+  const { data: cycle } = await admin.from('team_playing_cycles').select('id, name, sport, team_id, starts_on, ends_on, status')
     .eq('id', body.playingCycleId).eq('team_id', body.teamId).maybeSingle()
   if (!cycle) return json({ message: 'Playing cycle is unavailable' }, 404)
   if (!cycle.starts_on || !cycle.ends_on) return json({ message: 'Set the playing-cycle dates before checkout' }, 409)
   if (['abandoned', 'cancelled'].includes(cycle.status)) return json({ message: 'This playing cycle cannot be purchased' }, 409)
+  const { data: team } = await admin.from('teams').select('name').eq('id', body.teamId).single()
+  if (!team) return json({ message: 'Team is unavailable' }, 404)
 
   const offeringCode = body.offeringCode ?? 'team-season-standard'
   const now = new Date().toISOString()
@@ -106,6 +108,8 @@ Deno.serve(async (request) => {
     line_items: [{ price: stripePriceId, quantity: 1 }],
     automatic_tax: { enabled: true },
     allow_promotion_codes: true,
+    custom_text: { submit: { message: `${team.name} — ${cycle.sport}, ${cycle.name}, ${cycle.starts_on} to ${cycle.ends_on}. ${offering.renewal_behaviour === 'automatic' ? 'Renews automatically under the displayed terms until cancelled.' : 'One playing-cycle purchase; it does not renew automatically.'} Tax and total are shown above before payment.` } },
+    ...(offering.renewal_behaviour === 'automatic' ? {} : { invoice_creation: { enabled: true } }),
     client_reference_id: `${body.teamId}:${body.playingCycleId}`,
     metadata: {
       roobin_team_id: body.teamId, roobin_playing_cycle_id: body.playingCycleId,

@@ -166,3 +166,57 @@ export async function issueCommercialDiscountCode(discountId, reason, code = '')
   if (!data?.code) throw new Error('Discount code was not returned.')
   return data
 }
+
+export async function createCommercialOfferingDraft(configuration, reason) {
+  const { data, error } = await supabase.rpc('create_commercial_offering_draft', { configuration, reason })
+  if (error) throw error
+  return data
+}
+
+export async function correctTeamCycleAccess(entitlementId, state, validUntil, reason) {
+  const { data, error } = await supabase.rpc('correct_team_cycle_access', { target_entitlement_id: entitlementId, new_state: state, new_valid_until: validUntil ? new Date(validUntil).toISOString() : null, reason })
+  if (error) throw error
+  return data
+}
+
+export async function createServiceIncident(input) {
+  const { data, error } = await supabase.rpc('create_service_incident', { title: input.title, impact: input.impact, public_message: input.message, component_codes: input.components, reason: input.reason })
+  if (error) throw error
+  return data
+}
+
+export async function setServiceComponent(code, status, message, reason) {
+  const { data, error } = await supabase.rpc('set_service_component', { target_code: code, new_status: status, public_message: message, reason })
+  if (error) throw error
+  return data
+}
+
+export async function getAccountingExport(from, to) {
+  const { data, error } = await supabase.rpc('get_commercial_accounting_export', { period_start: new Date(from).toISOString(), period_end: new Date(to).toISOString() })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getTeamBillingContext(teamId) {
+  const { data, error } = await supabase.rpc('my_team_billing_context', { target_team_id: teamId })
+  if (error) throw error
+  return data
+}
+
+export async function getPendingBillingTransfers() {
+  const { data, error } = await supabase.rpc('my_pending_billing_transfers')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function initiateBillingTransfer(billingCustomerId, email, reason) {
+  const { data, error } = await supabase.rpc('initiate_billing_contact_transfer_by_email', { target_billing_customer_id: billingCustomerId, replacement_email: email, transfer_reason: reason })
+  if (error) throw error
+  return data
+}
+
+export async function acceptBillingTransfer(transferId) {
+  const { data, error } = await supabase.rpc('accept_billing_contact_transfer', { target_transfer_id: transferId })
+  if (error) throw error
+  return data
+}

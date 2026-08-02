@@ -44,7 +44,24 @@ Deno.serve(async request => {
       failed++
     }
   }
-  return json({ processed: (due ?? []).length, delivered, failed })
+  const lifecycleResult = await admin.from('commercial_lifecycle_notifications_due').select('*').limit(100)
+  for (const item of lifecycleResult.data ?? []) {
+    try {
+      const copy = lifecycleCopy(item.notification_type, item.team_name || 'Your team', item.cycle_name, item.current_period_end, publicOrigin)
+      const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to: [item.recipient], subject: copy.subject, text: copy.text }) })
+      if (!response.ok) throw new Error(`provider_${response.status}`)
+      const providerResult = await response.json().catch(() => ({}))
+      await admin.from('commercial_notification_deliveries').update({ status: 'delivered', provider_message_id: providerResult.id ?? null, attempt_count: 1, delivered_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', item.id)
+      delivered++
+    } catch (deliveryError) {
+      const code = deliveryError instanceof Error ? deliveryError.message.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80) : 'unknown'
+      const delivery = await admin.from('commercial_notification_deliveries').select('attempt_count').eq('id', item.id).single()
+      await admin.from('commercial_notification_deliveries').update({ status: 'failed', attempt_count: (delivery.data?.attempt_count ?? 0) + 1, last_error_code: code, scheduled_for: new Date(Date.now() + 3_600_000).toISOString(), updated_at: new Date().toISOString() }).eq('id', item.id)
+      failed++
+    }
+  }
+  const retention = await admin.rpc('run_commercial_retention', { target_policy_version: 'v1.0', preview_only: false })
+  return json({ processed: (due ?? []).length + (lifecycleResult.data?.length ?? 0), delivered, failed, retention: retention.error ? 'failed' : 'completed' })
 })
 
 function money(amountMinor: number | null, currency: string | null) {
@@ -54,4 +71,15 @@ function money(amountMinor: number | null, currency: string | null) {
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
   return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+function lifecycleCopy(type: string, team: string, cycle: string | null, periodEnd: string | null, origin: string) {
+  const detail = cycle ? `${team} / ${cycle}` : team
+  const end = periodEnd ? new Date(periodEnd).toLocaleDateString('en-GB') : 'the current period end'
+  const portal = `${origin}/app`
+  if (type === 'payment_failed') return { subject: `${team} RooBin payment needs attention`, text: `The latest RooBin payment for ${detail} was not successful. Team access follows the configured grace policy until ${end}. Update the payment method securely from RooBin billing: ${portal}` }
+  if (type === 'payment_recovered') return { subject: `${team} RooBin payment confirmed`, text: `Payment for ${detail} has been confirmed and the authoritative team entitlement is active. Open RooBin: ${portal}` }
+  if (type === 'cancelled') return { subject: `${team} RooBin subscription cancelled`, text: `The subscription for ${detail} has been cancelled. Existing access and data follow the displayed effective date and retention policy. Open billing: ${portal}` }
+  if (type === 'refunded') return { subject: `${team} RooBin payment refunded`, text: `A full refund for ${detail} was confirmed by the payment provider. Access has been updated without deleting team data. Contact support from ${origin}/contact if this is unexpected.` }
+  return { subject: `${team} RooBin payment dispute update`, text: `A payment dispute for ${detail} is being reviewed. Team data remains retained and access follows the displayed grace state. Contact support from ${origin}/contact.` }
 }

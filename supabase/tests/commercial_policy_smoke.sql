@@ -17,7 +17,9 @@ reset role;
 
 insert into public.team_season_entitlements(team_id,season_id,playing_cycle_id,entitlement_definition_id,state,valid_from,valid_until,source)
 select '3c000000-0000-0000-0000-000000000001','5c000000-0000-0000-0000-000000000001','4c000000-0000-0000-0000-000000000001',id,'trial',now(),now()+interval '14 days','trial' from public.entitlement_definitions where code='fines-team-standard' and state='published' order by version desc limit 1;
-update public.commercial_offerings set eligibility='{"noPreviousTrial":true}' where code='team-season-standard' and state='published';
+insert into public.commercial_offerings(product_id,code,version,customer_type,billing_unit,billing_interval,currency,tax_behaviour,entitlement_definition_id,min_quantity,max_quantity,trial_days,renewal_behaviour,sales_channels,eligibility,state,created_by)
+select product_id,code,version+1000,customer_type,billing_unit,billing_interval,currency,tax_behaviour,entitlement_definition_id,min_quantity,max_quantity,trial_days,renewal_behaviour,sales_channels,'{"noPreviousTrial":true}'::jsonb,state,created_by
+from public.commercial_offerings where code='team-season-standard' and state='published' order by version desc limit 1;
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"1c000000-0000-0000-0000-000000000001","role":"authenticated"}',true);
 select is((select public.evaluate_commercial_offering_eligibility(id,'3c000000-0000-0000-0000-000000000001','web')->>'reason' from public.commercial_offerings where code='team-season-standard' and state='published' order by version desc limit 1),'TRIAL_ALREADY_USED','trial cannot be repeated through a normal team account change');

@@ -9,17 +9,22 @@ export default function TeamSubscriptionPanel({ team, seasons, canManageTeam }) 
   const [cycles, setCycles] = useState([])
   const [entitlements, setEntitlements] = useState([])
   const [editing, setEditing] = useState(null)
+  const [billing, setBilling] = useState(null)
+  const [pendingTransfers, setPendingTransfers] = useState([])
+  const [transfer, setTransfer] = useState({ email: '', reason: '' })
   const [status, setStatus] = useState({ loading: true, buying: '', error: '' })
 
   useEffect(() => {
     let live = true
     setStatus({ loading: true, buying: '', error: '' })
-    Promise.all([commercial.getPublishedTeamSeasonOffer(), commercial.getTeamPlayingCycles(team.id)]).then(async ([nextOffer, nextCycles]) => {
+    Promise.all([commercial.getPublishedTeamSeasonOffer(), commercial.getTeamPlayingCycles(team.id), commercial.getTeamBillingContext(team.id), commercial.getPendingBillingTransfers()]).then(async ([nextOffer, nextCycles, nextBilling, nextTransfers]) => {
       const nextEntitlements = await commercial.getTeamEntitlements(team.id, nextCycles)
       if (!live) return
       setOffer(nextOffer)
       setCycles(nextCycles)
       setEntitlements(nextEntitlements)
+      setBilling(nextBilling)
+      setPendingTransfers(nextTransfers)
       setStatus({ loading: false, buying: '', error: '' })
     }).catch(error => {
       if (live) setStatus({ loading: false, buying: '', error: error?.message ?? 'Subscription status is unavailable.' })
@@ -84,6 +89,8 @@ export default function TeamSubscriptionPanel({ team, seasons, canManageTeam }) 
         </div>
       )}
       {!canManageTeam && <p className="text-xs text-zinc-500">Only a captain or vice-captain can purchase team access.</p>}
+      {pendingTransfers.filter(item => item.teamId === team.id).map(item => <div key={item.id} className="rounded-xl border border-amber-700 bg-amber-950/30 p-4"><p className="font-bold text-white">Billing handover requested</p><p className="mt-1 text-xs text-zinc-400">Accepting makes you the billing owner for {item.teamName} without changing team roles or invoice history. Expires {new Date(item.expiresAt).toLocaleDateString('en-GB')}.</p><Btn size="sm" className="mt-3" onClick={async () => { try { await commercial.acceptBillingTransfer(item.id); setPendingTransfers(current => current.filter(value => value.id !== item.id)); setBilling(await commercial.getTeamBillingContext(team.id)) } catch (error) { setStatus(current => ({ ...current, error: error?.message ?? 'Billing handover could not be accepted.' })) } }}>Accept billing handover</Btn></div>)}
+      {billing?.isOwner && <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4"><h4 className="font-bold text-white">Transfer billing administration</h4><p className="mt-1 text-xs text-zinc-400">The replacement must already have a verified RooBin account. This does not change captaincy, payment history or the provider customer.</p><label className="mt-3 block text-xs text-zinc-400">Replacement email<input className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 p-2 text-white" type="email" value={transfer.email} onChange={event => setTransfer(current => ({ ...current, email: event.target.value }))}/></label><label className="mt-2 block text-xs text-zinc-400">Reason<input className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 p-2 text-white" value={transfer.reason} onChange={event => setTransfer(current => ({ ...current, reason: event.target.value }))}/></label><Btn size="sm" variant="outline" className="mt-3" disabled={!transfer.email || transfer.reason.trim().length < 8} onClick={async () => { try { await commercial.initiateBillingTransfer(billing.id, transfer.email, transfer.reason); setTransfer({ email: '', reason: '' }); setStatus(current => ({ ...current, error: '' })) } catch (error) { setStatus(current => ({ ...current, error: error?.message ?? 'Billing handover could not be started.' })) } }}>Request handover</Btn></div>}
       {editing && (
         <div className="rounded-xl border border-amber-800 bg-amber-950/20 p-4">
           <h4 className="font-bold text-white">Set paid cycle boundary</h4>

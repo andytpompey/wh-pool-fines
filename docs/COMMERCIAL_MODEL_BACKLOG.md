@@ -245,7 +245,7 @@ Acceptance:
 
 #### COM-016 — Manage subscription offerings
 
-Status: in progress — restricted audited clone, draft update, publish and retire operations exist; the admin surface still needs full-field draft editing and preview evidence.
+Status: complete — restricted audited create, clone, full-field draft update, publish and retire workflows are implemented in the administration surface; published versions are immutable and the workflow is database-tested.
 
 As a platform owner, I need to create and maintain subscription offerings so
 that RooBin can change its commercial structure without code changes or direct
@@ -288,7 +288,7 @@ Acceptance:
 
 #### COM-018 — Configure offering eligibility and trials
 
-Status: in progress — versioned eligibility/trial fields and controlled batch grants exist; the general server eligibility evaluator and repeat-trial decision still remain.
+Status: complete — versioned eligibility/trial rules, controlled batch grants, a shared server-side eligibility evaluator and repeat-trial protection are implemented and database-tested.
 
 As a platform owner, I need configurable eligibility rules so that introductory
 and targeted offers are applied consistently.
@@ -734,7 +734,7 @@ Acceptance:
 
 #### COM-037 — Transfer subscription administration safely
 
-Status: in progress — billing ownership is independent of team roles and audit/operator cases exist; nominated transfer, dual confirmation and high-risk recovery workflow remain.
+Status: in progress — billing ownership is independent of team roles, and nominated recent-auth handover with recipient acceptance, expiry, contact synchronisation and audit is implemented; production notification delivery and the high-risk support recovery drill remain.
 
 As an organisation whose volunteers change, we need subscription administration
 transferred without moving ownership of historical financial records.
@@ -877,7 +877,7 @@ Acceptance:
 
 #### COM-056 — Publish service status and incident communication
 
-Status: in progress — public component and incident status plus operating guidance are implemented; incident administration, notification channel and production owner remain.
+Status: in progress — public component/incident status, restricted audited incident administration and operating guidance are implemented; the production notification channel, owner and live incident exercise remain.
 
 As a paying customer, I need reliable incident information so that I can
 distinguish an outage from an account or payment problem.
@@ -928,7 +928,7 @@ Acceptance:
 
 #### COM-059 — Retain and delete commercial data correctly
 
-Status: in progress — per-record retention, anonymisation and observable run contracts are documented/implemented; the idempotent scheduled minimisation job and production processor evidence remain.
+Status: in progress — per-record retention, anonymisation, observable run contracts and idempotent lifecycle execution are implemented and wired into the scheduled notification worker; production scheduling and processor-deletion evidence remain.
 
 As a customer, I need commercial records retained only as required while valid
 financial and entitlement evidence is preserved.
@@ -959,7 +959,7 @@ Acceptance:
 
 #### COM-051 — Support commercial corrections safely
 
-Status: in progress — least-privilege inspection and audited single-entitlement correction functions/operator cases exist; admin UI and explicit bulk preview/confirmation remain.
+Status: in progress — least-privilege inspection, audited single-entitlement correction functions/operator cases and the admin correction UI exist; explicit bulk preview/confirmation remains.
 
 As support staff, I need controlled tools for correcting access so that customer
 problems can be resolved without direct database editing.
