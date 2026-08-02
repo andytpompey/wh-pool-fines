@@ -10,6 +10,7 @@ import { resolveCurrentTeamContext } from './lib/currentTeam'
 import { resolveAuthenticatedPlayerContext } from './lib/memberships'
 import { uploadTeamLogo } from './lib/teamLogo'
 import * as rackem from './lib/rackem'
+import { commercialAdminEnabled } from './lib/featureFlags'
 import SetupTab from './components/SetupTab'
 import MatchesTab from './components/MatchesTab'
 import FinesTab   from './components/FinesTab'
@@ -89,6 +90,16 @@ function InviteAcceptancePage({ token, onAccept, saving }) {
 
 function BillingSuccessPage() {
   return <div className="mx-auto max-w-lg px-4 pt-6"><div className="rounded-2xl border border-emerald-800 bg-emerald-950/30 p-5"><Badge color="green">Payment received</Badge><h1 className="mt-3 font-display text-2xl font-bold">Your team access is being confirmed</h1><p className="mt-2 text-sm text-zinc-300">Stripe has returned you safely to RooBin. Access is granted only after RooBin verifies the payment event, which normally takes a few seconds.</p><Btn className="mt-4" onClick={() => navigate('/app')}>Open RooBin</Btn></div></div>
+}
+
+function CommercialAdminUnavailablePage() {
+  return (
+    <div className="rounded-2xl border border-amber-800 bg-amber-950/30 p-5">
+      <h1 className="font-display text-2xl font-bold">Commercial administration unavailable</h1>
+      <p className="mt-2 text-sm text-zinc-300">These controls are disabled until the production commercial backend passes its deployment readiness checks.</p>
+      <Btn className="mt-4" variant="outline" onClick={() => navigate('/app')}>Back to RooBin</Btn>
+    </div>
+  )
 }
 
 export function uuid() {
@@ -1200,7 +1211,7 @@ export default function App() {
           ) : <div />}
           {currentPlayer && (
             <div className="flex shrink-0 items-center gap-2 text-right text-xs text-zinc-500">
-              {memberContext.isPlatformAdmin && route.name !== 'commercial-admin' && <button type="button" className="font-bold text-amber-400 hover:text-amber-300" onClick={() => navigate('/admin/commercial')}>Commercial</button>}
+              {commercialAdminEnabled && memberContext.isPlatformAdmin && route.name !== 'commercial-admin' && <button type="button" className="font-bold text-amber-400 hover:text-amber-300" onClick={() => navigate('/admin/commercial')}>Commercial</button>}
               <span>
               <span>{profile?.displayName || currentPlayer.name}</span>
               {currentTeamMembership && (
@@ -1222,7 +1233,9 @@ export default function App() {
             {route.name === 'invite' ? (
               <InviteAcceptancePage token={route.token} onAccept={handleAcceptInvite} saving={saving} />
             ) : route.name === 'commercial-admin' ? (
-              <CommercialAdminPage isPlatformAdmin={memberContext.isPlatformAdmin} onBack={() => navigate('/app')} />
+              commercialAdminEnabled
+                ? <CommercialAdminPage isPlatformAdmin={memberContext.isPlatformAdmin} onBack={() => navigate('/app')} />
+                : <CommercialAdminUnavailablePage />
             ) : route.name === 'profile' ? (
               <PlayerProfilePage
                 profile={profile}
