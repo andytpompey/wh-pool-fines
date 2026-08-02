@@ -105,6 +105,34 @@ async function recordCheckoutFinancialEntry(admin: ReturnType<typeof createClien
     occurred_at: new Date((charge?.created ?? session.created) * 1000).toISOString(),
   }, { onConflict: 'provider,provider_reference,entry_type' })
   if (result.error) throw result.error
+  if (subscription && discount > 0) {
+    const detailed = await stripe.checkout.sessions.retrieve(session.id, { expand: ['total_details.breakdown.discounts.discount'] })
+    const breakdown = (detailed.total_details?.breakdown?.discounts ?? []) as unknown as Array<{ discount?: unknown }>
+    const promotionReference = breakdown.map(item => promotionCodeId(item.discount)).find(Boolean)
+    if (promotionReference) {
+      const redemption = await admin.rpc('record_discount_redemption_from_provider', {
+        provider_promotion_reference: promotionReference,
+        target_subscription_id: subscription.id,
+        target_billing_customer_id: session.metadata?.roobin_billing_customer_id,
+        undiscounted_minor: gross + discount,
+        discounted_minor: gross,
+        target_currency: (session.currency ?? paymentIntent.currency).toUpperCase(),
+        payment_reference: paymentIntentId,
+      })
+      if (redemption.error) throw redemption.error
+    }
+  }
+}
+
+function promotionCodeId(value: unknown): string | null {
+  if (!value || typeof value !== 'object') return null
+  const discount = value as Record<string, unknown>
+  const candidates = [discount.promotion_code, (discount.source as Record<string, unknown> | undefined)?.promotion_code]
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string') return candidate
+    if (candidate && typeof candidate === 'object' && typeof (candidate as Record<string, unknown>).id === 'string') return (candidate as Record<string, unknown>).id as string
+  }
+  return null
 }
 
 async function recordRefund(admin: ReturnType<typeof createClient>, charge: Stripe.Charge) {

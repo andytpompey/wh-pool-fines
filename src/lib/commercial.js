@@ -139,6 +139,12 @@ export async function retireCommercialOffering(offeringId, reason) {
   return data
 }
 
+export async function updateDraftCommercialOffering(offeringId, changes, reason) {
+  const { data, error } = await supabase.rpc('update_draft_commercial_offering', { target_offering_id: offeringId, changes, reason })
+  if (error) throw error
+  return data
+}
+
 export async function getSupportAdminQueue() {
   const { data, error } = await supabase.rpc('get_support_admin_queue')
   if (error) throw error
@@ -151,5 +157,12 @@ export async function updateSupportCase(input) {
     customer_message: input.customerMessage || '', internal_note: input.internalNote || '', reason: input.reason,
   })
   if (error) throw error
+  return data
+}
+
+export async function issueCommercialDiscountCode(discountId, reason, code = '') {
+  const { data, error } = await supabase.functions.invoke('commercial-discounts', { body: { discountId, reason, code: code || undefined, maxRedemptions: 1 } })
+  if (error) throw error
+  if (!data?.code) throw new Error('Discount code was not returned.')
   return data
 }

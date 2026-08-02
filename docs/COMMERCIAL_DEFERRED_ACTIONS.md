@@ -9,6 +9,7 @@ added to the named story before it can move to Done.
 | Story | Action for product owner | Where | Blocking point |
 |---|---|---|---|
 | COM-004 | Approve customer identity, cancellation/refund wording, read-only expiry baseline and legal operator details | Product/legal review | Before public paid launch |
+| COM-005 | Update the separately hosted TroveFinds holding page with the approved independent-project wording and RooBin card; remove any purposeless mailing-list control | GoDaddy site editor | Before public RooBin launch |
 | COM-006 | Confirm production hostname (`roobin.trovefinds.co.uk` with `/app` is the implementation assumption), then preserve mail records while adding Vercel DNS | GoDaddy and Vercel | Before production callback verification |
 | COM-008 | Decide whether a founding-league offer will be published; standard GBP 10 pricing does not depend on it | Product decision | Before advertising a trial |
 | COM-020 | Create/verify the Stripe business account, enable GBP cards and wallets, and complete business verification | Stripe Dashboard | Before live checkout |
@@ -23,6 +24,8 @@ added to the named story before it can move to Done.
 | COM-057 | Enable production backups/PITR and complete the first sanitised restore drill against the runbook | Supabase production + staging | Before entitlement enforcement |
 | COM-050 | Configure Supabase and Vercel 70/85/95 percent usage and spending alerts; record the alert owner | Supabase and Vercel dashboards | Before production launch |
 | COM-003 | Enter the first production monthly provider-usage and fixed-cost snapshot | Commercial Operations | At the end of the first live month |
+| COM-013 | Configure the daily `commercial-notifications` schedule and `COMMERCIAL_CRON_SECRET`; send a monitored test reminder | Supabase scheduled function + production secrets | Before trial invitations |
+| COM-024 | Confirm Stripe promotion codes are enabled and issue/redeem one production-mode penny-free test code before publishing a campaign | Stripe + Commercial Operations | Before advertising a discount |
 
 Never paste Stripe, App Store, Supabase or email secrets into a story or chat.
 Configure them directly in the relevant production secret store and record only

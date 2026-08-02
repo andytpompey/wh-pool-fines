@@ -10,6 +10,8 @@ struct CommercialPlayingCycle: Identifiable, Equatable, Sendable, Decodable {
     let status: String
     let entitlementState: String
     let entitlementValidUntil: String?
+    let entitlementSource: String?
+    let entitlementPurchaser: String?
 
     enum CodingKeys: String, CodingKey {
         case id, name, sport, status
@@ -18,6 +20,8 @@ struct CommercialPlayingCycle: Identifiable, Equatable, Sendable, Decodable {
         case endsOn = "ends_on"
         case entitlementState = "entitlement_state"
         case entitlementValidUntil = "entitlement_valid_until"
+        case entitlementSource = "entitlement_source"
+        case entitlementPurchaser = "entitlement_purchaser"
     }
 
     var hasAccess: Bool { ["active", "trial", "grace", "complimentary"].contains(entitlementState) }

@@ -68,6 +68,7 @@ export default function TeamSubscriptionPanel({ team, seasons, canManageTeam }) 
                 <div>
                   <p className="font-bold text-white">{item.cycle.name}</p>
                   <p className="mt-1 text-xs text-zinc-400">{active && item.validUntil ? `Access until ${new Date(item.validUntil).toLocaleDateString('en-GB')}` : hasBoundary ? `${item.cycle.startsOn} to ${item.cycle.endsOn}` : 'Set cycle dates before purchase'}</p>
+                  {canManageTeam && item.purchaser && <p className="mt-1 text-xs text-zinc-500">Purchaser: {item.purchaser}</p>}
                 </div>
                 {active ? <Badge color={item.state === 'grace' ? 'amber' : 'green'}>{item.state}</Badge> : (
                   <div className="flex gap-2">

@@ -29,7 +29,8 @@ Story IDs are stable references; they do not imply repository issue numbers.
   price.
 - Whether the founding league trial is free for one division, discounted for
   the whole league, or both in sequence.
-- Whether an expired team becomes read-only or retains limited manual entry.
+- Read-only expiry is the implementation baseline; any future limited-entry
+  exception requires a separately versioned policy decision.
 - Whether league invoices are collected through online card payment, bank
   transfer, or both.
 - VAT registration and tax-display requirements at the point RooBin reaches
@@ -53,6 +54,8 @@ Story IDs are stable references; they do not imply repository issue numbers.
 ### Epic C0 — Product and pricing foundation
 
 #### COM-001 — Define the commercial catalogue
+
+Status: complete — versioned catalogue, entitlement definitions and the published GBP 10 offer are implemented in migrations `202608021200` through `202608021320`; administration is server-authorised and audited.
 
 As the product owner, I need a versioned catalogue of plans and prices so that
 RooBin can offer GBP 10 team-season access without embedding commercial rules
@@ -78,6 +81,8 @@ Acceptance:
 
 #### COM-002 — Define the paid season boundary
 
+Status: complete — `team_playing_cycles` provides the stable paid boundary shared by League, Cup and Plate, with compatibility backfill and cycle-based entitlement tests.
+
 As a captain, I need to understand exactly what one purchase covers so that I
 am not unexpectedly charged for League and Cup records in the same cycle.
 
@@ -91,6 +96,8 @@ Acceptance:
 - Cancellation, abandoned seasons and team transfers have recorded policies.
 
 #### COM-003 — Establish the unit-economics dashboard
+
+Status: in progress — commercial ledgers, monthly metrics and provider-usage/cost capture are implemented; the first live monthly provider snapshot remains a production action.
 
 As the product owner, I need revenue and cost metrics per active team-season so
 that introductory pricing can be reviewed using evidence.
@@ -108,6 +115,8 @@ Acceptance:
 
 #### COM-004 — Approve commercial terms and customer ownership
 
+Status: in progress — implemented terms, privacy, processor and expiry baselines are documented and published locally; operator identity and legal/tax approval remain recorded in `COMMERCIAL_DEFERRED_ACTIONS.md`.
+
 As a buyer, I need clear purchasing and cancellation terms so that I know who
 is paying, what happens on expiry and how support or refunds work.
 
@@ -124,6 +133,8 @@ Acceptance:
 ### Epic C0A — Public website and support presence
 
 #### COM-005 — Refresh the TroveFinds holding site
+
+Status: in progress — RooBin proposition and destination are ready, but the separately hosted TroveFinds site requires owner access and is recorded as an external publishing action.
 
 As the owner of TroveFinds, I need the main site to explain that it is an
 umbrella for independent projects so that RooBin can inherit appropriate trust
@@ -144,6 +155,8 @@ Acceptance:
 
 #### COM-006 — Establish RooBin public routing on Vercel
 
+Status: in progress — `/app`, direct SPA rewrites, auth/legal routes and production metadata are implemented; DNS, certificate and production callback verification require the owner consoles.
+
 As a prospective customer, I need a stable RooBin address so that I can learn
 about the product and open the application without navigating the TroveFinds
 holding site.
@@ -161,6 +174,8 @@ Acceptance:
 - Staging and preview deployments are not indexed as the production site.
 
 #### COM-007 — Publish the RooBin proposition
+
+Status: in progress — all required public routes, responsive journeys, canonical/social metadata and branding are implemented and browser-checked locally; production publication remains outstanding.
 
 As a captain or league committee member, I need to understand RooBin before
 creating an account so that I can decide whether it solves our fines and subs
@@ -180,6 +195,8 @@ Acceptance:
   consistent.
 
 #### COM-008 — Publish pricing and the founding-league offer
+
+Status: in progress — catalogue-driven Team pricing, paid-cycle explanation and minimal league enquiry are implemented; no founding offer will be advertised until its eligibility is approved.
 
 As a buyer, I need transparent pricing and trial information so that I can
 understand the commitment before contacting RooBin or starting checkout.
@@ -201,6 +218,8 @@ Acceptance:
   handled without exposing internal addresses or credentials.
 
 #### COM-009 — Provide the public support and policy hub
+
+Status: in progress — help, contact, privacy, terms, deletion and support case intake are implemented; final operator details and production availability evidence remain external gates.
 
 As a user or store reviewer, I need public support and policy information so
 that help, privacy and account-management obligations remain available without
@@ -226,6 +245,8 @@ Acceptance:
 
 #### COM-016 — Manage subscription offerings
 
+Status: in progress — restricted audited clone, draft update, publish and retire operations exist; the admin surface still needs full-field draft editing and preview evidence.
+
 As a platform owner, I need to create and maintain subscription offerings so
 that RooBin can change its commercial structure without code changes or direct
 database editing.
@@ -246,6 +267,8 @@ Acceptance:
 
 #### COM-017 — Schedule and version base prices
 
+Status: in progress — immutable effective-dated price scheduling, overlap rejection and existing-purchase treatment are implemented; provider-price synchronisation and production preview remain.
+
 As a platform owner, I need to change an offering's base price safely so that
 future customers receive the new price without rewriting existing commercial
 history.
@@ -265,6 +288,8 @@ Acceptance:
 
 #### COM-018 — Configure offering eligibility and trials
 
+Status: in progress — versioned eligibility/trial fields and controlled batch grants exist; the general server eligibility evaluator and repeat-trial decision still remain.
+
 As a platform owner, I need configurable eligibility rules so that introductory
 and targeted offers are applied consistently.
 
@@ -281,6 +306,8 @@ Acceptance:
 - An authorised complimentary grant remains distinct from a customer trial.
 
 #### COM-019 — Audit and report commercial catalogue activity
+
+Status: in progress — restricted catalogue, discount, financial, reconciliation and unit-economics reports plus immutable audits are implemented; live renewal/cancellation cohort evidence remains.
 
 As a platform owner, I need to understand how offerings and discounts are being
 used so that pricing decisions and misuse can be investigated.
@@ -302,6 +329,8 @@ Acceptance:
 
 #### COM-010 — Store team-season entitlements
 
+Status: complete — authoritative playing-cycle entitlements, full lifecycle states, duplicate constraints, membership-independent access and provider/admin provenance are implemented and tested.
+
 As RooBin, I need an authoritative team-season entitlement so that access does
 not depend on who happens to be signed in or which client they use.
 
@@ -317,6 +346,8 @@ Acceptance:
 
 #### COM-011 — Enforce entitlements on the server
 
+Status: complete — server triggers and RLS-backed capability checks enforce observe/enforce policy with stable errors; trial, covered and uncovered mutation tests pass.
+
 As the product owner, I need paid capabilities enforced by the backend so that
 modified or outdated clients cannot bypass the commercial model.
 
@@ -331,6 +362,8 @@ Acceptance:
 - Cached entitlement can improve display speed but cannot authorise a write.
 
 #### COM-012 — Grant a controlled founding trial
+
+Status: in progress — idempotent previewable batch grants for selected playing cycles are implemented and audited; league/division selection awaits the League data model.
 
 As a platform administrator, I need to grant a time-bounded pilot to selected
 teams or a complete league so that RooBin can be evaluated before self-service
@@ -348,6 +381,8 @@ Acceptance:
 
 #### COM-013 — Show trial and paid status to captains
 
+Status: in progress — web and iOS team-cycle status plus captain/billing-contact 30/14/3-day reminders are implemented; purchaser identity display and production delivery test remain.
+
 As a captain, I need a clear access-status screen so that I know what is
 included, when it ends and what action is required.
 
@@ -362,6 +397,8 @@ Acceptance:
 
 #### COM-014 — Handle expiry without losing team data
 
+Status: complete — data-preserving read-only expiry, grace recovery, non-duplicating cycle purchase and statutory account journeys are implemented server-side and documented.
+
 As an expired team, we need predictable restricted access so that historical
 records and personal-data rights are preserved.
 
@@ -375,6 +412,8 @@ Acceptance:
 - Required account deletion and data-access journeys remain available.
 
 #### COM-015 — Capture founding-league feedback and conversion
+
+Status: in progress — privacy-safe commercial and support measures exist, but baseline, scheduled participant feedback and an actual pilot outcome require the founding league.
 
 As the product owner, I need an agreed pilot evaluation so that a discounted
 trial produces a reliable renewal decision.
@@ -396,6 +435,8 @@ Acceptance:
 
 #### COM-020 — Purchase GBP 10 team-season access
 
+Status: in progress — leadership-only catalogue-owned Stripe checkout and StoreKit initiation are implemented with duplicate protection; live provider configuration and end-to-end payment evidence remain.
+
 As a captain, I need to purchase access for my team so that all team members can
 use paid RooBin capabilities for the selected season.
 
@@ -411,6 +452,8 @@ Acceptance:
 
 #### COM-021 — Process payment events idempotently
 
+Status: in progress — Stripe signature verification, App Store signed-transaction verification, replay ledgers and explicit lifecycle transitions are implemented; production webhook evidence remains.
+
 As RooBin, I need verified payment-provider events to drive entitlement so that
 redirects, retries and forged requests cannot create paid access.
 
@@ -425,6 +468,8 @@ Acceptance:
 
 #### COM-022 — Issue receipts and reconcile revenue
 
+Status: in progress — receipt references, separated gross/discount/tax/fee/net ledger and reconciliation issue reporting are implemented; accounting export and live settlement evidence remain.
+
 As the product owner, I need payment reconciliation so that paid access, cash
 received, fees, refunds and accounting records agree.
 
@@ -437,6 +482,8 @@ Acceptance:
 - Reports can be exported for accounting without exporting team fine data.
 
 #### COM-023 — Renew or purchase the next season
+
+Status: in progress — captains can retain the team and buy a distinct upcoming playing cycle without duplicate purchase; production reminder and purchase evidence remain.
 
 As a captain, I need a simple renewal path so that the next playing cycle can
 start without recreating my team.
@@ -451,6 +498,8 @@ Acceptance:
 - The system prevents accidental purchase of the same cycle twice.
 
 #### COM-024 — Create, issue and redeem discount codes
+
+Status: in progress — audited fixed/percentage discounts, one-time Stripe codes, safe digest storage and verified redemption reconciliation are implemented; production-mode redemption evidence remains.
 
 As the platform owner, I need to create and issue controlled discount codes so
 that a customer can receive an approved reduction without changing the
@@ -477,6 +526,8 @@ Acceptance:
 
 #### COM-025 — Manage the billing customer and payer
 
+Status: in progress — billing identity is separated from player/team records and provider references are protected; contact transfer and recent-authenticated billing profile changes remain.
+
 As a purchaser, I need my billing identity kept separately from my playing
 profile so that team or organisation purchases remain valid when roles change.
 
@@ -494,6 +545,8 @@ Acceptance:
 
 #### COM-026 — Manage payment methods securely
 
+Status: in progress — authenticated billing-owner Stripe Portal is implemented without RooBin handling instruments; production portal policy and journey verification remain.
+
 As a billing contact, I need to add or replace the subscription payment method
 so that renewals do not require RooBin to handle card data.
 
@@ -507,6 +560,8 @@ Acceptance:
 - Client logs, analytics and support tools never expose full payment details.
 
 #### COM-027 — Renew a subscription automatically
+
+Status: in progress — catalogue supports consented fixed-interval automatic offerings and idempotent Stripe renewal events while Team season stays manual; full advance auto-renew notice and live recurring test remain.
 
 As a billing customer, I need predictable renewal so that paid access continues
 without recreating the team or organisation.
@@ -526,6 +581,8 @@ Acceptance:
 
 #### COM-028 — Recover a failed subscription payment
 
+Status: in progress — provider failures drive past-due/grace state and the billing portal provides recovery; retry policy notifications, restricted transition and live recovery evidence remain.
+
 As a billing customer, I need a clear recovery journey after payment failure so
 that an expired card does not cause unexplained loss of access.
 
@@ -543,6 +600,8 @@ Acceptance:
 - Administrators can see the provider event and state history without card data.
 
 #### COM-029 — Cancel, refund and dispute a subscription
+
+Status: in progress — cancellation, full refunds, immutable adjustments and dispute/grace cases are reconciled idempotently; partial-refund policy UI and cooling-off approval remain.
 
 As a billing customer or authorised operator, I need cancellations, refunds and
 disputes handled consistently so that access and financial records agree.
@@ -675,6 +734,8 @@ Acceptance:
 
 #### COM-037 — Transfer subscription administration safely
 
+Status: in progress — billing ownership is independent of team roles and audit/operator cases exist; nominated transfer, dual confirmation and high-risk recovery workflow remain.
+
 As an organisation whose volunteers change, we need subscription administration
 transferred without moving ownership of historical financial records.
 
@@ -689,6 +750,8 @@ Acceptance:
 - High-risk recovery is audited and protected against support impersonation.
 
 #### COM-038 — Calculate tax and produce compliant adjustments
+
+Status: in progress — catalogue tax behaviour, Stripe automatic tax and immutable adjustment ledger are implemented; VAT/supplier evidence and accountant approval remain.
 
 As the platform owner, I need approved tax treatment applied consistently so
 that checkout, invoices, refunds and reporting are correct.
@@ -706,6 +769,8 @@ Acceptance:
 - Tax evidence and calculations follow approved retention and access rules.
 
 #### COM-039 — Reconcile subscription state end to end
+
+Status: in progress — reconciliation detects missing financial/entitlement/provider-event states and exposes operator cases; scheduled provider API comparison and repair confirmation remain.
 
 As the platform owner, I need scheduled reconciliation between provider events,
 payments, subscriptions and entitlements so that drift is detected before it
@@ -727,6 +792,8 @@ Acceptance:
 
 #### COM-040 — Validate native purchasing routes
 
+Status: complete — the dated payment architecture records Apple rules, approved StoreKit/web routes, regional/store risks and legal/tax gates before implementation.
+
 As the product owner, I need an approved platform purchasing design so that web,
 iOS and future Android sales comply with current store rules.
 
@@ -740,6 +807,8 @@ Acceptance:
 
 #### COM-041 — Purchase or restore access on iOS
 
+Status: in progress — StoreKit purchase/restore, app-account binding and server JWS verification compile successfully; App Store Connect product and sandbox end-to-end evidence remain.
+
 As an eligible iOS captain, I need a compliant purchase and restore journey so
 that paid access follows my team across devices.
 
@@ -752,6 +821,8 @@ Acceptance:
 - League-paid members can sign in without being prompted to purchase.
 
 #### COM-042 — Prepare Android billing compatibility
+
+Status: complete — provider-neutral subscriptions, events and entitlements include Google Play identifiers without embedding Apple assumptions; Android delivery remains explicitly optional.
 
 As the delivery team, we need the commercial contract to support future Google
 Play billing so that Android does not require a second entitlement model.
@@ -770,6 +841,8 @@ Acceptance:
 
 #### COM-054 — Publish the product entitlement matrix
 
+Status: complete — versioned capability definitions drive backend enforcement and status, and the public operating runbook records trial/paid/grace/expired behavior.
+
 As the platform owner, I need every offering mapped to explicit capabilities so
 that RooBin Team and RooBin League packaging remains understandable and
 enforceable.
@@ -787,6 +860,8 @@ Acceptance:
 
 #### COM-055 — Operate customer support cases
 
+Status: in progress — minimal case intake, restricted triage, priorities, ownership and separate customer/internal updates are implemented; mailbox target and escalation owner remain external approvals.
+
 As a customer, I need subscription help tracked to resolution so that payment
 and access problems do not disappear in email.
 
@@ -802,6 +877,8 @@ Acceptance:
 
 #### COM-056 — Publish service status and incident communication
 
+Status: in progress — public component and incident status plus operating guidance are implemented; incident administration, notification channel and production owner remain.
+
 As a paying customer, I need reliable incident information so that I can
 distinguish an outage from an account or payment problem.
 
@@ -815,6 +892,8 @@ Acceptance:
 - Post-incident actions are tracked without making unsupported SLA promises.
 
 #### COM-057 — Back up and recover commercial records
+
+Status: in progress — scope, RPO/RTO, safe restore procedure and reconciliation gates are documented; production PITR and first sanitised restore drill remain external actions.
 
 As the platform owner, I need tested recovery for catalogue, subscription and
 financial metadata so that a platform failure does not lose customer rights.
@@ -830,6 +909,8 @@ Acceptance:
 - Recovery cannot grant access or issue money twice.
 
 #### COM-058 — Protect commercial journeys from abuse
+
+Status: in progress — checkout/support limits, honeypot, trial/code constraints, replay protection and audited overrides exist; recovery throttles and false-positive monitoring remain.
 
 As the platform owner, I need fraud and abuse controls so that discounts,
 trials, checkout and support recovery cannot be exploited cheaply.
@@ -847,6 +928,8 @@ Acceptance:
 
 #### COM-059 — Retain and delete commercial data correctly
 
+Status: in progress — per-record retention, anonymisation and observable run contracts are documented/implemented; the idempotent scheduled minimisation job and production processor evidence remain.
+
 As a customer, I need commercial records retained only as required while valid
 financial and entitlement evidence is preserved.
 
@@ -862,6 +945,8 @@ Acceptance:
 
 #### COM-050 — Monitor capacity and commercial cost thresholds
 
+Status: in progress — monthly usage/cost data and 70/85/95 percent runbook thresholds are implemented; Supabase/Vercel console alerts and first live review remain external actions.
+
 As the operator, I need alerts before platform limits or unexpected charges are
 reached so that growth does not interrupt paid teams.
 
@@ -873,6 +958,8 @@ Acceptance:
 - Cost per active and paid team-season is reviewed monthly.
 
 #### COM-051 — Support commercial corrections safely
+
+Status: in progress — least-privilege inspection and audited single-entitlement correction functions/operator cases exist; admin UI and explicit bulk preview/confirmation remain.
 
 As support staff, I need controlled tools for correcting access so that customer
 problems can be resolved without direct database editing.

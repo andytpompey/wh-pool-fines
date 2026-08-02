@@ -5,7 +5,19 @@ import { formatMoney, getPublishedTeamSeasonOffer } from '../lib/commercial'
 const NAV = [['Home','/'],['How it works','/how-it-works'],['Leagues','/leagues'],['Pricing','/pricing'],['Help','/help'],['Status','/status']]
 
 export default function PublicMarketingPage({ page }) {
-  useEffect(() => { document.title = `${title(page)} | RooBin` }, [page])
+  useEffect(() => {
+    const pageTitle = `${title(page)} | RooBin`
+    const description = descriptions[page] ?? descriptions.home
+    const canonical = new URL(location.pathname, import.meta.env.VITE_PUBLIC_SITE_ORIGIN || location.origin).toString()
+    document.title = pageTitle
+    setMeta('meta[name="description"]', 'name', 'description', description)
+    setMeta('meta[property="og:title"]', 'property', 'og:title', pageTitle)
+    setMeta('meta[property="og:description"]', 'property', 'og:description', description)
+    setMeta('meta[property="og:url"]', 'property', 'og:url', canonical)
+    let link = document.querySelector('link[rel="canonical"]')
+    if (!link) { link = document.createElement('link'); link.rel = 'canonical'; document.head.appendChild(link) }
+    link.href = canonical
+  }, [page])
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="border-b border-zinc-800 bg-black/80 px-4 py-4">
@@ -62,3 +74,5 @@ function Steps({items}){return <section className="mx-auto max-w-4xl space-y-4 p
 function CTA(){return <section className="mx-auto max-w-5xl px-4 pb-16"><div className="rounded-3xl bg-amber-500 p-8 text-zinc-950"><h2 className="text-3xl font-black">Ready to bin the spreadsheet?</h2><div className="mt-5 flex gap-3"><a href="/app" className="rounded-lg bg-zinc-950 px-5 py-3 font-bold text-white">Open RooBin</a><a href="/pricing" className="rounded-lg border border-zinc-900 px-5 py-3 font-bold">See pricing</a></div></div></section>}
 function Footer(){return <footer className="border-t border-zinc-800 px-4 py-8 text-sm text-zinc-500"><div className="mx-auto flex max-w-5xl flex-wrap gap-5"><span>© 2026 RooBin / TroveFinds</span><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/support">Support & deletion</a><a href="/contact">Contact</a></div></footer>}
 function title(page){return({home:'Team fines tracker',how:'How it works',leagues:'Leagues',pricing:'Pricing',help:'Help',contact:'Contact',status:'Service status'})[page]??'RooBin'}
+const descriptions={home:'Keep pub-sports team fixtures, fines, subs and payment status in one shared place.',how:'See how RooBin takes a team from fixture to settled fines and subs ledger.',leagues:'Run a controlled RooBin league pilot with consistent team access and support.',pricing:'RooBin Fines Team costs £10 per team per normal playing cycle.',help:'Help for joining teams, seasons, paid access, renewal, expiry and App Store restore.',contact:'Contact RooBin support or enquire about a league pilot.',status:'Current RooBin component status and recent service incidents.'}
+function setMeta(selector,attribute,key,content){let element=document.querySelector(selector);if(!element){element=document.createElement('meta');element.setAttribute(attribute,key);document.head.appendChild(element)}element.setAttribute('content',content)}

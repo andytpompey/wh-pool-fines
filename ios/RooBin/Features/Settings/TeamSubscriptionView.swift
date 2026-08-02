@@ -35,6 +35,9 @@ struct TeamSubscriptionView: View {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(cycle.name).font(.headline)
                                 Text(boundaryText(cycle)).font(.caption).foregroundStyle(RooBinTheme.Colors.secondaryText)
+                                if let purchaser = cycle.entitlementPurchaser {
+                                    Text("Purchaser: \(purchaser)").font(.caption2).foregroundStyle(RooBinTheme.Colors.secondaryText)
+                                }
                             }
                             Spacer()
                             Text(cycle.entitlementState.capitalized)
