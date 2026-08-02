@@ -5,12 +5,14 @@ import * as teamModel from '../lib/teamModel'
 import * as rackem from '../lib/rackem'
 import { validateTeamLogo } from '../lib/teamLogo'
 import { TEAM_ROLE } from '../lib/permissions'
+import TeamSubscriptionPanel from './TeamSubscriptionPanel'
 
 const TABS = [
   { id: 'players', label: 'Players' },
   { id: 'invites', label: 'Invites' },
   { id: 'fines', label: 'Fines' },
   { id: 'seasons', label: 'Seasons' },
+  { id: 'subscription', label: 'Subscription' },
   { id: 'settings', label: 'Settings' },
   { id: 'security', label: 'Security' },
 ]
@@ -119,6 +121,10 @@ export default function TeamManagementPage({
           onSavePlayerDetails={onSavePlayerDetails}
           onRemoveMember={onRemoveMember}
         />
+      )}
+
+      {activeTab === 'subscription' && (
+        <TeamSubscriptionPanel team={team} seasons={seasons} canManageTeam={canManageTeam} />
       )}
 
       {activeTab === 'invites' && (
