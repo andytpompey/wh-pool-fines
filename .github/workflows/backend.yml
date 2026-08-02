@@ -29,7 +29,7 @@ jobs:
             for attempt in {1..30}; do
               response_code=$(curl --silent --output "$response_file" --write-out '%{http_code}' \
                 --request POST "http://127.0.0.1:54321/functions/v1/${function_name}" || true)
-              if [[ "$response_code" == "401" ]]; then
+              if [[ "$response_code" == "401" ]] && grep --quiet 'Not authorised' "$response_file"; then
                 break
               fi
               sleep 1
