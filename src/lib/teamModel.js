@@ -9,110 +9,6 @@ function handle(result) {
   return result.data
 }
 
-const UNLOCK_CODE_HASH_ITERATIONS = 210000
-const UNLOCK_CODE_KEY = 'PBKDF2'
-const UNLOCK_CODE_HASH = 'SHA-256'
-const UNLOCK_CODE_VERSION = 1
-const MAX_VERIFY_ATTEMPTS = 5
-const MAX_RESET_ATTEMPTS = 3
-const VERIFY_WINDOW_MS = 5 * 60 * 1000
-const RESET_WINDOW_MS = 15 * 60 * 1000
-
-function getRandomBytes(size) {
-  const bytes = new Uint8Array(size)
-  crypto.getRandomValues(bytes)
-  return bytes
-}
-
-function bufferToHex(buffer) {
-  return Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, '0')).join('')
-}
-
-function timingSafeEqualHex(left, right) {
-  if (!left || !right) return false
-  const leftBytes = left.match(/.{1,2}/g)?.map(part => Number.parseInt(part, 16)) ?? []
-  const rightBytes = right.match(/.{1,2}/g)?.map(part => Number.parseInt(part, 16)) ?? []
-  const length = Math.max(leftBytes.length, rightBytes.length)
-  let mismatch = leftBytes.length === rightBytes.length ? 0 : 1
-  for (let index = 0; index < length; index += 1) {
-    mismatch |= (leftBytes[index] ?? 0) ^ (rightBytes[index] ?? 0)
-  }
-  return mismatch === 0
-}
-
-async function deriveUnlockCodeHash({ unlockCode, saltHex, iterations = UNLOCK_CODE_HASH_ITERATIONS }) {
-  const normalizedUnlockCode = unlockCode?.trim()
-  if (!normalizedUnlockCode) throw new Error('Unlock code is required.')
-  const secret = await crypto.subtle.importKey('raw', new TextEncoder().encode(normalizedUnlockCode), UNLOCK_CODE_KEY, false, ['deriveBits'])
-  const salt = Uint8Array.from((saltHex.match(/.{1,2}/g) ?? []).map(part => Number.parseInt(part, 16)))
-  const bits = await crypto.subtle.deriveBits({ name: UNLOCK_CODE_KEY, hash: UNLOCK_CODE_HASH, salt, iterations }, secret, 256)
-  return bufferToHex(bits)
-}
-
-async function hashNewUnlockCode(unlockCode) {
-  const saltHex = bufferToHex(getRandomBytes(16))
-  const hashHex = await deriveUnlockCodeHash({ unlockCode, saltHex })
-  return {
-    unlock_code_hash: hashHex,
-    unlock_code_salt: saltHex,
-    unlock_code_hash_algorithm: 'pbkdf2-sha256',
-    unlock_code_hash_iterations: UNLOCK_CODE_HASH_ITERATIONS,
-    unlock_code_version: UNLOCK_CODE_VERSION,
-  }
-}
-
-function getRateLimitState(key) {
-  try {
-    return JSON.parse(localStorage.getItem(key) || 'null') || { count: 0, start: Date.now() }
-  } catch {
-    return { count: 0, start: Date.now() }
-  }
-}
-
-function checkRateLimit({ scope, teamId, limit, windowMs }) {
-  const key = `roo-bin:${scope}:${teamId}`
-  const now = Date.now()
-  const state = getRateLimitState(key)
-  if (now - state.start > windowMs) {
-    localStorage.setItem(key, JSON.stringify({ count: 1, start: now }))
-    return
-  }
-  if (state.count >= limit) throw new Error('Too many attempts. Please wait and try again.')
-  localStorage.setItem(key, JSON.stringify({ count: state.count + 1, start: state.start }))
-}
-
-function clearRateLimit({ scope, teamId }) {
-  localStorage.removeItem(`roo-bin:${scope}:${teamId}`)
-}
-
-async function notifyCaptainsOfUnlockCode({ captainContacts, teamName, unlockCode, reason }) {
-  const endpoint = import.meta.env.VITE_TEAM_UNLOCK_CODE_EMAIL_URL
-  const recipients = captainContacts.filter(contact => contact?.email && contact.receiveTeamNotifications !== false)
-  if (!recipients.length) {
-    return { delivered: false, message: 'Unlock code rotated, but no captain notification recipients were available.' }
-  }
-  if (!endpoint) {
-    return { delivered: false, message: 'Unlock code rotated. Captain notification delivery is not configured yet.' }
-  }
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      teamName,
-      unlockCode,
-      reason,
-      recipients: recipients.map(recipient => ({
-        email: recipient.email,
-        playerName: recipient.playerName,
-      })),
-    }),
-  })
-  const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body?.error || 'Failed to deliver unlock code notifications.')
-  return { delivered: true, message: body?.message || 'Unlock code notifications sent.' }
-}
-
 export const ROLE_LABELS = {
   [TEAM_ROLE.CAPTAIN]: getTeamRoleLabel(TEAM_ROLE.CAPTAIN),
   [TEAM_ROLE.VICE_CAPTAIN]: getTeamRoleLabel(TEAM_ROLE.VICE_CAPTAIN),
@@ -134,18 +30,18 @@ export function canCaptainManageRoles(role) {
 }
 
 export async function createTeam({ name, createdBy, joinCode = null }) {
-  return handle(await supabase
-    .from('teams')
-    .insert({ name, created_by: createdBy ?? null, join_code: joinCode })
-    .select('*')
-    .single())
+  void createdBy
+  return handle(await supabase.rpc('create_team_with_captain', {
+    team_name: name,
+    requested_join_code: joinCode,
+  }))
 }
 
 export async function getTeamById(teamId) {
   if (!teamId) return null
   const row = handle(await supabase
     .from('teams')
-    .select('*')
+    .select('id, name, join_code, created_by, created_at, unlock_code_last_rotated_at, unlock_code_reset_required, unlock_code_reset_requested_at, subs_enabled, drivers_void_subs, sub_amount, logo_url, rackem_import_enabled, rackem_league_slug, rackem_league_name, rackem_team_id, rackem_team_name, rackem_team_url')
     .eq('id', teamId)
     .maybeSingle())
   return row ?? null
@@ -155,10 +51,17 @@ export async function getTeamByJoinCode(joinCode) {
   if (!joinCode) return null
   const row = handle(await supabase
     .from('teams')
-    .select('*')
+    .select('id, name, join_code, created_by, created_at')
     .eq('join_code', joinCode.trim().toUpperCase())
     .maybeSingle())
   return row ?? null
+}
+
+export async function joinTeamByCode(joinCode) {
+  if (!joinCode) throw new Error('Join code is required.')
+  return handle(await supabase.rpc('join_team_by_code', {
+    requested_join_code: joinCode.trim().toUpperCase(),
+  }))
 }
 
 export async function addTeamMembership({ teamId, playerId, role = TEAM_ROLE.MEMBER, status = 'active' }) {
@@ -200,24 +103,15 @@ export async function changeTeamMemberRole({ membershipId, nextRole, actorMember
 }
 
 export async function transferCaptaincy({ teamId, actorMembership, incomingCaptainMembershipId, outgoingCaptainMembershipId, incomingCaptainPlayerId = null }) {
-  const promoted = await updateTeamMembership({ membershipId: incomingCaptainMembershipId, role: TEAM_ROLE.CAPTAIN })
-  if (outgoingCaptainMembershipId) {
-    await updateTeamMembership({ membershipId: outgoingCaptainMembershipId, role: TEAM_ROLE.MEMBER })
-  }
-  await logAuditEventSafely({
-    action: AUDIT_ACTION.TEAM_CAPTAIN_CHANGED,
-    teamId,
-    actorMembership,
-    outcome: 'success',
-    targetEntityType: 'team',
-    targetEntityId: teamId,
-    payload: {
-      outgoingCaptainMembershipId,
-      incomingCaptainMembershipId,
-      incomingCaptainPlayerId,
-    },
-  })
-  return promoted
+  void actorMembership
+  void incomingCaptainPlayerId
+  if (!outgoingCaptainMembershipId) throw new Error('Current captain membership is required.')
+  return handle(await supabase.rpc('transfer_team_captain', {
+    operation_id: crypto.randomUUID(),
+    target_team_id: teamId,
+    incoming_membership_id: incomingCaptainMembershipId,
+    outgoing_membership_id: outgoingCaptainMembershipId,
+  }))
 }
 
 export async function removeTeamMember({ membershipId, actorMembership, teamId, targetPlayerId = null, previousRole = null }) {
@@ -367,40 +261,26 @@ export async function getPendingInviteByToken(token) {
   return row ?? null
 }
 
-async function updateTeamUnlockCodeRecord({ teamId, unlockCode, resetRequired = false }) {
-  if (!teamId) throw new Error('Team is required.')
-  const hashedPayload = await hashNewUnlockCode(unlockCode)
-  clearRateLimit({ scope: 'unlock-verify', teamId })
-  clearRateLimit({ scope: 'unlock-reset', teamId })
-  return handle(await supabase
-    .from('teams')
-    .update({
-      ...hashedPayload,
-      unlock_code_reset_required: resetRequired,
-      unlock_code_last_rotated_at: new Date().toISOString(),
-      unlock_code_reset_requested_at: new Date().toISOString(),
-    })
-    .eq('id', teamId)
-    .select('*')
-    .single())
+export async function acceptInviteByToken(token) {
+  if (!token) throw new Error('Invitation token is required.')
+  return handle(await supabase.rpc('accept_team_invite_by_token', { invite_token: token }))
 }
 
-async function auditUnlockCodeVerification({ teamId, actorMembership, platformRole = null, outcome, action }) {
-  await logAuditEventSafely({
-    action,
-    teamId,
-    actorMembership,
-    platformRole,
-    outcome,
-    targetEntityType: 'team',
-    targetEntityId: teamId,
-  })
+async function updateTeamUnlockCodeRecord({ teamId, unlockCode, resetRequired = false }) {
+  if (!teamId) throw new Error('Team is required.')
+  if (resetRequired) throw new Error('Unlock-code recovery must be completed by the server recovery flow.')
+  return handle(await supabase.rpc('set_team_unlock_code', {
+    target_team_id: teamId,
+    new_unlock_code: unlockCode,
+  }))
 }
 
 export async function setTeamUnlockCode({ teamId, unlockCode, actorMembership }) {
   assertActionAccess({ action: APP_ACTION.MANAGE_UNLOCK_CODE, membership: actorMembership, message: 'Only captains can set a team unlock code.' })
   const existingTeam = await getTeamById(teamId)
-  if (existingTeam?.unlock_code_hash) throw new Error('Unlock code already exists. Use change unlock code instead.')
+  if (existingTeam?.unlock_code_reset_required === false && existingTeam?.unlock_code_last_rotated_at) {
+    throw new Error('Unlock code already exists. Use change unlock code instead.')
+  }
   const updatedTeam = await updateTeamUnlockCodeRecord({ teamId, unlockCode, resetRequired: false })
   await logAuditEventSafely({
     action: AUDIT_ACTION.UNLOCK_CODE_SET,
@@ -415,7 +295,13 @@ export async function setTeamUnlockCode({ teamId, unlockCode, actorMembership })
 
 export async function changeTeamUnlockCode({ teamId, currentUnlockCode, nextUnlockCode, actorMembership }) {
   assertActionAccess({ action: APP_ACTION.MANAGE_UNLOCK_CODE, membership: actorMembership, message: 'Only captains can change a team unlock code.' })
-  const currentValid = await verifyTeamUnlockCode({ teamId, unlockCode: currentUnlockCode, actorMembership, action: AUDIT_ACTION.UNLOCK_CODE_CHANGED })
+  const currentValid = await verifyTeamUnlockCode({
+    teamId,
+    unlockCode: currentUnlockCode,
+    actorMembership,
+    action: AUDIT_ACTION.UNLOCK_CODE_CHANGED,
+    targetEntityId: 'change_unlock_code',
+  })
   if (!currentValid) throw new Error('Current unlock code is incorrect.')
   const updatedTeam = await updateTeamUnlockCodeRecord({ teamId, unlockCode: nextUnlockCode, resetRequired: false })
   await logAuditEventSafely({
@@ -429,84 +315,50 @@ export async function changeTeamUnlockCode({ teamId, currentUnlockCode, nextUnlo
   return updatedTeam
 }
 
-function generateTeamUnlockCode() {
-  return Array.from(getRandomBytes(6), byte => (byte % 10).toString()).join('')
-}
-
 export async function verifyTeamUnlockCode({ teamId, unlockCode, actorMembership = null, platformRole = null, action = AUDIT_ACTION.UNLOCK_CODE_VERIFICATION, targetEntityType = 'team', targetEntityId = null } = {}) {
   if (!teamId || !unlockCode?.trim()) return false
-  checkRateLimit({ scope: 'unlock-verify', teamId, limit: MAX_VERIFY_ATTEMPTS, windowMs: VERIFY_WINDOW_MS })
-  const team = await getTeamById(teamId)
-  if (!team?.unlock_code_hash || !team?.unlock_code_salt) {
-    await auditUnlockCodeVerification({ teamId, actorMembership, platformRole, outcome: 'failure', action })
-    return false
-  }
-  const unlockCodeHash = await deriveUnlockCodeHash({
-    unlockCode: unlockCode.trim(),
-    saltHex: team.unlock_code_salt,
-    iterations: team.unlock_code_hash_iterations || UNLOCK_CODE_HASH_ITERATIONS,
-  })
-  const matched = timingSafeEqualHex(unlockCodeHash, team.unlock_code_hash)
-  if (matched) clearRateLimit({ scope: 'unlock-verify', teamId })
-  await logAuditEventSafely({
-    action,
-    teamId,
-    actorMembership,
-    platformRole,
-    outcome: matched ? 'success' : 'failure',
-    targetEntityType,
-    targetEntityId: targetEntityId ?? teamId,
-  })
-  return matched
+  void actorMembership
+  void platformRole
+  void targetEntityType
+  const protectedAction = targetEntityId ?? action
+  const result = handle(await supabase.rpc('verify_team_unlock_code', {
+    target_team_id: teamId,
+    protected_action: protectedAction,
+    supplied_unlock_code: unlockCode.trim(),
+  }))
+  return result?.authorized ? result : false
 }
 
 export async function requestCaptainUnlockCodeReset({ teamId, actorMembership, verificationMethod, verificationTarget, otpToken, captainContacts = [], teamName }) {
   assertActionAccess({ action: APP_ACTION.MANAGE_UNLOCK_CODE, membership: actorMembership, message: 'Only captains can request an unlock code reset.' })
-  checkRateLimit({ scope: 'unlock-reset', teamId, limit: MAX_RESET_ATTEMPTS, windowMs: RESET_WINDOW_MS })
-  if (verificationMethod === 'whatsapp') await auth.verifyWhatsAppOtp(verificationTarget, otpToken)
-  else await auth.verifyEmailOtp(verificationTarget, otpToken)
-
-  const newUnlockCode = generateTeamUnlockCode()
-  await updateTeamUnlockCodeRecord({ teamId, unlockCode: newUnlockCode, resetRequired: false })
-  const notification = await notifyCaptainsOfUnlockCode({ captainContacts, teamName, unlockCode: newUnlockCode, reason: 'captain_recovery' })
-  await logAuditEventSafely({
-    action: AUDIT_ACTION.UNLOCK_CODE_RESET_REQUESTED_BY_CAPTAIN,
-    teamId,
-    actorMembership,
-    outcome: 'success',
-    targetEntityType: 'team',
-    targetEntityId: teamId,
-    payload: { verificationMethod, notificationDelivered: Boolean(notification?.delivered) },
-  })
-  return { success: true, notification }
+  void captainContacts
+  void teamName
+  const verification = verificationMethod === 'whatsapp'
+    ? await auth.verifyWhatsAppOtp(verificationTarget, otpToken)
+    : await auth.verifyEmailOtp(verificationTarget, otpToken)
+  if (!verification?.session) throw new Error('Recent identity verification is required.')
+  const result = handle(await supabase.functions.invoke('team-communications', {
+    body: { action: 'reset-unlock-code', teamId, reason: 'captain_recovery' },
+  }))
+  return { success: true, notification: result }
 }
 
 export async function triggerAdminUnlockCodeReset({ teamId, platformRole, actorMembership = null, captainContacts = [], teamName }) {
   assertActionAccess({ action: APP_ACTION.ADMIN_RESET_UNLOCK_CODE, platformRole, message: 'Only platform admins can trigger team unlock code resets.' })
-  const newUnlockCode = generateTeamUnlockCode()
-  await updateTeamUnlockCodeRecord({ teamId, unlockCode: newUnlockCode, resetRequired: false })
-  const notification = await notifyCaptainsOfUnlockCode({ captainContacts, teamName, unlockCode: newUnlockCode, reason: 'platform_admin_reset' })
-  await logAuditEventSafely({
-    action: AUDIT_ACTION.UNLOCK_CODE_RESET_TRIGGERED_BY_PLATFORM_ADMIN,
-    teamId,
-    actorMembership,
-    platformRole,
-    outcome: 'success',
-    targetEntityType: 'team',
-    targetEntityId: teamId,
-    payload: { notificationDelivered: Boolean(notification?.delivered) },
-  })
-  return { success: true, notification }
+  void actorMembership
+  void captainContacts
+  void teamName
+  const result = handle(await supabase.functions.invoke('team-communications', {
+    body: { action: 'reset-unlock-code', teamId, reason: 'platform_admin_reset' },
+  }))
+  return { success: true, notification: result }
 }
 
 export async function markTeamUnlockCodeResetRequired(teamId) {
   if (!teamId) throw new Error('Team is required.')
-  return handle(await supabase
-    .from('teams')
-    .update({ unlock_code_hash: null, unlock_code_salt: null, unlock_code_reset_required: true })
-    .eq('id', teamId)
-    .select('*')
-    .single())
+  return handle(await supabase.rpc('mark_team_unlock_reset_required', {
+    target_team_id: teamId,
+  }))
 }
 
 
@@ -516,17 +368,19 @@ function getAppActionForProtectedAction(action) {
 
 export async function canActorPerformProtectedAction({ action, membership, platformRole, teamId, unlockCode }) {
   if (!PROTECTED_ACTIONS.includes(action)) return false
-  const unlockCodeVerified = await verifyTeamUnlockCode({ teamId, unlockCode, actorMembership: membership, platformRole, action: AUDIT_ACTION.UNLOCK_CODE_VERIFICATION, targetEntityType: 'protected_action', targetEntityId: action })
-  return canAccessAction({ action: getAppActionForProtectedAction(action), membership, platformRole, unlockCodeVerified })
+  const authorization = await verifyTeamUnlockCode({ teamId, unlockCode, actorMembership: membership, platformRole, action: AUDIT_ACTION.UNLOCK_CODE_VERIFICATION, targetEntityType: 'protected_action', targetEntityId: action })
+  return canAccessAction({ action: getAppActionForProtectedAction(action), membership, platformRole, unlockCodeVerified: Boolean(authorization) })
+    ? authorization
+    : false
 }
 
 export async function assertProtectedActionAccess({ action, membership, platformRole, teamId, unlockCode, message = 'Forbidden' }) {
   const protectedAction = getProtectedActionForAppAction(action) ?? action
   if (!PROTECTED_ACTIONS.includes(protectedAction)) throw new Error('Unsupported protected action.')
-  const unlockCodeVerified = await verifyTeamUnlockCode({ teamId, unlockCode, actorMembership: membership, platformRole, action: AUDIT_ACTION.UNLOCK_CODE_VERIFICATION, targetEntityType: 'protected_action', targetEntityId: protectedAction })
+  const authorization = await verifyTeamUnlockCode({ teamId, unlockCode, actorMembership: membership, platformRole, action: AUDIT_ACTION.UNLOCK_CODE_VERIFICATION, targetEntityType: 'protected_action', targetEntityId: protectedAction })
   const appAction = getProtectedActionForAppAction(action) ? action : getAppActionForProtectedAction(protectedAction)
-  assertActionAccess({ action: appAction, membership, platformRole, unlockCodeVerified, message })
-  return true
+  assertActionAccess({ action: appAction, membership, platformRole, unlockCodeVerified: Boolean(authorization), message })
+  return authorization.grantToken
 }
 
 const normaliseMembership = row => ({

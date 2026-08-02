@@ -16,6 +16,7 @@ import FinesTab   from './components/FinesTab'
 import Dashboard  from './components/Dashboard'
 import AuthGate   from './components/AuthGate'
 import TeamManagementPage from './components/TeamManagementPage'
+import PublicInfoPage from './components/PublicInfoPage'
 
 export const ADMIN_PIN = '1234'
 const APP_BANNER_PATHS = [
@@ -27,6 +28,10 @@ const TEAM_STORAGE_KEY = 'wh_current_team_id'
 
 function getRoute() {
   const path = window.location.pathname || '/'
+  if (path === '/privacy') return { name: 'privacy', teamId: null }
+  if (path === '/support' || path === '/account-deletion') return { name: 'support', teamId: null }
+  if (path === '/terms') return { name: 'terms', teamId: null }
+  if (path === '/invite') return { name: 'invite', teamId: null, token: new URLSearchParams(window.location.search).get('token') || '' }
   if (path === '/teams') return { name: 'app', teamId: null }
   if (path === '/profile') return { name: 'profile', teamId: null }
   if (path === '/teams/new') return { name: 'create-team', teamId: null }
@@ -46,6 +51,30 @@ function isSettingsRoute(routeName) {
   return ['profile', 'create-team', 'join-team', 'team'].includes(routeName)
 }
 
+function InviteAcceptancePage({ token, onAccept, saving }) {
+  const [status, setStatus] = useState({ error: '', success: '' })
+  const accept = async () => {
+    setStatus({ error: '', success: '' })
+    try {
+      const team = await onAccept(token)
+      setStatus({ error: '', success: `You joined ${team.name}.` })
+    } catch (error) {
+      setStatus({ error: error?.message ?? 'This invitation is invalid or unavailable.', success: '' })
+    }
+  }
+  return (
+    <div className="max-w-lg mx-auto px-4 pt-6">
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+        <h1 className="font-display text-2xl font-bold text-white">Team invitation</h1>
+        <p className="mt-2 text-sm text-zinc-400">Sign in with the email address that received the invitation, then accept it here.</p>
+        {status.error && <p className="mt-3 text-sm text-red-400">{status.error}</p>}
+        {status.success && <p className="mt-3 text-sm text-emerald-400">{status.success}</p>}
+        {!status.success && <Btn className="mt-4" onClick={accept} disabled={saving || !token}>{saving ? 'Joining...' : 'Accept invitation'}</Btn>}
+      </div>
+    </div>
+  )
+}
+
 export function uuid() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
@@ -62,10 +91,6 @@ export function uuid() {
     const v = c === 'x' ? r : (r & 0x3 | 0x8)
     return v.toString(16)
   })
-}
-
-function generateJoinCode() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase()
 }
 
 export function formatDate(dateStr) {
@@ -657,7 +682,7 @@ export default function App() {
 
   const withProtectedAction = useCallback((action, fn, message) => async (unlockCode) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
-    await teamModel.assertProtectedActionAccess({
+    const grantToken = await teamModel.assertProtectedActionAccess({
       action,
       membership: currentTeamMembership,
       platformRole: memberContext.platformRole,
@@ -665,7 +690,7 @@ export default function App() {
       unlockCode,
       message,
     })
-    return fn()
+    return fn(grantToken)
   }), [currentTeamId, currentTeamMembership, memberContext.platformRole])
 
   const handleSaveProfile = useCallback((updates) => withSave(async () => {
@@ -707,19 +732,7 @@ export default function App() {
     if (!teamName?.trim()) throw new Error('Team name is required.')
 
     const player = await userProfileDb.ensureCurrentUserPlayer({ user: session.user })
-    let joinCode = ''
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const candidate = generateJoinCode()
-      const existing = await teamModel.getTeamByJoinCode(candidate)
-      if (!existing) {
-        joinCode = candidate
-        break
-      }
-    }
-    if (!joinCode) throw new Error('Could not generate a unique join code. Please try again.')
-
-    const team = await teamModel.createTeam({ name: teamName.trim(), createdBy: player.id, joinCode })
-    await teamModel.addTeamMembership({ teamId: team.id, playerId: player.id, role: TEAM_ROLE.CAPTAIN, status: 'active' })
+    const team = await teamModel.createTeam({ name: teamName.trim(), createdBy: player.id })
     const context = await refreshMemberContext(session.user, { name: 'team', teamId: team.id })
     setProfile(context?.profile ?? profile)
     navigate(`/teams/${team.id}`)
@@ -749,68 +762,19 @@ export default function App() {
     if (!displayName) throw new Error('Display name is required.')
     if (!email) throw new Error('Email is required.')
 
-    const notes = []
-    let player = await db.findPlayerByEmail(email)
-    if (player?.authUserId) notes.push('Existing user matched by email.')
-    else if (player) notes.push('Existing player matched by email.')
-
-    if (!player) {
-      player = await db.createOrReusePlayerByEmail({ email, displayName })
-      notes.push('New player created and invited.')
-      setPlayers(prev => [...prev.filter(existing => existing.id !== player.id), player].sort((a, b) => a.name.localeCompare(b.name)))
-    }
-
-    const existingMembership = await teamModel.getTeamMembership({ teamId: currentTeamId, playerId: player.id })
-    const inviteToken = teamInvites.generateSecureInviteToken()
-
-    if (existingMembership?.status === 'active') {
-      await teamModel.upsertPendingTeamInvite({
-        teamId: currentTeamId,
-        email,
-        token: inviteToken,
-        playerId: player.id,
-        invitedByPlayerId: memberContext.player?.id ?? null,
-        expiresAt: null,
-      })
-      notes.unshift('Already on team.')
-      await loadTeamRoster(currentTeamId)
-      return {
-        message: `${player.name} is already an active member of ${currentTeamMembership.team.name}.`,
-        notes,
-      }
-    }
-
-    await teamModel.addTeamMembership({
-      teamId: currentTeamId,
-      playerId: player.id,
-      role: normaliseTeamRole(existingMembership?.role) || TEAM_ROLE.MEMBER,
-      status: 'active',
-    })
-
-    await teamModel.upsertPendingTeamInvite({
+    const inviteResult = await teamInvites.createAndSendTeamInvite({
       teamId: currentTeamId,
       email,
-      token: inviteToken,
-      playerId: player.id,
-      invitedByPlayerId: memberContext.player?.id ?? null,
-      expiresAt: null,
+      displayName,
     })
-
-    const emailResult = await teamInvites.sendTeamInviteEmail({
-      email,
-      teamName: currentTeamMembership.team.name,
-      inviteToken,
-      invitedPlayerName: player.name,
-    })
-    notes.push(emailResult.message)
 
     await Promise.all([loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
 
     return {
-      message: `${player.name} has been added to ${currentTeamMembership.team.name} and invite tracking is up to date.`,
-      notes,
+      message: `${inviteResult.playerName || displayName} has been added to ${currentTeamMembership.team.name}.`,
+      notes: [inviteResult.message],
     }
-  }), [currentTeamId, currentTeamMembership, loadTeamRoster, memberContext.player?.id, refreshMemberContext, session?.user])
+  }), [currentTeamId, currentTeamMembership, loadTeamRoster, memberContext.platformRole, refreshMemberContext, session?.user])
 
 
   const handleJoinTeam = useCallback((joinCode) => withSave(async () => {
@@ -819,8 +783,15 @@ export default function App() {
     if (!normalizedJoinCode) throw new Error('Enter a team join code.')
 
     const player = await userProfileDb.ensureCurrentUserPlayer({ user: session.user })
-    const team = await teamModel.getTeamByJoinCode(normalizedJoinCode)
-    if (!team) throw new Error('That join code is invalid. Check the code and try again.')
+    let team
+    try {
+      team = await teamModel.joinTeamByCode(normalizedJoinCode)
+    } catch (error) {
+      if (error?.message?.includes('Invalid join code')) {
+        throw new Error('That join code is invalid. Check the code and try again.')
+      }
+      throw error
+    }
 
     const existingMembership = await teamModel.getTeamMembership({ teamId: team.id, playerId: player.id })
     if (existingMembership?.status === 'active') {
@@ -833,7 +804,6 @@ export default function App() {
       }
     }
 
-    await teamModel.addTeamMembership({ teamId: team.id, playerId: player.id, role: TEAM_ROLE.MEMBER, status: 'active' })
     if (player.email) {
       await teamModel.acceptTeamInvite({ teamId: team.id, email: player.email, playerId: player.id })
     }
@@ -845,6 +815,16 @@ export default function App() {
       team,
       message: `You joined ${team.name} successfully.`,
     }
+  }), [loadTeamRoster, refreshMemberContext, session?.user])
+
+  const handleAcceptInvite = useCallback((token) => withSave(async () => {
+    if (!session?.user) throw new Error('Sign in with the invited email address first.')
+    if (!token) throw new Error('Invitation token is missing.')
+    const team = await teamModel.acceptInviteByToken(token)
+    await refreshMemberContext(session.user, { name: 'team', teamId: team.id })
+    await loadTeamRoster(team.id)
+    navigate(`/teams/${team.id}`, { replace: true })
+    return team
   }), [loadTeamRoster, refreshMemberContext, session?.user])
 
   const handleUpdateMemberRole = useCallback((member, nextRole) => withSave(async () => {
@@ -922,7 +902,7 @@ export default function App() {
     await Promise.all([load(currentTeamId), loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
   }), [currentTeamId, currentTeamMembership, load, loadTeamRoster, players, refreshMemberContext, session?.user, teamRoster.members])
 
-  const handleRemoveMember = useCallback((member, unlockCode) => withProtectedAction(APP_ACTION.REMOVE_TEAM_MEMBER, async () => {
+  const handleRemoveMember = useCallback((member, unlockCode) => withProtectedAction(APP_ACTION.REMOVE_TEAM_MEMBER, async (grantToken) => {
     if (!currentTeamId) throw new Error('Select a team first.')
     if (!currentTeamMembership) throw new Error('You are not a member of this team.')
     assertActionAccess({ action: APP_ACTION.MANAGE_TEAM_OPERATIONS, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can remove players.' })
@@ -930,7 +910,7 @@ export default function App() {
     if (member.role === TEAM_ROLE.CAPTAIN) throw new Error('Transfer captaincy before removing the captain.')
     if (member.playerId === currentTeamMembership.playerId) throw new Error('You cannot remove yourself from the team here.')
 
-    await teamModel.removeTeamMember({ membershipId: member.id, actorMembership: currentTeamMembership, teamId: currentTeamId, targetPlayerId: member.playerId, previousRole: member.role })
+    await db.executeProtectedMutation({ grantToken, targetEntityType: 'team_membership', targetEntityId: member.id })
     await Promise.all([load(currentTeamId), loadTeamRoster(currentTeamId), refreshMemberContext(session?.user)])
   }, 'Unlock code verification is required to remove team members.')(unlockCode), [currentTeamId, currentTeamMembership, load, loadTeamRoster, refreshMemberContext, session?.user, withProtectedAction])
 
@@ -950,27 +930,12 @@ export default function App() {
     assertActionAccess({ action: APP_ACTION.MANAGE_TEAM_OPERATIONS, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can resend invites.' })
     if (!invite?.id || !invite?.email) throw new Error('Invite is required.')
 
-    const inviteToken = teamInvites.generateSecureInviteToken()
-    await teamModel.updateTeamInvite({
-      inviteId: invite.id,
-      token: inviteToken,
-      playerId: invite.playerId,
-      invitedByPlayerId: memberContext.player?.id ?? null,
-      expiresAt: null,
-    })
-
-    const invitedPlayerName = invite.playerName || invite.email
-    const emailResult = await teamInvites.sendTeamInviteEmail({
-      email: invite.email,
-      teamName: currentTeamMembership.team.name,
-      inviteToken,
-      invitedPlayerName,
-    })
+    const inviteResult = await teamInvites.resendTeamInvite(invite.id)
 
     await loadTeamRoster(currentTeamId)
 
-    return { message: emailResult.message }
-  }), [currentTeamId, currentTeamMembership, loadTeamRoster, memberContext.player?.id])
+    return { message: inviteResult.message }
+  }), [currentTeamId, currentTeamMembership, loadTeamRoster, memberContext.platformRole])
 
   const handleAddFineType = useCallback((payload) => withSave(async () => {
     if (!currentTeamId) throw new Error('Select a team first.')
@@ -996,10 +961,10 @@ export default function App() {
     return updated
   }), [currentTeamId, currentTeamMembership?.role])
 
-  const handleDeleteFineType = useCallback((fineType, unlockCode) => withProtectedAction(APP_ACTION.DELETE_FINE_TYPE, async () => {
+  const handleDeleteFineType = useCallback((fineType, unlockCode) => withProtectedAction(APP_ACTION.DELETE_FINE_TYPE, async (grantToken) => {
     if (!currentTeamId) throw new Error('Select a team first.')
     assertActionAccess({ action: APP_ACTION.MANAGE_FINE_TYPES, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can manage fine types.' })
-    await db.deleteFineTypeWithAudit({ id: fineType.id, teamId: currentTeamId, actorMembership: currentTeamMembership, platformRole: memberContext.platformRole, fineTypeName: fineType.name })
+    await db.executeProtectedMutation({ grantToken, targetEntityType: 'fine_type', targetEntityId: fineType.id })
     setFineTypes(prev => prev.filter(item => item.id !== fineType.id))
   }, 'Unlock code verification is required to delete fine types.')(unlockCode), [currentTeamId, currentTeamMembership?.role, withProtectedAction])
 
@@ -1023,10 +988,10 @@ export default function App() {
     return updated
   }), [currentTeamId, currentTeamMembership?.role])
 
-  const handleDeleteSeason = useCallback((season, unlockCode) => withProtectedAction(APP_ACTION.DELETE_SEASON, async () => {
+  const handleDeleteSeason = useCallback((season, unlockCode) => withProtectedAction(APP_ACTION.DELETE_SEASON, async (grantToken) => {
     if (!currentTeamId) throw new Error('Select a team first.')
     assertActionAccess({ action: APP_ACTION.MANAGE_SEASONS, membership: currentTeamMembership, platformRole: memberContext.platformRole, message: 'Only captains and vice-captains can manage seasons.' })
-    await db.deleteSeasonWithAudit({ id: season.id, teamId: currentTeamId, actorMembership: currentTeamMembership, platformRole: memberContext.platformRole, seasonName: season.name })
+    await db.executeProtectedMutation({ grantToken, targetEntityType: 'season', targetEntityId: season.id })
     setSeasons(prev => prev.filter(item => item.id !== season.id))
   }, 'Unlock code verification is required to delete seasons.')(unlockCode), [currentTeamId, currentTeamMembership?.role, withProtectedAction])
 
@@ -1177,6 +1142,10 @@ export default function App() {
     { label: 'Settings', icon: '⚙️', onClick: () => setIsMoreMenuOpen(open => !open), isActive: isInSettingsSection || isMoreMenuOpen },
   ]
 
+  if (['privacy', 'support', 'terms'].includes(route.name)) {
+    return <PublicInfoPage page={route.name} />
+  }
+
   if (authLoading) return <Spinner />
 
   return (
@@ -1226,7 +1195,9 @@ export default function App() {
           <div className="max-w-lg mx-auto px-4 pt-3">
             {!!saveError && <div className="mb-3 text-sm text-red-400 bg-red-950/40 border border-red-800/50 rounded-xl px-3 py-2">{saveError}</div>}
 
-            {route.name === 'profile' ? (
+            {route.name === 'invite' ? (
+              <InviteAcceptancePage token={route.token} onAccept={handleAcceptInvite} saving={saving} />
+            ) : route.name === 'profile' ? (
               <PlayerProfilePage
                 profile={profile}
                 currentUser={session?.user}

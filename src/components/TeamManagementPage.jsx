@@ -1173,7 +1173,7 @@ function TeamSecurityTab({ team, membership, platformRole, members, saving, onSe
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h3 className="font-bold text-white">Team unlock code</h3>
-            <p className="text-xs text-zinc-400">Unlock codes are stored as salted PBKDF2 hashes only and rotated immediately on every change or reset.</p>
+            <p className="text-xs text-zinc-400">Unlock codes are hashed and verified only on the server, with durable attempt limits and immediate rotation on every change or reset.</p>
           </div>
           <Badge color={team?.unlockCodeResetRequired ? 'red' : 'green'}>{team?.unlockCodeResetRequired ? 'Reset required' : 'Configured'}</Badge>
         </div>

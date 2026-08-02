@@ -1,50 +1,29 @@
-const inviteEmailEndpoint = import.meta.env.VITE_TEAM_INVITE_EMAIL_URL
+import { supabase } from './supabase'
 
-function normaliseEmail(email) {
-  return email?.trim().toLowerCase() ?? ''
+function handleFunctionResult({ data, error }) {
+  if (error) throw error
+  if (data?.error) throw new Error(data.error)
+  return data
 }
 
-function getRandomBytes(size) {
-  const bytes = new Uint8Array(size)
-  crypto.getRandomValues(bytes)
-  return bytes
+export async function createAndSendTeamInvite({ teamId, email, displayName }) {
+  if (!teamId) throw new Error('Team is required.')
+  if (!email?.trim()) throw new Error('Email is required.')
+  if (!displayName?.trim()) throw new Error('Display name is required.')
+
+  return handleFunctionResult(await supabase.functions.invoke('team-communications', {
+    body: {
+      action: 'invite',
+      teamId,
+      email: email.trim().toLowerCase(),
+      displayName: displayName.trim(),
+    },
+  }))
 }
 
-export function generateSecureInviteToken() {
-  return Array.from(getRandomBytes(24), byte => byte.toString(16).padStart(2, '0')).join('')
-}
-
-export async function sendTeamInviteEmail({ email, teamName, inviteToken, invitedPlayerName }) {
-  const normalizedEmail = normaliseEmail(email)
-  if (!normalizedEmail) throw new Error('Email is required.')
-
-  if (!inviteEmailEndpoint) {
-    return {
-      delivered: false,
-      mode: 'placeholder',
-      message: 'Invite saved. Email delivery is not configured yet.',
-    }
-  }
-
-  const response = await fetch(inviteEmailEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: normalizedEmail,
-      teamName,
-      inviteToken,
-      invitedPlayerName,
-    }),
-  })
-
-  const body = await response.json().catch(() => ({}))
-  if (!response.ok) {
-    throw new Error(body?.error || 'Failed to send team invite email.')
-  }
-
-  return {
-    delivered: true,
-    mode: 'configured',
-    message: body?.message || 'Invite email sent.',
-  }
+export async function resendTeamInvite(inviteId) {
+  if (!inviteId) throw new Error('Invite is required.')
+  return handleFunctionResult(await supabase.functions.invoke('team-communications', {
+    body: { action: 'resend', inviteId },
+  }))
 }

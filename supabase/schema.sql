@@ -1,3 +1,6 @@
+-- HISTORICAL REFERENCE ONLY — DO NOT EXECUTE.
+-- Use the ordered files in supabase/migrations for all database provisioning.
+--
 -- Fix-forward migration: tighten RLS, consolidate player auth linkage, and add team ownership.
 -- This migration is intentionally incremental/non-destructive for deployed environments.
 
@@ -15,6 +18,7 @@ create table if not exists players (
   user_id                uuid,
   receive_team_notifications boolean not null default true,
   dashboard_season_preferences jsonb not null default '{}'::jsonb,
+  profile_completed_at   timestamptz,
   created_at             timestamptz default now(),
   constraint players_auth_contact_check check (email is not null)
 );
@@ -98,7 +102,7 @@ begin
 
   if fallback_team_id is null then
     insert into teams (name, join_code)
-    values ('White Horse', encode(gen_random_bytes(5), 'hex'))
+    values ('White Horse', encode(extensions.gen_random_bytes(5), 'hex'))
     returning id into fallback_team_id;
   end if;
 
@@ -372,6 +376,7 @@ for each row execute function sync_player_profile_columns();
 create or replace function generate_team_join_code()
 returns text
 language plpgsql
+set search_path = ''
 as $$
 declare
   generated_code text;
@@ -379,10 +384,10 @@ declare
 begin
   loop
     attempt_count := attempt_count + 1;
-    generated_code := upper(encode(gen_random_bytes(4), 'hex'));
+    generated_code := upper(encode(extensions.gen_random_bytes(4), 'hex'));
 
     exit when not exists (
-      select 1 from teams t where t.join_code = generated_code
+      select 1 from public.teams t where t.join_code = generated_code
     );
 
     if attempt_count > 10 then
@@ -397,10 +402,11 @@ $$;
 create or replace function set_team_join_code()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   if new.join_code is null or btrim(new.join_code) = '' then
-    new.join_code = generate_team_join_code();
+    new.join_code = public.generate_team_join_code();
   else
     new.join_code = upper(btrim(new.join_code));
   end if;

@@ -1,0 +1,17 @@
+name: iOS checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  build-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - name: Create CI configuration
+        run: cp Config/Local.xcconfig.example Config/Local.xcconfig
+        working-directory: ios
+      - run: xcodegen generate --spec project.yml
+        working-directory: ios
+      - run: xcodebuild test -project ios/RooBin.xcodeproj -scheme RooBin -destination 'platform=iOS Simulator,name=iPhone 16 Pro' CODE_SIGNING_ALLOWED=NO

@@ -31,13 +31,31 @@ npm install
 2. Click **New Project** — give it a name, pick a region close to you
 3. Wait ~2 minutes for it to provision
 
-### 3. Run the database schema
+### 3. Apply the database migrations
 
-1. In your Supabase project, go to **SQL Editor → New Query**
-2. Paste the entire contents of [`supabase/schema.sql`](./supabase/schema.sql)
-3. Click **Run**
+Install Docker Desktop, then verify the migration chain locally:
 
-This creates all required tables (including `app_users`) with the correct relationships and row-level security policies.
+```bash
+npx supabase start
+npx supabase db reset --local
+npx supabase db lint --level warning
+```
+
+To provision a remote development or staging project:
+
+```bash
+npx supabase login
+npx supabase link --project-ref YOUR_PROJECT_REF
+npx supabase db push --linked --dry-run
+npx supabase db push --linked
+```
+
+Verify the project reference carefully before the final command. Never test new
+migrations against production first.
+
+`supabase/migrations/` is the executable source of truth. `supabase/schema.sql`
+is retained only as historical reference and must not be pasted into the SQL
+Editor or used to provision a database.
 
 ### 4. Get your API keys
 
@@ -91,7 +109,12 @@ Every push to `main` auto-deploys. Your app will have a URL like `https://wh-poo
 The app now uses one-time passcode authentication with player records stored in `players`.
 
 - **Email OTP:** uses Supabase native `signInWithOtp` + `verifyOtp` with `type: 'email'` (6-digit code entry in app).
-- In Supabase **Auth → Email Templates**, use `{{ .Token }}` in the template body to send the OTP code (not `{{ .ConfirmationURL }}` magic links).
+- In Supabase **Auth → Email Templates**, install both repository templates:
+  **Magic Link** uses `supabase/templates/magic_link.html` for returning users,
+  while **Confirm signup** uses `supabase/templates/confirmation.html` for a
+  new invited address. The confirmation link is intentional: the web request
+  preserves the `/invite` redirect and the server separately verifies the
+  authenticated email, invite token, status, and expiry before joining a team.
 - **WhatsApp OTP:** uses Twilio via your own webhook/API endpoints.
 - Players can store `email`, `mobile` (one or both), and choose a `preferred_auth_method`.
 
@@ -159,7 +182,9 @@ wh-pool-fines/
 │       ├── SetupTab.jsx
 │       └── AuthGate.jsx
 ├── supabase/
-│   └── schema.sql               # Run this in Supabase SQL editor
+│   ├── migrations/              # Executable database source of truth
+│   ├── config.toml              # Local Supabase configuration
+│   └── schema.sql               # Historical reference; do not execute
 ├── .env.example                 # Copy to .env and fill in keys
 ├── .gitignore
 ├── index.html

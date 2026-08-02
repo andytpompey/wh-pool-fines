@@ -1,0 +1,886 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0BE1CF995EAE1857BCDD6195 /* CreateTeamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F43C6F920B6E3D62E962728E /* CreateTeamView.swift */; };
+		0DB3B30027BD16279BAE14CA /* RooBinUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8873C636AFF0B9C75FC3C273 /* RooBinUITests.swift */; };
+		0ED728743D250D7253FE4A38 /* LoadableState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 539C3E9FAB61FA9B8B717351 /* LoadableState.swift */; };
+		10249B74029D090EB6CC2224 /* RosterManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 518FEE556BF702CF121D5B4F /* RosterManagementView.swift */; };
+		1F4193C628786ED31356F692 /* FineCorrectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FED7AB3A691A2D43628C94B /* FineCorrectionView.swift */; };
+		246E91CD4FDFC599E4DC9E2D /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A56617F6A56557435581790 /* AppEnvironment.swift */; };
+		29CAB4483485A891F0198BCD /* RooBinTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05FFAD4B46A327DA29AC5FD7 /* RooBinTheme.swift */; };
+		2C5BB201E71631BCFA510A1B /* MatchDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9151730E804125C901DE3416 /* MatchDraft.swift */; };
+		2D251AAFAF278385979FD631 /* SupabaseAuthClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 131ED08F885DFBE3A180DE0A /* SupabaseAuthClient.swift */; };
+		3E325A841D167D4CC45CC54F /* TeamSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD1D1E3E52F202CF995F327 /* TeamSettingsView.swift */; };
+		3ECF710313A22DC69701F183 /* HomeDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC52769CA65D24EC2BE014ED /* HomeDashboardView.swift */; };
+		419243A51CD4ED6CF5AD9FEF /* AuthenticationFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 814853191C86B775A4E3FBC0 /* AuthenticationFlowView.swift */; };
+		4727236FB145CDB300F508C6 /* APIRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 029F743B23B63425A4EAEAC8 /* APIRequest.swift */; };
+		49A41958AA799909027C0DA5 /* TeamOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3125B0C5EBD270DD1110F2DD /* TeamOption.swift */; };
+		4BC0A7AC905581F413C8E8F3 /* PrivacySupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000F14CEB2116B9C1A710BF5 /* PrivacySupportView.swift */; };
+		4ECF79DE7235ECF63B35B5D1 /* ManagedSeason.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF7C663DC52976D983522A2E /* ManagedSeason.swift */; };
+		5309523136BA1C62E3215937 /* UnlockSecurityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EA2FA4517295179F1BA5DCA /* UnlockSecurityView.swift */; };
+		60CB865F29BA7B0FC5F6D137 /* LedgerEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B45613E1482ED341805822 /* LedgerEntry.swift */; };
+		652A6AA7A99D10016E9DA5FD /* EditMatchFixtureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1FA1A7F662E439162519FA4 /* EditMatchFixtureView.swift */; };
+		665E82E8FC545CD2B73FC73D /* FineTypeManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62642C7D7889B4A5537F54BA /* FineTypeManagementView.swift */; };
+		6C8741447E4F7752BD4C2C48 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B5586EEBC27E39671C87CBB /* RootTabView.swift */; };
+		6E875D4BFA4F1DA10C433874 /* FeaturePlaceholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36AA6426B49F4A671D96D6E /* FeaturePlaceholder.swift */; };
+		6FB132FB608BCD6441C025AB /* JoinTeamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2F7CB88CE7CFFD985C85C1 /* JoinTeamView.swift */; };
+		72106BEB0A561B9750760670 /* ContractModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25167D6DFACDE4E411753AD3 /* ContractModels.swift */; };
+		750BC4BB3ADCC227F6798C28 /* RooBinTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DBA733297DA239DEC78989C /* RooBinTests.swift */; };
+		75BFFB9978131A2F8269A7FA /* MatchSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52D6DE2832B8DEB17FEBD28F /* MatchSummary.swift */; };
+		76376F5643805BCAAE79AF70 /* SeasonManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6F79A2174CF3FB9FDE4DD65 /* SeasonManagementView.swift */; };
+		7804C6880A7C8792A6273CA5 /* AccountDeletionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C50DFC6A654AB58C10986D6F /* AccountDeletionView.swift */; };
+		821DD20D5AA7877BE9CF51A2 /* MatchListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F22F1E2D8490DA5294297D3E /* MatchListView.swift */; };
+		84A44AEDCB003E67555A431B /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A622E1D589C3BE7AED2FB049 /* AppCoordinator.swift */; };
+		94CB7A8A599555B8FB317DEC /* TeamOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE6BC2B4D598322D36AB5DAA /* TeamOnboardingView.swift */; };
+		994E8171ACC02147C61C9523 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B01488B88F05E4567E6D315 /* SettingsView.swift */; };
+		9B17290ECB3B18D41D5F5FAB /* EmailOTPView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FF28DF83496DBD50326137B /* EmailOTPView.swift */; };
+		9DEE1FE171649AFA863038FC /* RooBinApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6E4FFCCE6617EFBB724E6D7 /* RooBinApp.swift */; };
+		A02713C4983161DA0661E5C3 /* MatchDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A6FA45EAC4714461857E984 /* MatchDetailView.swift */; };
+		A608F9070E4637D07B67663D /* UnlockCodeSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7DB29E5F2978D723920599E /* UnlockCodeSetupView.swift */; };
+		A6474846A1CAC6628521D1F0 /* SubmitMatchReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B1ED11041E16E8006554EE4 /* SubmitMatchReviewView.swift */; };
+		A9EC7B3BA89D11B49F27C47A /* EditProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64B9E7C67BF1D3E06831053D /* EditProfileView.swift */; };
+		AAD542D171D515AB15EF5943 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 69080CD103DD2BE299AF58D5 /* Assets.xcassets */; };
+		ABEE15298B8F5BBC8376A5B3 /* AppRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F59DB9EC2D7228768D512E3 /* AppRootView.swift */; };
+		AC71A9A909426D44BD0791D5 /* RooBinBrandHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA24670EEF42DB0BDEBC8E06 /* RooBinBrandHeader.swift */; };
+		AD8CD50B38677A9566845314 /* RooBinCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFC353645198B0EA25C633E7 /* RooBinCard.swift */; };
+		BC2C5E15D8BA9A19B919BDA0 /* TeamSettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E85AEE14A27D232BACEE52D9 /* TeamSettingsModel.swift */; };
+		C16DC3821C0708EDB0CAFF12 /* HomeDashboardModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E112006C5A0F19AE92945798 /* HomeDashboardModel.swift */; };
+		C29E2AE5C6EC1AE2A36289C1 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F69C0B93B75E001063DAF68 /* WelcomeView.swift */; };
+		C59C946C76F6B71E4684FDF2 /* FinesLedgerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7702EDCF772194169250A77 /* FinesLedgerView.swift */; };
+		C76C0F69D4BC26416B7DEA3A /* AppSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A799DE5D3B8FEBE40453F1 /* AppSession.swift */; };
+		D421C9AEC3282FC5B7AC19E3 /* ProfileCompletionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B684359A226619D6820B4F89 /* ProfileCompletionView.swift */; };
+		D7A07DDA706DB3361AAB6E57 /* AccountDeletionPreflight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99E9621217222C14B805943D /* AccountDeletionPreflight.swift */; };
+		D7AA459623E07CC4AA083656 /* KeychainSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E66FDCCAABFCCFB748B35BE2 /* KeychainSessionStore.swift */; };
+		D7BAC68BDC9AF87273A91113 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A7EB41410D127E40E02393E5 /* PrivacyInfo.xcprivacy */; };
+		D84A677B0F549BC4E0EC6D89 /* InvitePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DAC059DD522F57D04468685 /* InvitePlayerView.swift */; };
+		DE65AA38AD7B08972C7B04C9 /* CreateMatchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DDFFCD81186A8A651BDCBD5 /* CreateMatchView.swift */; };
+		E19FE6ECD6003FFE9F0186A6 /* RooBinError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9DC7981FDB6A946D93F5C1 /* RooBinError.swift */; };
+		E2F182232F31263DB466A30B /* RosterModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86939A662D457E39FED40BEF /* RosterModels.swift */; };
+		E377BDAC139BB78C0CF65CD9 /* TeamPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A05690D36B5307461DE9EB /* TeamPickerView.swift */; };
+		EA169B1B90FF816955198483 /* NetworkClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338A2FFD1AD4605E471B303F /* NetworkClient.swift */; };
+		ECF20E057500B76AE3278C3C /* SupabaseTeamClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19847BAF460A8427D4E3A220 /* SupabaseTeamClient.swift */; };
+		FA1DE37D35588D37F8F287A6 /* SeasonPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6D9E6991D82EF5CB700597D /* SeasonPicker.swift */; };
+		FC4442C55AE89DE187CE2789 /* AuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35914AEF8945853FF2FF926 /* AuthSession.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		58B81E483F318AE35FC63E72 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 369FD8419FC229749B4AA08E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8FE02F6DACBF68554280287A;
+			remoteInfo = RooBin;
+		};
+		9D5F1E2518F008B61F00A3F5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 369FD8419FC229749B4AA08E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8FE02F6DACBF68554280287A;
+			remoteInfo = RooBin;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		000F14CEB2116B9C1A710BF5 /* PrivacySupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacySupportView.swift; sourceTree = "<group>"; };
+		029F743B23B63425A4EAEAC8 /* APIRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIRequest.swift; sourceTree = "<group>"; };
+		05FFAD4B46A327DA29AC5FD7 /* RooBinTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RooBinTheme.swift; sourceTree = "<group>"; };
+		0DAC059DD522F57D04468685 /* InvitePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvitePlayerView.swift; sourceTree = "<group>"; };
+		131ED08F885DFBE3A180DE0A /* SupabaseAuthClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseAuthClient.swift; sourceTree = "<group>"; };
+		19847BAF460A8427D4E3A220 /* SupabaseTeamClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseTeamClient.swift; sourceTree = "<group>"; };
+		1EA2FA4517295179F1BA5DCA /* UnlockSecurityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnlockSecurityView.swift; sourceTree = "<group>"; };
+		1FED7AB3A691A2D43628C94B /* FineCorrectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FineCorrectionView.swift; sourceTree = "<group>"; };
+		22194E7DEEE30327850EC385 /* RooBin.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = RooBin.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		25167D6DFACDE4E411753AD3 /* ContractModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContractModels.swift; sourceTree = "<group>"; };
+		2DBA733297DA239DEC78989C /* RooBinTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RooBinTests.swift; sourceTree = "<group>"; };
+		3125B0C5EBD270DD1110F2DD /* TeamOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamOption.swift; sourceTree = "<group>"; };
+		338A2FFD1AD4605E471B303F /* NetworkClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkClient.swift; sourceTree = "<group>"; };
+		3B01488B88F05E4567E6D315 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		41A799DE5D3B8FEBE40453F1 /* AppSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSession.swift; sourceTree = "<group>"; };
+		4A56617F6A56557435581790 /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
+		518FEE556BF702CF121D5B4F /* RosterManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RosterManagementView.swift; sourceTree = "<group>"; };
+		52D6DE2832B8DEB17FEBD28F /* MatchSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchSummary.swift; sourceTree = "<group>"; };
+		539C3E9FAB61FA9B8B717351 /* LoadableState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadableState.swift; sourceTree = "<group>"; };
+		57A05690D36B5307461DE9EB /* TeamPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamPickerView.swift; sourceTree = "<group>"; };
+		5B1ED11041E16E8006554EE4 /* SubmitMatchReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmitMatchReviewView.swift; sourceTree = "<group>"; };
+		5C9DC7981FDB6A946D93F5C1 /* RooBinError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RooBinError.swift; sourceTree = "<group>"; };
+		62642C7D7889B4A5537F54BA /* FineTypeManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FineTypeManagementView.swift; sourceTree = "<group>"; };
+		64B9E7C67BF1D3E06831053D /* EditProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProfileView.swift; sourceTree = "<group>"; };
+		69080CD103DD2BE299AF58D5 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		6F59DB9EC2D7228768D512E3 /* AppRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRootView.swift; sourceTree = "<group>"; };
+		74A048C4429A8155E0F5ABE3 /* RooBinTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RooBinTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		79D6AD38DBCF845E4FE9AFA6 /* RooBinUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RooBinUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		814853191C86B775A4E3FBC0 /* AuthenticationFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationFlowView.swift; sourceTree = "<group>"; };
+		86939A662D457E39FED40BEF /* RosterModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RosterModels.swift; sourceTree = "<group>"; };
+		8873C636AFF0B9C75FC3C273 /* RooBinUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RooBinUITests.swift; sourceTree = "<group>"; };
+		8B5586EEBC27E39671C87CBB /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		8DDFFCD81186A8A651BDCBD5 /* CreateMatchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateMatchView.swift; sourceTree = "<group>"; };
+		8F69C0B93B75E001063DAF68 /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
+		8FF28DF83496DBD50326137B /* EmailOTPView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailOTPView.swift; sourceTree = "<group>"; };
+		9151730E804125C901DE3416 /* MatchDraft.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchDraft.swift; sourceTree = "<group>"; };
+		99E9621217222C14B805943D /* AccountDeletionPreflight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountDeletionPreflight.swift; sourceTree = "<group>"; };
+		9A6FA45EAC4714461857E984 /* MatchDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchDetailView.swift; sourceTree = "<group>"; };
+		A4B45613E1482ED341805822 /* LedgerEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerEntry.swift; sourceTree = "<group>"; };
+		A622E1D589C3BE7AED2FB049 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
+		A7EB41410D127E40E02393E5 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		AC52769CA65D24EC2BE014ED /* HomeDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeDashboardView.swift; sourceTree = "<group>"; };
+		AE6BC2B4D598322D36AB5DAA /* TeamOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamOnboardingView.swift; sourceTree = "<group>"; };
+		B684359A226619D6820B4F89 /* ProfileCompletionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCompletionView.swift; sourceTree = "<group>"; };
+		B6F79A2174CF3FB9FDE4DD65 /* SeasonManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeasonManagementView.swift; sourceTree = "<group>"; };
+		B7702C83E1BFD5865A513A86 /* Local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig; sourceTree = "<group>"; };
+		B7702EDCF772194169250A77 /* FinesLedgerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinesLedgerView.swift; sourceTree = "<group>"; };
+		B7DB29E5F2978D723920599E /* UnlockCodeSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnlockCodeSetupView.swift; sourceTree = "<group>"; };
+		C36AA6426B49F4A671D96D6E /* FeaturePlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeaturePlaceholder.swift; sourceTree = "<group>"; };
+		C50DFC6A654AB58C10986D6F /* AccountDeletionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountDeletionView.swift; sourceTree = "<group>"; };
+		C6E4FFCCE6617EFBB724E6D7 /* RooBinApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RooBinApp.swift; sourceTree = "<group>"; };
+		CB2F7CB88CE7CFFD985C85C1 /* JoinTeamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinTeamView.swift; sourceTree = "<group>"; };
+		CF7C663DC52976D983522A2E /* ManagedSeason.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagedSeason.swift; sourceTree = "<group>"; };
+		DA24670EEF42DB0BDEBC8E06 /* RooBinBrandHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RooBinBrandHeader.swift; sourceTree = "<group>"; };
+		DFC353645198B0EA25C633E7 /* RooBinCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RooBinCard.swift; sourceTree = "<group>"; };
+		E112006C5A0F19AE92945798 /* HomeDashboardModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeDashboardModel.swift; sourceTree = "<group>"; };
+		E35914AEF8945853FF2FF926 /* AuthSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthSession.swift; sourceTree = "<group>"; };
+		E66FDCCAABFCCFB748B35BE2 /* KeychainSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainSessionStore.swift; sourceTree = "<group>"; };
+		E6D9E6991D82EF5CB700597D /* SeasonPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeasonPicker.swift; sourceTree = "<group>"; };
+		E85AEE14A27D232BACEE52D9 /* TeamSettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamSettingsModel.swift; sourceTree = "<group>"; };
+		EFD1D1E3E52F202CF995F327 /* TeamSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamSettingsView.swift; sourceTree = "<group>"; };
+		F1FA1A7F662E439162519FA4 /* EditMatchFixtureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditMatchFixtureView.swift; sourceTree = "<group>"; };
+		F22F1E2D8490DA5294297D3E /* MatchListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchListView.swift; sourceTree = "<group>"; };
+		F43C6F920B6E3D62E962728E /* CreateTeamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateTeamView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0C6F1F09A566C22F611D2CD5 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				22194E7DEEE30327850EC385 /* RooBin.app */,
+				74A048C4429A8155E0F5ABE3 /* RooBinTests.xctest */,
+				79D6AD38DBCF845E4FE9AFA6 /* RooBinUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		2EBC7BD6F30D8CAA93FBCD1B /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				69080CD103DD2BE299AF58D5 /* Assets.xcassets */,
+				A7EB41410D127E40E02393E5 /* PrivacyInfo.xcprivacy */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		39CE7B8130790D79FFE1277F /* API */ = {
+			isa = PBXGroup;
+			children = (
+				029F743B23B63425A4EAEAC8 /* APIRequest.swift */,
+				25167D6DFACDE4E411753AD3 /* ContractModels.swift */,
+				338A2FFD1AD4605E471B303F /* NetworkClient.swift */,
+				5C9DC7981FDB6A946D93F5C1 /* RooBinError.swift */,
+				19847BAF460A8427D4E3A220 /* SupabaseTeamClient.swift */,
+			);
+			path = API;
+			sourceTree = "<group>";
+		};
+		504D5C16F6CB889EB454DE25 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				41A799DE5D3B8FEBE40453F1 /* AppSession.swift */,
+				E35914AEF8945853FF2FF926 /* AuthSession.swift */,
+				E66FDCCAABFCCFB748B35BE2 /* KeychainSessionStore.swift */,
+				131ED08F885DFBE3A180DE0A /* SupabaseAuthClient.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		563D1DB2288C545DA8890217 /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				E112006C5A0F19AE92945798 /* HomeDashboardModel.swift */,
+				AC52769CA65D24EC2BE014ED /* HomeDashboardView.swift */,
+				E6D9E6991D82EF5CB700597D /* SeasonPicker.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		5D952320386FA7FBAA75D676 /* RooBinUITests */ = {
+			isa = PBXGroup;
+			children = (
+				8873C636AFF0B9C75FC3C273 /* RooBinUITests.swift */,
+			);
+			path = RooBinUITests;
+			sourceTree = "<group>";
+		};
+		67A4DF668BE6F82A882F7974 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				539C3E9FAB61FA9B8B717351 /* LoadableState.swift */,
+				DA24670EEF42DB0BDEBC8E06 /* RooBinBrandHeader.swift */,
+				DFC353645198B0EA25C633E7 /* RooBinCard.swift */,
+				05FFAD4B46A327DA29AC5FD7 /* RooBinTheme.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		6BBD22CDB2E10216648319B2 /* RooBin */ = {
+			isa = PBXGroup;
+			children = (
+				F5B98A4F3D5C572B9DE2B41B /* App */,
+				9DE7BB23301DFC1A1C7B2251 /* Core */,
+				FA24BEC417F9FA9E92E9BE18 /* Features */,
+				2EBC7BD6F30D8CAA93FBCD1B /* Resources */,
+			);
+			path = RooBin;
+			sourceTree = "<group>";
+		};
+		7234C306963451F3DD3B70B2 = {
+			isa = PBXGroup;
+			children = (
+				B554D2A82651CA16FB0318A9 /* Config */,
+				6BBD22CDB2E10216648319B2 /* RooBin */,
+				815CF2ED2200FB028ACF9E02 /* RooBinTests */,
+				5D952320386FA7FBAA75D676 /* RooBinUITests */,
+				0C6F1F09A566C22F611D2CD5 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		73AEF69CFE0675DA2A5D2B41 /* Configuration */ = {
+			isa = PBXGroup;
+			children = (
+				4A56617F6A56557435581790 /* AppEnvironment.swift */,
+			);
+			path = Configuration;
+			sourceTree = "<group>";
+		};
+		78C34434AC66A474887D7EF1 /* Matches */ = {
+			isa = PBXGroup;
+			children = (
+				8DDFFCD81186A8A651BDCBD5 /* CreateMatchView.swift */,
+				F1FA1A7F662E439162519FA4 /* EditMatchFixtureView.swift */,
+				9A6FA45EAC4714461857E984 /* MatchDetailView.swift */,
+				9151730E804125C901DE3416 /* MatchDraft.swift */,
+				F22F1E2D8490DA5294297D3E /* MatchListView.swift */,
+				52D6DE2832B8DEB17FEBD28F /* MatchSummary.swift */,
+				5B1ED11041E16E8006554EE4 /* SubmitMatchReviewView.swift */,
+			);
+			path = Matches;
+			sourceTree = "<group>";
+		};
+		815CF2ED2200FB028ACF9E02 /* RooBinTests */ = {
+			isa = PBXGroup;
+			children = (
+				2DBA733297DA239DEC78989C /* RooBinTests.swift */,
+			);
+			path = RooBinTests;
+			sourceTree = "<group>";
+		};
+		9DE7BB23301DFC1A1C7B2251 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				39CE7B8130790D79FFE1277F /* API */,
+				504D5C16F6CB889EB454DE25 /* Auth */,
+				73AEF69CFE0675DA2A5D2B41 /* Configuration */,
+				67A4DF668BE6F82A882F7974 /* DesignSystem */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		B554D2A82651CA16FB0318A9 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				B7702C83E1BFD5865A513A86 /* Local.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		C6F559A826F6BDEA33D95BE6 /* Fines */ = {
+			isa = PBXGroup;
+			children = (
+				1FED7AB3A691A2D43628C94B /* FineCorrectionView.swift */,
+				B7702EDCF772194169250A77 /* FinesLedgerView.swift */,
+				A4B45613E1482ED341805822 /* LedgerEntry.swift */,
+			);
+			path = Fines;
+			sourceTree = "<group>";
+		};
+		DC86C84EBDD494116480F325 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				C36AA6426B49F4A671D96D6E /* FeaturePlaceholder.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		E4733B7E78ACBC0660C01B3F /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				99E9621217222C14B805943D /* AccountDeletionPreflight.swift */,
+				C50DFC6A654AB58C10986D6F /* AccountDeletionView.swift */,
+				64B9E7C67BF1D3E06831053D /* EditProfileView.swift */,
+				62642C7D7889B4A5537F54BA /* FineTypeManagementView.swift */,
+				0DAC059DD522F57D04468685 /* InvitePlayerView.swift */,
+				CF7C663DC52976D983522A2E /* ManagedSeason.swift */,
+				000F14CEB2116B9C1A710BF5 /* PrivacySupportView.swift */,
+				518FEE556BF702CF121D5B4F /* RosterManagementView.swift */,
+				86939A662D457E39FED40BEF /* RosterModels.swift */,
+				B6F79A2174CF3FB9FDE4DD65 /* SeasonManagementView.swift */,
+				3B01488B88F05E4567E6D315 /* SettingsView.swift */,
+				E85AEE14A27D232BACEE52D9 /* TeamSettingsModel.swift */,
+				EFD1D1E3E52F202CF995F327 /* TeamSettingsView.swift */,
+				B7DB29E5F2978D723920599E /* UnlockCodeSetupView.swift */,
+				1EA2FA4517295179F1BA5DCA /* UnlockSecurityView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		EE1F65F056F4362B00F2B9ED /* Authentication */ = {
+			isa = PBXGroup;
+			children = (
+				814853191C86B775A4E3FBC0 /* AuthenticationFlowView.swift */,
+				8FF28DF83496DBD50326137B /* EmailOTPView.swift */,
+				8F69C0B93B75E001063DAF68 /* WelcomeView.swift */,
+			);
+			path = Authentication;
+			sourceTree = "<group>";
+		};
+		EEC853791F2A6B45B3E1990A /* TeamOnboarding */ = {
+			isa = PBXGroup;
+			children = (
+				F43C6F920B6E3D62E962728E /* CreateTeamView.swift */,
+				CB2F7CB88CE7CFFD985C85C1 /* JoinTeamView.swift */,
+				B684359A226619D6820B4F89 /* ProfileCompletionView.swift */,
+				AE6BC2B4D598322D36AB5DAA /* TeamOnboardingView.swift */,
+				3125B0C5EBD270DD1110F2DD /* TeamOption.swift */,
+				57A05690D36B5307461DE9EB /* TeamPickerView.swift */,
+			);
+			path = TeamOnboarding;
+			sourceTree = "<group>";
+		};
+		F5B98A4F3D5C572B9DE2B41B /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A622E1D589C3BE7AED2FB049 /* AppCoordinator.swift */,
+				6F59DB9EC2D7228768D512E3 /* AppRootView.swift */,
+				C6E4FFCCE6617EFBB724E6D7 /* RooBinApp.swift */,
+				8B5586EEBC27E39671C87CBB /* RootTabView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		FA24BEC417F9FA9E92E9BE18 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				EE1F65F056F4362B00F2B9ED /* Authentication */,
+				C6F559A826F6BDEA33D95BE6 /* Fines */,
+				563D1DB2288C545DA8890217 /* Home */,
+				78C34434AC66A474887D7EF1 /* Matches */,
+				E4733B7E78ACBC0660C01B3F /* Settings */,
+				DC86C84EBDD494116480F325 /* Shared */,
+				EEC853791F2A6B45B3E1990A /* TeamOnboarding */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		4D08621119AFC588F82628B6 /* RooBinUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 138614668032BFD7D8CEB626 /* Build configuration list for PBXNativeTarget "RooBinUITests" */;
+			buildPhases = (
+				6D5C12CE38ED13AD07BB1A35 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FD62E09594A9C437FB5C367F /* PBXTargetDependency */,
+			);
+			name = RooBinUITests;
+			packageProductDependencies = (
+			);
+			productName = RooBinUITests;
+			productReference = 79D6AD38DBCF845E4FE9AFA6 /* RooBinUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		73A77FBC8CC92B1A10F7CE9E /* RooBinTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0760991A946BCC39E39F307C /* Build configuration list for PBXNativeTarget "RooBinTests" */;
+			buildPhases = (
+				0921DFC6B0A41E848BDE537E /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B0FD0D8270DF8EA79EE48FD5 /* PBXTargetDependency */,
+			);
+			name = RooBinTests;
+			packageProductDependencies = (
+			);
+			productName = RooBinTests;
+			productReference = 74A048C4429A8155E0F5ABE3 /* RooBinTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		8FE02F6DACBF68554280287A /* RooBin */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 69BD740A2E100B7C3B92F573 /* Build configuration list for PBXNativeTarget "RooBin" */;
+			buildPhases = (
+				DC4CC6B5F1F4C7B6DEB6D3BC /* Sources */,
+				17A0602796FC1CB5A56FBCBA /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RooBin;
+			packageProductDependencies = (
+			);
+			productName = RooBin;
+			productReference = 22194E7DEEE30327850EC385 /* RooBin.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		369FD8419FC229749B4AA08E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					4D08621119AFC588F82628B6 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+						TestTargetID = 8FE02F6DACBF68554280287A;
+					};
+					73A77FBC8CC92B1A10F7CE9E = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					8FE02F6DACBF68554280287A = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 1D514938D2BC14179495F3D8 /* Build configuration list for PBXProject "RooBin" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 7234C306963451F3DD3B70B2;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 0C6F1F09A566C22F611D2CD5 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8FE02F6DACBF68554280287A /* RooBin */,
+				73A77FBC8CC92B1A10F7CE9E /* RooBinTests */,
+				4D08621119AFC588F82628B6 /* RooBinUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		17A0602796FC1CB5A56FBCBA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAD542D171D515AB15EF5943 /* Assets.xcassets in Resources */,
+				D7BAC68BDC9AF87273A91113 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0921DFC6B0A41E848BDE537E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				750BC4BB3ADCC227F6798C28 /* RooBinTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6D5C12CE38ED13AD07BB1A35 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0DB3B30027BD16279BAE14CA /* RooBinUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DC4CC6B5F1F4C7B6DEB6D3BC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4727236FB145CDB300F508C6 /* APIRequest.swift in Sources */,
+				D7A07DDA706DB3361AAB6E57 /* AccountDeletionPreflight.swift in Sources */,
+				7804C6880A7C8792A6273CA5 /* AccountDeletionView.swift in Sources */,
+				84A44AEDCB003E67555A431B /* AppCoordinator.swift in Sources */,
+				246E91CD4FDFC599E4DC9E2D /* AppEnvironment.swift in Sources */,
+				ABEE15298B8F5BBC8376A5B3 /* AppRootView.swift in Sources */,
+				C76C0F69D4BC26416B7DEA3A /* AppSession.swift in Sources */,
+				FC4442C55AE89DE187CE2789 /* AuthSession.swift in Sources */,
+				419243A51CD4ED6CF5AD9FEF /* AuthenticationFlowView.swift in Sources */,
+				72106BEB0A561B9750760670 /* ContractModels.swift in Sources */,
+				DE65AA38AD7B08972C7B04C9 /* CreateMatchView.swift in Sources */,
+				0BE1CF995EAE1857BCDD6195 /* CreateTeamView.swift in Sources */,
+				652A6AA7A99D10016E9DA5FD /* EditMatchFixtureView.swift in Sources */,
+				A9EC7B3BA89D11B49F27C47A /* EditProfileView.swift in Sources */,
+				9B17290ECB3B18D41D5F5FAB /* EmailOTPView.swift in Sources */,
+				6E875D4BFA4F1DA10C433874 /* FeaturePlaceholder.swift in Sources */,
+				1F4193C628786ED31356F692 /* FineCorrectionView.swift in Sources */,
+				665E82E8FC545CD2B73FC73D /* FineTypeManagementView.swift in Sources */,
+				C59C946C76F6B71E4684FDF2 /* FinesLedgerView.swift in Sources */,
+				C16DC3821C0708EDB0CAFF12 /* HomeDashboardModel.swift in Sources */,
+				3ECF710313A22DC69701F183 /* HomeDashboardView.swift in Sources */,
+				D84A677B0F549BC4E0EC6D89 /* InvitePlayerView.swift in Sources */,
+				6FB132FB608BCD6441C025AB /* JoinTeamView.swift in Sources */,
+				D7AA459623E07CC4AA083656 /* KeychainSessionStore.swift in Sources */,
+				60CB865F29BA7B0FC5F6D137 /* LedgerEntry.swift in Sources */,
+				0ED728743D250D7253FE4A38 /* LoadableState.swift in Sources */,
+				4ECF79DE7235ECF63B35B5D1 /* ManagedSeason.swift in Sources */,
+				A02713C4983161DA0661E5C3 /* MatchDetailView.swift in Sources */,
+				2C5BB201E71631BCFA510A1B /* MatchDraft.swift in Sources */,
+				821DD20D5AA7877BE9CF51A2 /* MatchListView.swift in Sources */,
+				75BFFB9978131A2F8269A7FA /* MatchSummary.swift in Sources */,
+				EA169B1B90FF816955198483 /* NetworkClient.swift in Sources */,
+				4BC0A7AC905581F413C8E8F3 /* PrivacySupportView.swift in Sources */,
+				D421C9AEC3282FC5B7AC19E3 /* ProfileCompletionView.swift in Sources */,
+				9DEE1FE171649AFA863038FC /* RooBinApp.swift in Sources */,
+				AC71A9A909426D44BD0791D5 /* RooBinBrandHeader.swift in Sources */,
+				AD8CD50B38677A9566845314 /* RooBinCard.swift in Sources */,
+				E19FE6ECD6003FFE9F0186A6 /* RooBinError.swift in Sources */,
+				29CAB4483485A891F0198BCD /* RooBinTheme.swift in Sources */,
+				6C8741447E4F7752BD4C2C48 /* RootTabView.swift in Sources */,
+				10249B74029D090EB6CC2224 /* RosterManagementView.swift in Sources */,
+				E2F182232F31263DB466A30B /* RosterModels.swift in Sources */,
+				76376F5643805BCAAE79AF70 /* SeasonManagementView.swift in Sources */,
+				FA1DE37D35588D37F8F287A6 /* SeasonPicker.swift in Sources */,
+				994E8171ACC02147C61C9523 /* SettingsView.swift in Sources */,
+				A6474846A1CAC6628521D1F0 /* SubmitMatchReviewView.swift in Sources */,
+				2D251AAFAF278385979FD631 /* SupabaseAuthClient.swift in Sources */,
+				ECF20E057500B76AE3278C3C /* SupabaseTeamClient.swift in Sources */,
+				94CB7A8A599555B8FB317DEC /* TeamOnboardingView.swift in Sources */,
+				49A41958AA799909027C0DA5 /* TeamOption.swift in Sources */,
+				E377BDAC139BB78C0CF65CD9 /* TeamPickerView.swift in Sources */,
+				BC2C5E15D8BA9A19B919BDA0 /* TeamSettingsModel.swift in Sources */,
+				3E325A841D167D4CC45CC54F /* TeamSettingsView.swift in Sources */,
+				A608F9070E4637D07B67663D /* UnlockCodeSetupView.swift in Sources */,
+				5309523136BA1C62E3215937 /* UnlockSecurityView.swift in Sources */,
+				C29E2AE5C6EC1AE2A36289C1 /* WelcomeView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B0FD0D8270DF8EA79EE48FD5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8FE02F6DACBF68554280287A /* RooBin */;
+			targetProxy = 58B81E483F318AE35FC63E72 /* PBXContainerItemProxy */;
+		};
+		FD62E09594A9C437FB5C367F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8FE02F6DACBF68554280287A /* RooBin */;
+			targetProxy = 9D5F1E2518F008B61F00A3F5 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		1C1FE9A0A13C3A55ED24F513 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B7702C83E1BFD5865A513A86 /* Local.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Config/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				ROOBIN_ENVIRONMENT = staging;
+				ROOBIN_SUPABASE_PUBLISHABLE_KEY = "$(VITE_SUPABASE_ANON_KEY)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		32647EC83B5CDAE1C1C7AFF8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.roobin.app.tests;
+				PRODUCT_MODULE_NAME = RooBinTests;
+				PRODUCT_NAME = RooBinTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RooBin.app/RooBin";
+			};
+			name = Debug;
+		};
+		4AE823BEC3D1675D3607B0E6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B7702C83E1BFD5865A513A86 /* Local.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Config/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				ROOBIN_ENVIRONMENT = staging;
+				ROOBIN_SUPABASE_PUBLISHABLE_KEY = "$(VITE_SUPABASE_ANON_KEY)";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		4D5761ABDCF74A41183DBB70 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.roobin.app.tests;
+				PRODUCT_MODULE_NAME = RooBinTests;
+				PRODUCT_NAME = RooBinTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/RooBin.app/RooBin";
+			};
+			name = Release;
+		};
+		640B55EB4709CDE3B900C912 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.roobin.app.uitests;
+				PRODUCT_MODULE_NAME = RooBinUITests;
+				PRODUCT_NAME = RooBinUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = RooBin;
+			};
+			name = Release;
+		};
+		9A8D5C237E8409FD738858C6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.roobin.app;
+				PRODUCT_NAME = RooBin;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A80F8BEF01EE8F1013CD0199 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.roobin.app.uitests;
+				PRODUCT_MODULE_NAME = RooBinUITests;
+				PRODUCT_NAME = RooBinUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = RooBin;
+			};
+			name = Debug;
+		};
+		A970F07C3BB6095995CB7BE7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.roobin.app;
+				PRODUCT_NAME = RooBin;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0760991A946BCC39E39F307C /* Build configuration list for PBXNativeTarget "RooBinTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				32647EC83B5CDAE1C1C7AFF8 /* Debug */,
+				4D5761ABDCF74A41183DBB70 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		138614668032BFD7D8CEB626 /* Build configuration list for PBXNativeTarget "RooBinUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A80F8BEF01EE8F1013CD0199 /* Debug */,
+				640B55EB4709CDE3B900C912 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		1D514938D2BC14179495F3D8 /* Build configuration list for PBXProject "RooBin" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9A8D5C237E8409FD738858C6 /* Debug */,
+				A970F07C3BB6095995CB7BE7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		69BD740A2E100B7C3B92F573 /* Build configuration list for PBXNativeTarget "RooBin" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4AE823BEC3D1675D3607B0E6 /* Debug */,
+				1C1FE9A0A13C3A55ED24F513 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 369FD8419FC229749B4AA08E /* Project object */;
+}

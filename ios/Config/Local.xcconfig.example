@@ -1,0 +1,3 @@
+// Copy to Local.xcconfig and supply the public client configuration.
+ROOBIN_ENVIRONMENT = staging
+VITE_SUPABASE_ANON_KEY = your-public-anon-or-publishable-key

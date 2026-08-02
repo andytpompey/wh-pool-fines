@@ -4,3 +4,12 @@ dist
 .env.local
 .DS_Store
 *.log
+.vercel
+.env*
+
+# Xcode local and generated build state
+DerivedData/
+*.xcuserstate
+xcuserdata/
+ios/.build/
+ios/Config/Local.xcconfig

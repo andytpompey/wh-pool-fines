@@ -284,62 +284,53 @@ export async function deleteSeasonWithAudit({ id, teamId, actorMembership, platf
 }
 
 export async function addMatch(match) {
-  const row = handle(await supabase.from('matches').insert({
-    id: match.id,
-    date: match.date,
-    season_id: match.seasonId,
-    opponent: match.opponent,
-    submitted: match.submitted,
-    venue: match.venue ?? 'home',
-    team_id: match.teamId ?? null,
-  }).select().single())
-  return { ...match, ...row, seasonId: row.season_id }
+  await saveMatchAggregate(match)
+  return match
 }
 
-export async function updateMatch(match) {
-  handle(await supabase.from('matches').update({
+function matchAggregatePayload(match) {
+  const drivers = new Set(match.driverIds ?? [])
+  return {
+    id: match.id,
+    teamId: match.teamId,
     date: match.date,
-    season_id: match.seasonId,
-    opponent: match.opponent,
-    submitted: match.submitted,
+    seasonId: match.seasonId || null,
+    opponent: match.opponent || null,
+    submitted: Boolean(match.submitted),
     venue: match.venue ?? 'home',
-    team_id: match.teamId ?? null,
-  }).eq('id', match.id))
-
-  handle(await supabase.from('match_players').delete().eq('match_id', match.id))
-  if (match.playerIds?.length) {
-    handle(await supabase.from('match_players').insert(match.playerIds.map(pid => ({
-      match_id: match.id,
-      player_id: pid,
-      is_driver: (match.driverIds ?? []).includes(pid),
-    }))))
+    players: (match.playerIds ?? []).map(playerId => ({ playerId, isDriver: drivers.has(playerId) })),
+    fines: match.fines ?? [],
+    subs: match.subs ?? [],
   }
+}
 
-  handle(await supabase.from('fines').delete().eq('match_id', match.id))
-  if (match.fines?.length) {
-    handle(await supabase.from('fines').insert(match.fines.map(f => ({
-      id: f.id,
-      match_id: match.id,
-      player_id: f.playerId,
-      fine_type_id: f.fineTypeId,
-      player_name: f.playerName,
-      fine_name: f.fineName,
-      cost: f.cost,
-      paid: f.paid,
-    }))))
-  }
+export async function saveMatchAggregate(match, operationId = crypto.randomUUID()) {
+  return handle(await supabase.rpc('save_match_aggregate', {
+    operation_id: operationId,
+    aggregate: matchAggregatePayload(match),
+  }))
+}
 
-  handle(await supabase.from('subs').delete().eq('match_id', match.id))
-  if (match.subs?.length) {
-    handle(await supabase.from('subs').insert(match.subs.map(s => ({
-      id: s.id,
-      match_id: match.id,
-      player_id: s.playerId,
-      player_name: s.playerName,
-      amount: s.amount,
-      paid: s.paid,
-    }))))
-  }
+export async function updateMatch(match, operationId = crypto.randomUUID()) {
+  return saveMatchAggregate(match, operationId)
+}
+
+export async function updatePaymentBatch({ teamId, items, operationId = crypto.randomUUID() }) {
+  return handle(await supabase.rpc('update_payment_batch', {
+    operation_id: operationId,
+    target_team_id: teamId,
+    items: items.map(item => ({ kind: item.kind, id: item.id, paid: Boolean(item.paid) })),
+  }))
+}
+
+export async function executeProtectedMutation({ grantToken, targetEntityType, targetEntityId }) {
+  if (!grantToken) throw new Error('Protected-action grant is required.')
+  if (!targetEntityType || !targetEntityId) throw new Error('Protected target is required.')
+  return handle(await supabase.rpc('execute_protected_action', {
+    grant_token: grantToken,
+    target_entity_type: targetEntityType,
+    target_entity_id: targetEntityId,
+  }))
 }
 
 export async function deleteMatch(id) {
