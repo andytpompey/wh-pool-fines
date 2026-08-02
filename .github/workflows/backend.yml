@@ -12,5 +12,26 @@ jobs:
         with:
           version: latest
       - run: supabase start
-      - run: supabase db lint --local --level warning
+      - run: supabase db lint --local --schema public --level error
       - run: supabase test db
+      - name: Bundle and smoke Edge Functions
+        shell: bash
+        run: |
+          supabase functions serve --no-verify-jwt > /tmp/roobin-edge-functions.log 2>&1 &
+          edge_pid=$!
+          trap 'kill "$edge_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --silent --output /tmp/lifecycle-response.json --write-out '%{http_code}' \
+              --request POST http://127.0.0.1:54321/functions/v1/commercial-lifecycle | grep --quiet '^401$'; then
+              break
+            fi
+            if [[ "$attempt" == 30 ]]; then
+              cat /tmp/roobin-edge-functions.log
+              exit 1
+            fi
+            sleep 1
+          done
+          test "$(curl --silent --output /tmp/notifications-response.json --write-out '%{http_code}' \
+            --request POST http://127.0.0.1:54321/functions/v1/commercial-notifications)" = "401"
+          grep --quiet 'Not authorised' /tmp/lifecycle-response.json
+          grep --quiet 'Not authorised' /tmp/notifications-response.json
