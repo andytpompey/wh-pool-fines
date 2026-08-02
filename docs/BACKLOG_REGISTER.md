@@ -1,7 +1,6 @@
 # RooBin Story Register
 
 Status: generated delivery view  
-Generated: 2026-08-02  
 Source: `npm run backlog:build`
 
 This register provides consistent delivery metadata across RooBin Fines and

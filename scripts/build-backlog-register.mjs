@@ -8,6 +8,8 @@ const sources = [
   'docs/ios/IOS_BACKLOG.md',
 ];
 const master = fs.readFileSync(path.join(root, 'docs/ROOBIN_MASTER_BACKLOG.md'), 'utf8');
+const deferredActions = fs.readFileSync(path.join(root, 'docs/COMMERCIAL_DEFERRED_ACTIONS.md'), 'utf8');
+const checkOnly = process.argv.includes('--check');
 
 function idsBetween(start, end) {
   const section = master.slice(master.indexOf(start), master.indexOf(end));
@@ -101,10 +103,25 @@ const surfaceSummary = surfaces.map((surface) => `| ${surface} | ${stories.filte
 const paidFines = stories.filter((s) => s.release === 'Paid Fines' && s.criticality === 'Required');
 const paidFinesSummary = statuses.map((status) => `| ${status} | ${paidFines.filter((s) => s.status === status).length} |`).join('\n');
 
+const knownIds = new Set(stories.map((story) => story.id));
+const invalidDependencies = stories.flatMap((story) => story.dependencies
+  .filter((dependency) => !knownIds.has(dependency))
+  .map((dependency) => `${story.id} -> ${dependency}`));
+if (invalidDependencies.length > 0) {
+  throw new Error(`Unknown backlog dependencies:\n${invalidDependencies.join('\n')}`);
+}
+
+const missingDeferredActions = paidFines
+  .filter((story) => story.status === 'In Progress')
+  .filter((story) => !deferredActions.includes(`| ${story.id} |`))
+  .map((story) => story.id);
+if (missingDeferredActions.length > 0) {
+  throw new Error(`Paid Fines stories lack deferred owner actions: ${missingDeferredActions.join(', ')}`);
+}
+
 const output = `# RooBin Story Register
 
 Status: generated delivery view  
-Generated: ${new Date().toISOString().slice(0, 10)}  
 Source: \`npm run backlog:build\`
 
 This register provides consistent delivery metadata across RooBin Fines and
@@ -164,5 +181,16 @@ approved native purchase route.
 ${rows.join('\n')}
 `;
 
-fs.writeFileSync(path.join(root, 'docs/BACKLOG_REGISTER.md'), output);
-console.log(`Wrote docs/BACKLOG_REGISTER.md with ${stories.length} stories.`);
+const registerPath = path.join(root, 'docs/BACKLOG_REGISTER.md');
+if (checkOnly) {
+  const current = fs.readFileSync(registerPath, 'utf8');
+  if (current !== output) {
+    console.error('docs/BACKLOG_REGISTER.md is stale. Run npm run backlog:build.');
+    process.exitCode = 1;
+  } else {
+    console.log(`Verified docs/BACKLOG_REGISTER.md with ${stories.length} stories.`);
+  }
+} else {
+  fs.writeFileSync(registerPath, output);
+  console.log(`Wrote docs/BACKLOG_REGISTER.md with ${stories.length} stories.`);
+}
