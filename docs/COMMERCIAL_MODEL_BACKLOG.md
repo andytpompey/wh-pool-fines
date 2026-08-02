@@ -413,7 +413,7 @@ Acceptance:
 
 #### COM-015 — Capture founding-league feedback and conversion
 
-Status: in progress — privacy-safe commercial and support measures exist, but baseline, scheduled participant feedback and an actual pilot outcome require the founding league.
+Status: in progress — privacy-safe pre-pilot baselines, selected team/division/week adoption, scheduled committee/captain feedback, success criteria and mandatory renewal outcome/reasons are implemented; actual participant feedback and pilot outcome remain external evidence.
 
 As the product owner, I need an agreed pilot evaluation so that a discounted
 trial produces a reliable renewal decision.

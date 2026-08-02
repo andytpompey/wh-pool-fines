@@ -210,6 +210,10 @@ export async function grantFoundingAccessBatch(input, previewOnly) {
   return data
 }
 
+export async function getCommercialPilotDashboard() { const { data,error }=await supabase.rpc('get_commercial_pilot_dashboard'); if(error) throw error; return data??{pilots:[],feedbackPoints:[],adoption:[]} }
+export async function createCommercialPilot(configuration,reason) { const { data,error }=await supabase.rpc('create_commercial_pilot',{configuration,reason}); if(error) throw error; return data }
+export async function updateCommercialPilotEvaluation(input) { const { data,error }=await supabase.rpc('update_commercial_pilot_evaluation',{target_pilot_id:input.pilotId,new_state:input.state,feedback_point_id:input.feedbackPointId||null,aggregate_response:input.aggregateResponse||{},renewal_outcome:input.renewalOutcome||null,renewal_reasons:input.renewalReasons||[],reason:input.reason}); if(error) throw error; return data }
+
 export async function createServiceIncident(input) {
   const { data, error } = await supabase.rpc('create_service_incident', { title: input.title, impact: input.impact, public_message: input.message, component_codes: input.components, reason: input.reason })
   if (error) throw error
