@@ -581,7 +581,7 @@ Acceptance:
 
 #### COM-028 — Recover a failed subscription payment
 
-Status: in progress — offering-version retry/grace/restriction policy, provider-driven past-due grace deadlines, billing-owner notices and idempotent portal recovery are implemented; read-only transition enforcement and live recovery evidence remain.
+Status: in progress — offering-version retry/grace/restriction policy, provider-driven past-due deadlines, enforced read-only grace, billing-owner notices and idempotent portal recovery are implemented; live provider retry/recovery evidence remains.
 
 As a billing customer, I need a clear recovery journey after payment failure so
 that an expired card does not cause unexplained loss of access.
