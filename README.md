@@ -1,12 +1,14 @@
-# 🎱 White Horse Pool Fines Tracker
+# 🎱 RooBin Fines
 
-A mobile-first web app for tracking pool match fines and subs. Built with React + Vite + Tailwind CSS, backed by Supabase (Postgres).
+A mobile-first web and iOS app for team matches, fines, subs and £10-per-playing-cycle access. Built with React, Vite and Supabase, with a native SwiftUI client.
 
 ## Product backlog
 
 - [Master product backlog](docs/ROOBIN_MASTER_BACKLOG.md)
 - [Cross-product story register](docs/BACKLOG_REGISTER.md)
 - [Commercial model backlog](docs/COMMERCIAL_MODEL_BACKLOG.md)
+- [Commercial production configuration](docs/COMMERCIAL_PRODUCTION_CONFIGURATION.md)
+- [Commercial deferred actions](docs/COMMERCIAL_DEFERRED_ACTIONS.md)
 - [League Management backlog](docs/LEAGUE_MANAGEMENT_BACKLOG.md)
 - [iOS delivery backlog](docs/ios/IOS_BACKLOG.md)
 
@@ -45,9 +47,14 @@ Install Docker Desktop, then verify the migration chain locally:
 
 ```bash
 npx supabase start
-npx supabase db reset --local
-npx supabase db lint --level warning
+npx supabase migration up --local
+npx supabase test db
+npx supabase db lint --local --schema public --level error
 ```
+
+Do not use `supabase db reset` against this working environment: it deletes
+local records. Use a separately created disposable database when a destructive
+fresh-schema replay is specifically required.
 
 To provision a remote development or staging project:
 
