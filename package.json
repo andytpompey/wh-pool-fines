@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "backlog:build": "node scripts/build-backlog-register.mjs",
+    "backlog:check": "node scripts/build-backlog-register.mjs --check",
     "dev": "vite",
     "build": "vite build",
     "test": "node --test tests/*.test.js",

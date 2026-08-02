@@ -17,6 +17,8 @@ import Dashboard  from './components/Dashboard'
 import AuthGate   from './components/AuthGate'
 import TeamManagementPage from './components/TeamManagementPage'
 import PublicInfoPage from './components/PublicInfoPage'
+import PublicMarketingPage from './components/PublicMarketingPage'
+import CommercialAdminPage from './components/CommercialAdminPage'
 
 export const ADMIN_PIN = '1234'
 const APP_BANNER_PATHS = [
@@ -28,6 +30,16 @@ const TEAM_STORAGE_KEY = 'wh_current_team_id'
 
 function getRoute() {
   const path = window.location.pathname || '/'
+  if (path === '/') return { name: 'marketing', page: 'home', teamId: null }
+  if (path === '/how-it-works') return { name: 'marketing', page: 'how', teamId: null }
+  if (path === '/leagues') return { name: 'marketing', page: 'leagues', teamId: null }
+  if (path === '/pricing') return { name: 'marketing', page: 'pricing', teamId: null }
+  if (path === '/help') return { name: 'marketing', page: 'help', teamId: null }
+  if (path === '/contact') return { name: 'marketing', page: 'contact', teamId: null }
+  if (path === '/status') return { name: 'marketing', page: 'status', teamId: null }
+  if (path === '/app') return { name: 'app', teamId: null }
+  if (path === '/billing/success') return { name: 'billing-success', teamId: null }
+  if (path === '/admin/commercial') return { name: 'commercial-admin', teamId: null }
   if (path === '/privacy') return { name: 'privacy', teamId: null }
   if (path === '/support' || path === '/account-deletion') return { name: 'support', teamId: null }
   if (path === '/terms') return { name: 'terms', teamId: null }
@@ -38,7 +50,7 @@ function getRoute() {
   if (path === '/teams/join') return { name: 'join-team', teamId: null }
   const match = path.match(/^\/teams\/([^/]+)$/)
   if (match) return { name: 'team', teamId: decodeURIComponent(match[1]) }
-  return { name: 'app', teamId: null }
+  return { name: 'marketing', page: 'home', teamId: null }
 }
 
 function navigate(path, { replace = false } = {}) {
@@ -73,6 +85,10 @@ function InviteAcceptancePage({ token, onAccept, saving }) {
       </div>
     </div>
   )
+}
+
+function BillingSuccessPage() {
+  return <div className="mx-auto max-w-lg px-4 pt-6"><div className="rounded-2xl border border-emerald-800 bg-emerald-950/30 p-5"><Badge color="green">Payment received</Badge><h1 className="mt-3 font-display text-2xl font-bold">Your team access is being confirmed</h1><p className="mt-2 text-sm text-zinc-300">Stripe has returned you safely to RooBin. Access is granted only after RooBin verifies the payment event, which normally takes a few seconds.</p><Btn className="mt-4" onClick={() => navigate('/app')}>Open RooBin</Btn></div></div>
 }
 
 export function uuid() {
@@ -1132,7 +1148,7 @@ export default function App() {
   const openPrimaryTab = (nextTab) => {
     setTab(nextTab)
     setIsMoreMenuOpen(false)
-    if (route.name !== 'app') navigate('/')
+    if (route.name !== 'app') navigate('/app')
   }
 
   const navItems = [
@@ -1145,6 +1161,8 @@ export default function App() {
   if (['privacy', 'support', 'terms'].includes(route.name)) {
     return <PublicInfoPage page={route.name} />
   }
+  if (route.name === 'marketing') return <PublicMarketingPage page={route.page} />
+  if (route.name === 'billing-success') return <BillingSuccessPage />
 
   if (authLoading) return <Spinner />
 
@@ -1178,11 +1196,14 @@ export default function App() {
             </div>
           ) : <div />}
           {currentPlayer && (
-            <div className="shrink-0 text-right text-xs text-zinc-500">
+            <div className="flex shrink-0 items-center gap-2 text-right text-xs text-zinc-500">
+              {memberContext.isPlatformAdmin && route.name !== 'commercial-admin' && <button type="button" className="font-bold text-amber-400 hover:text-amber-300" onClick={() => navigate('/admin/commercial')}>Commercial</button>}
+              <span>
               <span>{profile?.displayName || currentPlayer.name}</span>
               {currentTeamMembership && (
                 <span> - {teamModel.getRoleLabel(currentTeamMembership.role)}</span>
               )}
+              </span>
             </div>
           )}
         </div>
@@ -1197,6 +1218,8 @@ export default function App() {
 
             {route.name === 'invite' ? (
               <InviteAcceptancePage token={route.token} onAccept={handleAcceptInvite} saving={saving} />
+            ) : route.name === 'commercial-admin' ? (
+              <CommercialAdminPage isPlatformAdmin={memberContext.isPlatformAdmin} onBack={() => navigate('/app')} />
             ) : route.name === 'profile' ? (
               <PlayerProfilePage
                 profile={profile}
@@ -1231,7 +1254,7 @@ export default function App() {
                 invites={teamRoster.invites}
                 fineTypes={fineTypes}
                 seasons={seasons}
-                onOpenApp={() => navigate('/')}
+                onOpenApp={() => navigate('/app')}
                 onRefresh={async () => {
                   await Promise.all([load(currentTeamId), loadTeamRoster(currentTeamId)])
                 }}

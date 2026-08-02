@@ -12,6 +12,16 @@ function getLastUpdated() {
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/@supabase')) return 'supabase'
+          if (id.includes('node_modules/react')) return 'react'
+        },
+      },
+    },
+  },
   define: {
     'import.meta.env.VITE_LAST_UPDATED': JSON.stringify(getLastUpdated()),
   },

@@ -840,6 +840,41 @@ actor SupabaseTeamClient {
         _ = try await perform(path:"rest/v1/rpc/save_team_season",method:"POST",body:try encoder.encode(Body(targetTeamID:team.id,targetSeasonID:id,seasonName:name,seasonType:type)),auth:auth)
     }
 
+    func loadCommercialPlayingCycles(team: TeamOption, auth: AuthSession) async throws -> [CommercialPlayingCycle] {
+        let path = "rest/v1/team_cycle_access_summary?select=id,team_id,name,sport,starts_on,ends_on,status,entitlement_state,entitlement_valid_until&team_id=eq.\(team.id)&order=starts_on.desc.nullslast,name.asc"
+        let data = try await perform(path: path, method: "GET", body: nil, auth: auth)
+        return try decoder.decode([CommercialPlayingCycle].self, from: data)
+    }
+
+    func beginAppStorePurchase(playingCycleID: UUID, team: TeamOption, auth: AuthSession) async throws -> AppStorePurchaseContext {
+        struct Body: Encodable {
+            let targetTeamID: UUID
+            let targetPlayingCycleID: UUID
+            enum CodingKeys: String, CodingKey {
+                case targetTeamID = "target_team_id"
+                case targetPlayingCycleID = "target_playing_cycle_id"
+            }
+        }
+        let data = try await perform(
+            path: "rest/v1/rpc/begin_app_store_team_purchase",
+            method: "POST",
+            body: try encoder.encode(Body(targetTeamID: team.id, targetPlayingCycleID: playingCycleID)),
+            auth: auth
+        )
+        return try decoder.decode(AppStorePurchaseContext.self, from: data)
+    }
+
+    func verifyAppStoreTransaction(_ signedTransaction: String, auth: AuthSession) async throws -> AppStoreVerificationResponse {
+        struct Body: Encodable { let signedTransaction: String }
+        let data = try await perform(
+            path: "functions/v1/app-store-transaction",
+            method: "POST",
+            body: try encoder.encode(Body(signedTransaction: signedTransaction)),
+            auth: auth
+        )
+        return try decoder.decode(AppStoreVerificationResponse.self, from: data)
+    }
+
     func deleteManagedEntity(id:UUID,type:String,action:String,unlockCode:String,team:TeamOption,auth:AuthSession) async throws {
         struct V:Encodable { let targetTeamID:UUID;let protectedAction:String;let suppliedUnlockCode:String
             enum CodingKeys:String,CodingKey { case targetTeamID="target_team_id",protectedAction="protected_action",suppliedUnlockCode="supplied_unlock_code" } }
