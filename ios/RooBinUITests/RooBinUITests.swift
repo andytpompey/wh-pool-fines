@@ -1,5 +1,6 @@
 import XCTest
 
+@MainActor
 final class RooBinUITests: XCTestCase {
     private var app: XCUIApplication!
 
