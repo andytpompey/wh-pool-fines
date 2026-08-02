@@ -601,7 +601,7 @@ Acceptance:
 
 #### COM-029 — Cancel, refund and dispute a subscription
 
-Status: in progress — cancellation, full refunds, immutable adjustments and dispute/grace cases are reconciled idempotently; partial-refund policy UI and cooling-off approval remain.
+Status: in progress — cancellation, full/partial immutable refund adjustments and deduplicated refund/dispute operator cases are reconciled idempotently without deleting data; partial-refund access-policy UI and cooling-off approval remain.
 
 As a billing customer or authorised operator, I need cancellations, refunds and
 disputes handled consistently so that access and financial records agree.
@@ -910,7 +910,7 @@ Acceptance:
 
 #### COM-058 — Protect commercial journeys from abuse
 
-Status: in progress — checkout/support limits, honeypot, trial/code constraints, replay protection and audited overrides exist; recovery throttles and false-positive monitoring remain.
+Status: in progress — checkout, billing-portal, App Store verification and support limits, honeypot, trial/code constraints, replay protection and audited overrides exist; production false-positive monitoring and tuning remain.
 
 As the platform owner, I need fraud and abuse controls so that discounts,
 trials, checkout and support recovery cannot be exploited cheaply.

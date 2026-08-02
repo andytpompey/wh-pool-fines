@@ -26,6 +26,7 @@ Deno.serve(async request => {
   const admin = createClient(supabaseURL, serviceKey, { auth: { persistSession: false } })
   const { data: userData } = await userClient.auth.getUser()
   if (!userData.user) return json({ message: 'Authentication required' }, 401)
+  if (!await consumeLimit(admin, `${userData.user.id}:${body.teamId}`, 'commercial_portal', 8)) return json({ message: 'Too many billing portal requests. Wait a few minutes and try again.' }, 429)
   const { data: customer } = await admin.from('billing_customers').select('id, provider_customer_refs')
     .eq('owner_user_id', userData.user.id).eq('team_id', body.teamId).maybeSingle()
   if (!customer?.provider_customer_refs?.stripe) return json({ message: 'No web billing account exists for this team' }, 404)
@@ -38,4 +39,14 @@ Deno.serve(async request => {
 
 function json(body: unknown, status: number) {
   return new Response(JSON.stringify(body), { status, headers: { ...headers, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } })
+}
+
+async function consumeLimit(admin: ReturnType<typeof createClient>, source: string, kind: string, maximum: number) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(source))
+  const requestHash = Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('')
+  const windowStartedAt = new Date(Math.floor(Date.now() / 600_000) * 600_000).toISOString()
+  const current = await admin.from('public_request_limits').select('request_count').eq('request_hash', requestHash).eq('request_kind', kind).eq('window_started_at', windowStartedAt).maybeSingle()
+  if (current.error || (current.data?.request_count ?? 0) >= maximum) return false
+  const updated = await admin.from('public_request_limits').upsert({ request_hash: requestHash, request_kind: kind, window_started_at: windowStartedAt, request_count: (current.data?.request_count ?? 0) + 1 }, { onConflict: 'request_hash,request_kind,window_started_at' })
+  return !updated.error
 }

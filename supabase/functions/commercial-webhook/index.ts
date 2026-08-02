@@ -146,6 +146,13 @@ async function recordRefund(admin: ReturnType<typeof createClient>, charge: Stri
       occurred_at: new Date(refund.created * 1000).toISOString(),
     }, { onConflict: 'provider,provider_reference,entry_type' })
     if (result.error) throw result.error
+    await openOperatorCase(admin, {
+      case_type: 'refund', state: charge.amount_refunded >= charge.amount ? 'resolved' : 'open',
+      priority: 'normal', subscription_id: subscription?.id ?? null, provider_reference: refund.id,
+      summary: charge.amount_refunded >= charge.amount ? 'Full Stripe refund reconciled' : 'Partial Stripe refund requires access-policy review',
+      safe_details: { refundAmountMinor: refund.amount, cumulativeRefundMinor: charge.amount_refunded, originalChargeMinor: charge.amount, currency: refund.currency.toUpperCase() },
+      resolved_at: charge.amount_refunded >= charge.amount ? new Date().toISOString() : null,
+    })
   }
   if (subscription && charge.amount_refunded >= charge.amount) {
     await admin.from('commercial_subscriptions').update({ state: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', subscription.id)
@@ -177,6 +184,27 @@ async function recordDispute(admin: ReturnType<typeof createClient>, eventType: 
       after_data: { dispute_id: dispute.id, status: dispute.status },
     })
     await enqueueLifecycleNotification(admin, subscription.id, resolvedInCustomerFavour ? 'payment_recovered' : 'dispute', `dispute:${dispute.id}:${dispute.status}`)
+  }
+  await openOperatorCase(admin, {
+    case_type: 'dispute', state: eventType === 'charge.dispute.closed' ? 'resolved' : 'open', priority: 'high',
+    subscription_id: subscription?.id ?? null, provider_reference: dispute.id,
+    summary: eventType === 'charge.dispute.closed' ? `Stripe dispute closed: ${dispute.status}` : 'Stripe dispute opened',
+    safe_details: { status: dispute.status, amountMinor: dispute.amount, currency: dispute.currency.toUpperCase(), chargeReference: chargeId },
+    resolved_at: eventType === 'charge.dispute.closed' ? new Date().toISOString() : null,
+  })
+}
+
+async function openOperatorCase(admin: ReturnType<typeof createClient>, values: Record<string, unknown>) {
+  const reference = values.provider_reference as string
+  const type = values.case_type as string
+  const existing = await admin.from('commercial_operator_cases').select('id').eq('case_type', type).eq('provider_reference', reference).limit(1).maybeSingle()
+  if (existing.error) throw existing.error
+  if (!existing.data) {
+    const result = await admin.from('commercial_operator_cases').insert(values)
+    if (result.error) throw result.error
+  } else if (values.state === 'resolved') {
+    const result = await admin.from('commercial_operator_cases').update({ state: 'resolved', summary: values.summary, safe_details: values.safe_details, resolved_at: values.resolved_at, updated_at: new Date().toISOString() }).eq('id', existing.data.id)
+    if (result.error) throw result.error
   }
 }
 
