@@ -770,7 +770,7 @@ Acceptance:
 
 #### COM-039 — Reconcile subscription state end to end
 
-Status: in progress — reconciliation detects missing financial/entitlement/provider-event states and exposes operator cases; scheduled provider API comparison and repair confirmation remain.
+Status: in progress — reconciliation detects missing financial/entitlement/provider-event states, compares scheduled Stripe subscription state and opens deduplicated operator cases without silent repair; production scheduling and an approved repair exercise remain.
 
 As the platform owner, I need scheduled reconciliation between provider events,
 payments, subscriptions and entitlements so that drift is detected before it
