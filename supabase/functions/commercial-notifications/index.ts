@@ -47,7 +47,7 @@ Deno.serve(async request => {
   const lifecycleResult = await admin.from('commercial_lifecycle_notifications_due').select('*').limit(100)
   for (const item of lifecycleResult.data ?? []) {
     try {
-      const copy = lifecycleCopy(item.notification_type, item.team_name || 'Your team', item.cycle_name, item.current_period_end, publicOrigin)
+      const copy = lifecycleCopy(item.notification_type, item.team_name || 'Your team', item.cycle_name, item.current_period_end, publicOrigin, item.payload)
       const response = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to: [item.recipient], subject: copy.subject, text: copy.text }) })
       if (!response.ok) throw new Error(`provider_${response.status}`)
       const providerResult = await response.json().catch(() => ({}))
@@ -73,7 +73,7 @@ async function sha256(value: string) {
   return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('')
 }
 
-function lifecycleCopy(type: string, team: string, cycle: string | null, periodEnd: string | null, origin: string) {
+function lifecycleCopy(type: string, team: string, cycle: string | null, periodEnd: string | null, origin: string, payload: Record<string, unknown> | null) {
   const detail = cycle ? `${team} / ${cycle}` : team
   const end = periodEnd ? new Date(periodEnd).toLocaleDateString('en-GB') : 'the current period end'
   const portal = `${origin}/app`
@@ -84,5 +84,11 @@ function lifecycleCopy(type: string, team: string, cycle: string | null, periodE
   if (type === 'billing_transfer_requested') return { subject: `${team} RooBin billing handover requested`, text: `A billing-administration handover was requested for ${team}. No team roles, provider customer, invoices or entitlement changed. Open RooBin to review the request: ${portal}` }
   if (type === 'billing_transfer_completed') return { subject: `${team} RooBin billing handover completed`, text: `The confirmed billing-administration handover for ${team} is complete. Team authority, provider customer, invoice history and entitlement were preserved. Contact support from ${origin}/contact if this is unexpected.` }
   if (type === 'billing_recovery_completed') return { subject: `${team} RooBin billing recovery completed`, text: `An independently approved billing recovery for ${team} is complete. The action was audited and financial history was preserved. Contact support immediately from ${origin}/contact if this is unexpected.` }
+  if (type === 'service_incident') {
+    const title = String(payload?.title ?? 'RooBin service incident')
+    const status = String(payload?.status ?? 'investigating').replaceAll('_', ' ')
+    const message = String(payload?.message ?? 'See the RooBin status page for the latest public update.')
+    return { subject: `${title}: ${status}`, text: `${message} Current status: ${status}. Follow public updates: ${origin}/status` }
+  }
   return { subject: `${team} RooBin payment dispute update`, text: `A payment dispute for ${detail} is being reviewed. Team data remains retained and access follows the displayed grace state. Contact support from ${origin}/contact.` }
 }

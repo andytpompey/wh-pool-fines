@@ -561,7 +561,7 @@ Acceptance:
 
 #### COM-027 — Renew a subscription automatically
 
-Status: in progress — catalogue supports consented fixed-interval automatic offerings and idempotent Stripe renewal events while Team season stays manual; full advance auto-renew notice and live recurring test remain.
+Status: in progress — catalogue supports consented fixed-interval automatic offerings, amount/date/cancellation advance notices and idempotent Stripe renewal events while Team season stays manual; a live recurring test remains external evidence.
 
 As a billing customer, I need predictable renewal so that paid access continues
 without recreating the team or organisation.
@@ -877,7 +877,7 @@ Acceptance:
 
 #### COM-056 — Publish service status and incident communication
 
-Status: in progress — public component/incident status, restricted audited incident administration and operating guidance are implemented; the production notification channel, owner and live incident exercise remain.
+Status: in progress — public component/incident timelines, mitigation and resolution actions, restricted audited administration, deduplicated material-incident billing-customer notices and operating guidance are implemented; production delivery ownership and a live incident exercise remain external evidence.
 
 As a paying customer, I need reliable incident information so that I can
 distinguish an outage from an account or payment problem.

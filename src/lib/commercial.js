@@ -258,6 +258,27 @@ export async function createServiceIncident(input) {
   return data
 }
 
+export async function getIncidentAdminQueue() {
+  const { data, error } = await supabase.rpc('get_incident_admin_queue')
+  if (error) throw error
+  if (!data) throw new Error('Platform administrator access is required.')
+  return data
+}
+
+export async function updateServiceIncident(input) {
+  const { data, error } = await supabase.rpc('update_service_incident', {
+    target_incident_id: input.incidentId,
+    new_status: input.status,
+    public_message: input.message,
+    mitigation: input.mitigation || '',
+    post_incident_actions: input.postIncidentActions.split(',').map(value => value.trim()).filter(Boolean),
+    notify_affected: input.notifyAffected,
+    reason: input.reason,
+  })
+  if (error) throw error
+  return data
+}
+
 export async function setServiceComponent(code, status, message, reason) {
   const { data, error } = await supabase.rpc('set_service_component', { target_code: code, new_status: status, public_message: message, reason })
   if (error) throw error
