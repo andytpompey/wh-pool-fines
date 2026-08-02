@@ -5,7 +5,7 @@ import * as teamModel from '../lib/teamModel'
 import { APP_ACTION, canAccessAction } from '../lib/accessControl'
 
 // ─── Match Detail ─────────────────────────────────────────────────────────────
-function MatchDetail({ match, players, fineTypes, seasons, team, membership, platformRole, currentTeamId, onBack, onSave, onDelete }) {
+function MatchDetail({ match, players, fineTypes, seasons, team, membership, platformRole, currentTeamId, onBack, onSave, onDelete, onProtectedUpdate }) {
   const [showAddFine,       setShowAddFine]       = useState(false)
   const [editFine,          setEditFine]           = useState(null)
   const [showAdminPin,      setShowAdminPin]       = useState(false)
@@ -93,35 +93,18 @@ function MatchDetail({ match, players, fineTypes, seasons, team, membership, pla
   const tryUnlock = async () => {
     const action = pinAction === 'unlock' ? APP_ACTION.UNLOCK_MATCH : pinAction === 'deleteMatch' ? APP_ACTION.DELETE_MATCH : APP_ACTION.DELETE_FINE_ENTRY
     const errorMessage = pinAction === 'unlock' ? 'Unlock code verification is required to unlock submitted matches.' : 'Unlock code verification is required for protected actions.'
-    const allowed = await teamModel.canActorPerformProtectedAction({ action: action === APP_ACTION.UNLOCK_MATCH ? teamModel.PROTECTED_ACTION.UNLOCK_MATCH : action === APP_ACTION.DELETE_MATCH ? teamModel.PROTECTED_ACTION.DELETE_MATCH : teamModel.PROTECTED_ACTION.DELETE_FINE_ENTRY, membership, platformRole, teamId: currentTeamId, unlockCode: pinInput })
-    if (!allowed) { setPinError(platformRole === 'admin' ? 'Platform admins cannot perform unlock-protected actions.' : 'Incorrect or unauthorized unlock code.'); return }
+    const authorization = await teamModel.canActorPerformProtectedAction({ action: action === APP_ACTION.UNLOCK_MATCH ? teamModel.PROTECTED_ACTION.UNLOCK_MATCH : action === APP_ACTION.DELETE_MATCH ? teamModel.PROTECTED_ACTION.DELETE_MATCH : teamModel.PROTECTED_ACTION.DELETE_FINE_ENTRY, membership, platformRole, teamId: currentTeamId, unlockCode: pinInput })
+    if (!authorization) { setPinError(platformRole === 'admin' ? 'Platform admins cannot perform unlock-protected actions.' : 'Incorrect or unauthorized unlock code.'); return }
     if (pinAction === 'unlock') {
-      await save({ submitted: false })
-      await db.logProtectedRecordReversal({
-        teamId: currentTeamId,
-        actorMembership: membership,
-        platformRole,
-        entityType: 'match',
-        entityId: match.id,
-        payload: { matchDate: match.date, protectedAction: 'unlock_match' },
-      })
-    } else if (pinAction === 'deleteMatch') await onDelete()
+      await db.executeProtectedMutation({ grantToken: authorization.grantToken, targetEntityType: 'match_unlock', targetEntityId: match.id })
+      onProtectedUpdate({ submitted: false })
+    } else if (pinAction === 'deleteMatch') {
+      await db.executeProtectedMutation({ grantToken: authorization.grantToken, targetEntityType: 'match', targetEntityId: match.id })
+      await onDelete({ alreadyDeleted: true })
+    }
     else if (pinAction?.type === 'deleteFine') {
-      const deletedFine = match.fines.find(f => f.id === pinAction.fineId)
-      await save({ fines: match.fines.filter(f => f.id !== pinAction.fineId) })
-      await db.logProtectedRecordDeletion({
-        teamId: currentTeamId,
-        actorMembership: membership,
-        platformRole,
-        entityType: 'fine',
-        entityId: pinAction.fineId,
-        payload: {
-          matchId: match.id,
-          label: deletedFine?.fineName ?? null,
-          playerId: deletedFine?.playerId ?? null,
-          protectedAction: 'delete_fine_entry',
-        },
-      })
+      await db.executeProtectedMutation({ grantToken: authorization.grantToken, targetEntityType: 'fine', targetEntityId: pinAction.fineId })
+      onProtectedUpdate({ fines: match.fines.filter(f => f.id !== pinAction.fineId) })
     }
     setShowAdminPin(false); setPinInput(''); setPinError(''); setPinAction(null)
   }
@@ -437,7 +420,8 @@ export default function MatchesTab({ players, fineTypes, seasons, matches, setMa
       <MatchDetail match={currentMatch} players={players} fineTypes={fineTypes} seasons={seasons} team={membership?.team} membership={membership} platformRole={platformRole} currentTeamId={currentTeamId}
         onBack={() => setSelectedId(null)}
         onSave={updateMatch}
-        onDelete={() => db.deleteMatchWithAudit({ id: currentMatch.id, teamId: currentTeamId, actorMembership: membership, platformRole, matchDate: currentMatch.date }).then(() => { setMatches(prev => prev.filter(m => m.id !== currentMatch.id)); setSelectedId(null) })}
+        onDelete={() => { setMatches(prev => prev.filter(m => m.id !== currentMatch.id)); setSelectedId(null) }}
+        onProtectedUpdate={patch => setMatches(prev => prev.map(m => m.id === currentMatch.id ? { ...m, ...patch } : m))}
       />
     )
   }

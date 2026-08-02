@@ -25,55 +25,19 @@ export async function getCurrentUserProfile(userId) {
   return normaliseProfile(row)
 }
 
-export async function findPlayerMatchForUser({ email, mobile }) {
-  const normalisedEmail = email?.trim().toLowerCase()
-  const normalisedMobile = mobile?.trim()
-  if (!normalisedEmail && !normalisedMobile) return null
-
-  if (normalisedEmail) {
-    const byEmail = handle(await supabase.from('players').select('*').ilike('email', normalisedEmail).limit(1).maybeSingle())
-    if (byEmail) return byEmail
-  }
-  if (normalisedMobile) {
-    const byMobile = handle(await supabase.from('players').select('*').eq('mobile', normalisedMobile).limit(1).maybeSingle())
-    if (byMobile) return byMobile
-  }
-
-  return null
-}
-
-export async function upsertCurrentUserProfile({ user }) {
+export async function upsertCurrentUserProfile({ user, displayName = null, mobile = null, preferredAuthMethod = null }) {
   if (!user?.id) throw new Error('Authenticated user is required')
 
-  const linkedPlayer = await getCurrentUserProfile(user.id)
-  if (linkedPlayer) return linkedPlayer
-
-  const email = user.email?.trim().toLowerCase() ?? null
-  const mobile = user.phone?.trim() ?? null
-
-  const playerMatch = await findPlayerMatchForUser({ email, mobile })
-  if (playerMatch) {
-    const row = handle(await supabase.from('players').update({ user_id: user.id, auth_user_id: user.id }).eq('id', playerMatch.id).select().single())
-    return normaliseProfile(row)
-  }
-
-  if (!email) return null
-
-  const inserted = handle(await supabase.from('players').insert({
-    email,
-    user_id: user.id,
-    name: user.user_metadata?.name ?? email.split('@')[0],
-    display_name: user.user_metadata?.name ?? email.split('@')[0],
-    mobile,
-    preferred_auth_method: mobile ? 'whatsapp' : 'email',
-    receive_team_notifications: true,
-  }).select().single())
-
-  return normaliseProfile(inserted)
+  const row = handle(await supabase.rpc('ensure_current_player', {
+    profile_display_name: displayName ?? user.user_metadata?.name ?? null,
+    profile_mobile: mobile ?? user.phone ?? null,
+    profile_preferred_auth_method: preferredAuthMethod,
+  }))
+  return normaliseProfile(row)
 }
 
-export async function ensureCurrentUserPlayer({ user }) {
-  const profile = await upsertCurrentUserProfile({ user })
+export async function ensureCurrentUserPlayer({ user, displayName = null, mobile = null, preferredAuthMethod = null }) {
+  const profile = await upsertCurrentUserProfile({ user, displayName, mobile, preferredAuthMethod })
   if (!profile?.playerId) throw new Error('Unable to resolve player profile for this user.')
   return {
     id: profile.playerId,

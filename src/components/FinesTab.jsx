@@ -65,7 +65,10 @@ export default function FinesTab({ players, seasons, matches, setMatches, withSa
       subs: (match.subs ?? []).map(sub => subIds.has(sub.id) ? { ...sub, paid: true } : sub),
     } : match)
 
-    await Promise.all(updatedMatches.filter(match => changedMatchIds.has(match.id)).map(match => db.updateMatch({ ...match, teamId: currentTeamId })))
+    await db.updatePaymentBatch({
+      teamId: currentTeamId,
+      items: settlementItems.map(item => ({ kind: item.kind, id: item.id, paid: true })),
+    })
     setMatches(updatedMatches)
     setShowSettle(false)
   })
@@ -79,14 +82,17 @@ export default function FinesTab({ players, seasons, matches, setMatches, withSa
       ? { ...currentMatch, fines: currentMatch.fines.map(f => f.id === item.id ? { ...f, paid: !f.paid } : f) }
       : { ...currentMatch, subs: (currentMatch.subs ?? []).map(s => s.id === item.id ? { ...s, paid: !s.paid } : s) }
 
-    if (updatedMatch) await db.updateMatch({ ...updatedMatch, teamId: currentTeamId })
+    await db.updatePaymentBatch({
+      teamId: currentTeamId,
+      items: [{ kind: item.kind, id: item.id, paid: !item.paid }],
+    })
     setMatches(prev => prev.map(m => m.id === item.matchId ? updatedMatch : m))
   })
 
   const confirmDelete = () => withSave(async () => {
     if (!canManageFines) throw new Error('You do not have permission to manage payments.')
-    const allowed = await teamModel.canActorPerformProtectedAction({ action: teamModel.PROTECTED_ACTION.DELETE_FINE_ENTRY, membership, platformRole, teamId: currentTeamId, unlockCode: pinInput })
-    if (!allowed) { setPinError(platformRole === 'admin' ? 'Platform admins cannot perform unlock-protected actions.' : 'Incorrect or unauthorized unlock code.'); return }
+    const authorization = await teamModel.canActorPerformProtectedAction({ action: teamModel.PROTECTED_ACTION.DELETE_FINE_ENTRY, membership, platformRole, teamId: currentTeamId, unlockCode: pinInput })
+    if (!authorization) { setPinError(platformRole === 'admin' ? 'Platform admins cannot perform unlock-protected actions.' : 'Incorrect or unauthorized unlock code.'); return }
     const item = pendingDelete
     if (!item) return
 
@@ -97,19 +103,10 @@ export default function FinesTab({ players, seasons, matches, setMatches, withSa
       ? { ...currentMatch, fines: currentMatch.fines.filter(f => f.id !== item.id) }
       : { ...currentMatch, subs: (currentMatch.subs ?? []).filter(s => s.id !== item.id) }
 
-    if (updatedMatch) await db.updateMatch({ ...updatedMatch, teamId: currentTeamId })
-    await db.logProtectedRecordDeletion({
-      teamId: currentTeamId,
-      actorMembership: membership,
-      platformRole,
-      entityType: item.kind === 'fine' ? 'fine' : 'sub',
-      entityId: item.id,
-      payload: {
-        matchId: item.matchId,
-        label: item.label,
-        playerId: item.playerId,
-        protectedAction: 'delete_fine_entry',
-      },
+    await db.executeProtectedMutation({
+      grantToken: authorization.grantToken,
+      targetEntityType: item.kind === 'fine' ? 'fine' : 'sub',
+      targetEntityId: item.id,
     })
     setMatches(prev => prev.map(m => m.id === item.matchId ? updatedMatch : m))
     setPendingDelete(null); setPinInput(''); setPinError('')

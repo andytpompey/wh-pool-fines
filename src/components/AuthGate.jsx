@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Btn, Input, Sel, Badge, SegmentedControl } from '../App'
-import * as db from '../lib/db'
 import * as auth from '../lib/auth'
+import * as userProfileDb from '../lib/userProfile'
 
 const methodLabel = method => method === 'whatsapp' ? 'WhatsApp' : 'Email'
 
@@ -52,29 +52,10 @@ export default function AuthGate({ players, setPlayers, onAuthenticated }) {
 
     setLoading(true); setError('')
     try {
-      const existingByEmail = email ? await db.findPlayerByAuth({ method: 'email', value: email }) : null
-      const existingByMobile = mobile ? await db.findPlayerByAuth({ method: 'whatsapp', value: mobile }) : null
-
-      if (existingByEmail && existingByMobile && existingByEmail.id !== existingByMobile.id) {
-        throw new Error('That email and mobile belong to different existing players. Use Sign in or contact an admin.')
-      }
-
-      let player = existingByEmail || existingByMobile
-      if (!player) {
-        player = await db.addPlayer({
-          name,
-          email,
-          mobile,
-          preferredAuthMethod,
-        })
-
-        setPlayers(prev => [...prev, player].sort((a, b) => a.name.localeCompare(b.name)))
-      }
-
       const sendMethod = method === 'whatsapp' ? (mobile ? 'whatsapp' : 'email') : (email ? 'email' : 'whatsapp')
       await sendOtpByMethod({ method: sendMethod, email, mobile })
 
-      setPending({ player, method: sendMethod, email, mobile })
+      setPending({ method: sendMethod, email, mobile, name, preferredAuthMethod })
       setStep('otp')
     } catch (err) {
       setError(err?.message ?? 'Registration failed')
@@ -89,17 +70,11 @@ export default function AuthGate({ players, setPlayers, onAuthenticated }) {
 
     setLoading(true); setError('')
     try {
-      const player = await db.findPlayerByAuth({ method, value })
-      if (!player) throw new Error('No player found for that login. Register first in this app.')
-
-      const email = player.email?.trim().toLowerCase() ?? ''
-      const mobile = player.mobile?.trim() ?? ''
-
-      if (method === 'email' && !email) throw new Error('This player has no email address saved.')
-      if (method === 'whatsapp' && !mobile) throw new Error('This player has no mobile number saved.')
+      const email = method === 'email' ? value : ''
+      const mobile = method === 'whatsapp' ? value : ''
 
       await sendOtpByMethod({ method, email, mobile })
-      setPending({ player, method, email, mobile })
+      setPending({ method, email, mobile, name: null, preferredAuthMethod: method })
       setStep('otp')
     } catch (err) {
       setError(err?.message ?? 'Sign in failed')
@@ -114,23 +89,28 @@ export default function AuthGate({ players, setPlayers, onAuthenticated }) {
 
     setLoading(true); setError('')
     try {
-      if (pending.method === 'whatsapp') {
-        await auth.verifyWhatsAppOtp(pending.mobile, otp)
-      } else {
-        const data = await auth.verifyEmailOtp(pending.email, otp)
-        const authUserId = data?.user?.id
-        if (authUserId && pending.player.authUserId !== authUserId) {
-          const claimedPlayer = pending.email ? await db.findPlayerByEmail(pending.email) : null
-          const playerToLink = claimedPlayer?.id ?? pending.player.id
-          const updated = await db.linkPlayerToAuthUser({ playerId: playerToLink, authUserId })
-          pending.player = updated
-          setPlayers(prev => {
-            const withoutPending = prev.filter(p => p.id !== pending.player.id && p.id !== updated.id)
-            return [...withoutPending, updated].sort((a, b) => a.name.localeCompare(b.name))
-          })
+      const data = pending.method === 'whatsapp'
+        ? await auth.verifyWhatsAppOtp(pending.mobile, otp)
+        : await auth.verifyEmailOtp(pending.email, otp)
+      if (!data?.user || !data?.session) throw new Error('Verified session was not returned.')
+      const player = await userProfileDb.ensureCurrentUserPlayer({
+        user: data.user,
+        displayName: pending.name,
+        mobile: pending.mobile,
+        preferredAuthMethod: pending.preferredAuthMethod,
+      })
+      setPlayers(prev => {
+        const normalized = {
+          id: player.id,
+          name: player.displayName,
+          email: player.email,
+          mobile: pending.mobile,
+          authUserId: data.user.id,
         }
-      }
-      onAuthenticated(pending.player)
+        return [...prev.filter(existing => existing.id !== player.id), normalized]
+          .sort((a, b) => a.name.localeCompare(b.name))
+      })
+      onAuthenticated(player)
     } catch (err) {
       setError(err?.message ?? 'Code verification failed')
     } finally {
@@ -197,7 +177,7 @@ export default function AuthGate({ players, setPlayers, onAuthenticated }) {
         )}
 
         {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-        <p className="mt-4 text-xs text-zinc-500">WhatsApp OTP requires Twilio webhook endpoints configured in app env.</p>
+        <p className="mt-4 text-xs text-zinc-500">WhatsApp OTP is delivered through the secure phone provider configured in Supabase Auth.</p>
         <p className="mt-1 text-xs text-zinc-500">Existing players: {players.length}</p>
       </div>
     </div>

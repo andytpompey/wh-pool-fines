@@ -90,7 +90,7 @@ begin
 
   if fallback_team_id is null then
     insert into teams (name, join_code)
-    values ('White Horse', encode(gen_random_bytes(5), 'hex'))
+    values ('White Horse', encode(extensions.gen_random_bytes(5), 'hex'))
     returning id into fallback_team_id;
   end if;
 

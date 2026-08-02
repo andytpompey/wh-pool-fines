@@ -81,7 +81,7 @@ declare
 begin
   loop
     attempt_count := attempt_count + 1;
-    generated_code := upper(encode(gen_random_bytes(4), 'hex'));
+    generated_code := upper(encode(extensions.gen_random_bytes(4), 'hex'));
 
     exit when not exists (
       select 1 from teams t where t.join_code = generated_code
