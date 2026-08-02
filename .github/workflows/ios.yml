@@ -14,4 +14,4 @@ jobs:
         working-directory: ios
       - run: xcodegen generate --spec project.yml
         working-directory: ios
-      - run: xcodebuild test -project ios/RooBin.xcodeproj -scheme RooBin -destination 'platform=iOS Simulator,name=iPhone 16e' CODE_SIGNING_ALLOWED=NO
+      - run: xcodebuild test -project ios/RooBin.xcodeproj -scheme RooBin -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO
