@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(21);
+select plan(22);
 
 insert into auth.users(id,email,email_confirmed_at,created_at,updated_at) values
  ('1d000000-0000-0000-0000-000000000001','workflow-admin@example.test',now(),now(),now()),
@@ -54,6 +54,7 @@ select throws_ok($sql$select public.approve_billing_recovery_request(current_set
 select set_config('request.jwt.claims',jsonb_build_object('sub','1d000000-0000-0000-0000-000000000004','role','authenticated','iat',extract(epoch from now())::bigint)::text,true);
 select lives_ok($sql$select public.approve_billing_recovery_request(current_setting('test.recovery_id')::uuid,'Independent approval evidence reviewed')$sql$,'different recently-authenticated administrator approves recovery');
 reset role;
+select is((select count(*)::integer from public.commercial_notification_deliveries where notification_type in ('billing_transfer_requested','billing_transfer_completed','billing_recovery_completed')),6,'both reachable parties receive queued handover and recovery confirmations');
 
 insert into public.team_playing_cycles(id,team_id,name,sport,starts_on,ends_on,status) values ('5d000000-0000-0000-0000-000000000001','3d000000-0000-0000-0000-000000000001','Correction Cycle','pool',current_date,current_date+90,'active');
 insert into public.team_season_entitlements(id,team_id,playing_cycle_id,entitlement_definition_id,state,valid_from,valid_until,source) select '6d000000-0000-0000-0000-000000000001','3d000000-0000-0000-0000-000000000001','5d000000-0000-0000-0000-000000000001',id,'trial',now(),now()+interval '14 days','trial' from public.entitlement_definitions where code='fines-team-standard' and state='published' order by version desc limit 1;

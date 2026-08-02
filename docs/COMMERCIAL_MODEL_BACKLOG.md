@@ -734,7 +734,7 @@ Acceptance:
 
 #### COM-037 — Transfer subscription administration safely
 
-Status: in progress — normal dual-confirmed handover and four-eyes high-risk recovery with verified replacement, evidence reference, recent authentication, independent approval and immutable audit are implemented without changing financial history; production confirmations and recovery drill remain.
+Status: in progress — normal dual-confirmed handover and four-eyes high-risk recovery with verified replacement, evidence, recent authentication, independent approval, immutable audit and queued notices to both reachable parties are implemented without changing financial history; production delivery and recovery drill remain.
 
 As an organisation whose volunteers change, we need subscription administration
 transferred without moving ownership of historical financial records.
