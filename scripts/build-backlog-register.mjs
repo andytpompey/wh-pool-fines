@@ -20,6 +20,7 @@ const optional = idsBetween('## Explicitly optional commercial experiments', '##
 
 const dependencies = {
   'COM-011': ['COM-010'], 'COM-013': ['COM-010'], 'COM-014': ['COM-010', 'COM-011'],
+  'COM-012': ['LM-001', 'LM-003', 'LM-008'],
   'COM-015': ['COM-012', 'COM-013', 'COM-014'],
   'COM-020': ['COM-001', 'COM-004', 'COM-010', 'COM-011', 'COM-025'],
   'COM-021': ['COM-020'], 'COM-022': ['COM-020', 'COM-021'],

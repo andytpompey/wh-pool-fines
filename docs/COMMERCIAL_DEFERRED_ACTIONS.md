@@ -25,6 +25,7 @@ added to the named story before it can move to Done.
 | COM-007 | Deploy the approved commit to production and record the Vercel deployment URL and commit SHA | Vercel | Before public RooBin launch |
 | COM-008 | Decide whether a founding-league offer will be published; standard GBP 10 pricing does not depend on it | Product decision | Before advertising a trial |
 | COM-009 | Replace provisional operator/contact details with the approved legal identity and confirm every public policy/support route is available on the production hostname | Product/legal review + production app | Before public paid launch |
+| COM-012 | For a whole-league or division pilot, complete the League organisation, subscribed-team registration and published division-allocation stories (`LM-001`, `LM-003`, `LM-008`); selected-team grants can be used independently | League Management backlog | Before selecting a league/division as one grant target |
 | COM-020 | Create/verify the Stripe business account, enable GBP cards and wallets, and complete business verification | Stripe Dashboard | Before live checkout |
 | COM-017 | From Commercial Operations, create the Stripe binding for the published GBP 10 price and confirm its amount/currency/tax mode in Stripe; do not copy provider IDs manually | Production app + Stripe Dashboard | Before live checkout |
 | COM-021 | Add the deployed `commercial-webhook` endpoint and record the signing secret | Stripe Workbench | Before live payment fulfilment |
