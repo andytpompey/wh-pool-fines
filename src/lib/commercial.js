@@ -179,6 +179,12 @@ export async function correctTeamCycleAccess(entitlementId, state, validUntil, r
   return data
 }
 
+export async function correctTeamCycleAccessBatch(operationId, entitlementIds, state, validUntil, reason, previewOnly) {
+  const { data, error } = await supabase.rpc('correct_team_cycle_access_batch', { operation_id: operationId, target_entitlement_ids: entitlementIds, new_state: state, new_valid_until: validUntil ? new Date(validUntil).toISOString() : null, reason, preview_only: previewOnly })
+  if (error) throw error
+  return data
+}
+
 export async function createServiceIncident(input) {
   const { data, error } = await supabase.rpc('create_service_incident', { title: input.title, impact: input.impact, public_message: input.message, component_codes: input.components, reason: input.reason })
   if (error) throw error

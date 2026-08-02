@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(14);
 
 insert into auth.users(id,email,email_confirmed_at,created_at,updated_at) values
  ('1d000000-0000-0000-0000-000000000001','workflow-admin@example.test',now(),now(),now()),
@@ -35,6 +35,15 @@ reset role;
 select is((select owner_user_id from public.billing_customers where id='4d000000-0000-0000-0000-000000000001'),'1d000000-0000-0000-0000-000000000003'::uuid,'billing ownership transfers without replacing the customer');
 select is((select role from public.billing_customer_contacts where billing_customer_id='4d000000-0000-0000-0000-000000000001' and user_id='1d000000-0000-0000-0000-000000000002'),'administrator','previous billing owner remains a confirmed administrator');
 select is((select count(*)::integer from public.commercial_audit_log where action like 'billing_transfer.%'),2,'both transfer steps are audited');
+
+insert into public.team_playing_cycles(id,team_id,name,sport,starts_on,ends_on,status) values ('5d000000-0000-0000-0000-000000000001','3d000000-0000-0000-0000-000000000001','Correction Cycle','pool',current_date,current_date+90,'active');
+insert into public.team_season_entitlements(id,team_id,playing_cycle_id,entitlement_definition_id,state,valid_from,valid_until,source) select '6d000000-0000-0000-0000-000000000001','3d000000-0000-0000-0000-000000000001','5d000000-0000-0000-0000-000000000001',id,'trial',now(),now()+interval '14 days','trial' from public.entitlement_definitions where code='fines-team-standard' and state='published' order by version desc limit 1;
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"1d000000-0000-0000-0000-000000000001","role":"authenticated"}',true);
+select is((public.correct_team_cycle_access_batch('7d000000-0000-0000-0000-000000000001',array['6d000000-0000-0000-0000-000000000001'::uuid],'active',null,'Approved batch correction test',true)->>'count')::integer,1,'bulk correction returns a bounded non-mutating preview');
+select is((public.correct_team_cycle_access_batch('7d000000-0000-0000-0000-000000000001',array['6d000000-0000-0000-0000-000000000001'::uuid],'active',null,'Approved batch correction test',false)->>'count')::integer,1,'previewed bulk correction executes');
+select is((public.correct_team_cycle_access_batch('7d000000-0000-0000-0000-000000000001',array['6d000000-0000-0000-0000-000000000001'::uuid],'active',null,'Approved batch correction test',false)->>'count')::integer,1,'replayed operation returns the completed idempotent result');
+reset role;
 
 select * from finish();
 rollback;

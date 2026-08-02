@@ -959,7 +959,7 @@ Acceptance:
 
 #### COM-051 — Support commercial corrections safely
 
-Status: in progress — least-privilege inspection, audited single-entitlement correction functions/operator cases and the admin correction UI exist; explicit bulk preview/confirmation remains.
+Status: complete — least-privilege inspection, audited single and bulk entitlement corrections, mandatory bulk preview/confirmation, idempotency, bounded selection and operator-case evidence are implemented.
 
 As support staff, I need controlled tools for correcting access so that customer
 problems can be resolved without direct database editing.
