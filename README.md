@@ -12,6 +12,14 @@ A mobile-first web and iOS app for team matches, fines, subs and £10-per-playin
 - [League Management backlog](docs/LEAGUE_MANAGEMENT_BACKLOG.md)
 - [iOS delivery backlog](docs/ios/IOS_BACKLOG.md)
 
+## Product backlog
+
+- [Master product backlog](docs/ROOBIN_MASTER_BACKLOG.md)
+- [Cross-product story register](docs/BACKLOG_REGISTER.md)
+- [Commercial model backlog](docs/COMMERCIAL_MODEL_BACKLOG.md)
+- [League Management backlog](docs/LEAGUE_MANAGEMENT_BACKLOG.md)
+- [iOS delivery backlog](docs/ios/IOS_BACKLOG.md)
+
 ---
 
 ## Stack
