@@ -17,6 +17,7 @@ jobs:
       - name: Bundle and smoke Edge Functions
         shell: bash
         run: |
+          set +e
           supabase functions serve commercial-lifecycle --no-verify-jwt > /tmp/roobin-edge-functions.log 2>&1 &
           edge_pid=$!
           trap 'kill "$edge_pid" 2>/dev/null || true' EXIT
@@ -32,7 +33,11 @@ jobs:
             fi
             sleep 1
           done
-          test "$(curl --silent --output /tmp/notifications-response.json --write-out '%{http_code}' \
-            --request POST http://127.0.0.1:54321/functions/v1/commercial-notifications)" = "401"
-          grep --quiet 'Not authorised' /tmp/lifecycle-response.json
-          grep --quiet 'Not authorised' /tmp/notifications-response.json
+          notifications_code=$(curl --silent --output /tmp/notifications-response.json --write-out '%{http_code}' \
+            --request POST http://127.0.0.1:54321/functions/v1/commercial-notifications)
+          if [[ "$notifications_code" != "401" ]] || \
+             ! grep --quiet 'Not authorised' /tmp/lifecycle-response.json || \
+             ! grep --quiet 'Not authorised' /tmp/notifications-response.json; then
+            cat /tmp/roobin-edge-functions.log
+            exit 1
+          fi
