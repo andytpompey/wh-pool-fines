@@ -919,14 +919,15 @@ Acceptance:
    a formal price, discount or renewal.
 2. Complete COM-005 through COM-009 before inviting a whole league into a
    formal pilot; a private technical test may precede the public site.
-3. Build COM-010 through COM-015 for the founding-league pilot; invoice or
-   reconcile the pilot manually under controlled administration.
-4. Validate conversion for the initial published Team offering before building
-   self-service checkout.
-5. Add direct web payment and renewal through COM-020 through COM-024.
-6. Add league invoicing and multi-team administration through COM-030 through
-   COM-033 when the first committee agrees to buy.
+3. Complete COM-054 through COM-059 for packaging, support, recovery, abuse and
+   retention foundations.
+4. Build COM-010 through COM-015 for controlled Team/League pilots; invoice or
+   reconcile an early pilot manually under controlled administration.
+5. Add direct Team checkout and lifecycle through COM-020 through COM-029 plus
+   COM-037 through COM-039.
+6. Add league quoting, invoicing, quantity adjustment and derived Team access
+   through COM-030 through COM-036 when League purchasing opens.
 7. Implement native commerce only after COM-040 confirms the current store
-   route.
-8. Keep freemium and sponsorship as measured later experiments rather than
-   launch dependencies.
+   route; use COM-041 for iOS and retain COM-042 for future Android.
+8. Keep COM-052 freemium and COM-053 sponsorship as measured experiments rather
+   than launch dependencies.

@@ -1181,19 +1181,22 @@ Acceptance:
 ## Recommended delivery path
 
 1. Release RooBin Team independently at GBP 10 per team per season.
-2. Complete LM-001 through LM-005 with one real pool league's roles, venues and
-   formats.
+2. Complete LM-001 through LM-009 with one real pool league's roles, venues,
+   registration and formats.
 3. Deliver LM-010 through LM-016 as a Pool League Lite scheduling pilot.
-4. Add configurable scorecards and standings through LM-020 through LM-024.
+4. Add configurable scorecards, eligibility, disputes, rollover and standings
+   through LM-020 through LM-029.
 5. Deliver auditable cup draws, dependency resolution and neutral-venue
    optimisation through LM-030 through LM-036.
 6. Prove combined league/cup scheduling through LM-040 through LM-043.
-7. Add league communication and public presentation through LM-050 through
-   LM-052 in step with the separate messaging safeguards.
-8. Run LM-060 and LM-061 for a complete shadow season before offering LM-062
-   cutover.
-9. Validate a named darts league before implementing LM-025 and additional
-   sport templates.
+7. Add league communication, public presentation and UGC safeguards through
+   LM-050 through LM-059 and LM-065; keep LM-066 attachments optional.
+8. Add league finance, documents and branding through LM-070 through LM-076.
+9. Complete production integration and operation through LM-080 through LM-087.
+10. Run LM-060 and LM-061 for a complete shadow season before offering LM-062
+    cutover.
+11. Validate a named darts league before implementing LM-025 and additional
+    sport templates.
 
 ## Pilot acceptance threshold
 
