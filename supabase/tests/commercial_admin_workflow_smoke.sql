@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(23);
+select plan(26);
 
 insert into auth.users(id,email,email_confirmed_at,created_at,updated_at) values
  ('1d000000-0000-0000-0000-000000000001','workflow-admin@example.test',now(),now(),now()),
@@ -65,6 +65,14 @@ select is((public.correct_team_cycle_access_batch('7d000000-0000-0000-0000-00000
 select is((public.correct_team_cycle_access_batch('7d000000-0000-0000-0000-000000000001',array['6d000000-0000-0000-0000-000000000001'::uuid],'active',null,'Approved batch correction test',false)->>'count')::integer,1,'previewed bulk correction executes');
 select is((public.correct_team_cycle_access_batch('7d000000-0000-0000-0000-000000000001',array['6d000000-0000-0000-0000-000000000001'::uuid],'active',null,'Approved batch correction test',false)->>'count')::integer,1,'replayed operation returns the completed idempotent result');
 reset role;
+
+insert into public.team_playing_cycles(id,team_id,name,sport,starts_on,ends_on,status) values ('5e000000-0000-0000-0000-000000000001','3d000000-0000-0000-0000-000000000001','Founding Grant Cycle','pool',current_date,current_date+120,'planned');
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"1d000000-0000-0000-0000-000000000001","role":"authenticated"}',true);
+select is(jsonb_array_length(public.grant_founding_access_batch('7e000000-0000-0000-0000-000000000001',array['5e000000-0000-0000-0000-000000000001'::uuid],'trial',now(),now()+interval '30 days',1000,1000,null,'Founding league evaluation terms',true)->'affected'),1,'founding grant preview identifies affected cycle and exclusions');
+select is((public.grant_founding_access_batch('7e000000-0000-0000-0000-000000000001',array['5e000000-0000-0000-0000-000000000001'::uuid],'trial',now(),now()+interval '30 days',1000,1000,null,'Founding league evaluation terms',false)->>'success')::boolean,true,'previewed founding grant executes idempotently');
+reset role;
+select is((select grant_terms->>'agreedPriceMinor' from public.team_season_entitlements where playing_cycle_id='5e000000-0000-0000-0000-000000000001'),'1000','grant records immutable agreed price, discount, owner and reason terms');
 
 select * from finish();
 rollback;

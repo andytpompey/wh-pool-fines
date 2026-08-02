@@ -204,6 +204,12 @@ export async function correctTeamCycleAccessBatch(operationId, entitlementIds, s
   return data
 }
 
+export async function grantFoundingAccessBatch(input, previewOnly) {
+  const { data, error } = await supabase.rpc('grant_founding_access_batch', { operation_id: input.operationId, target_cycle_ids: input.cycleIds, grant_state: input.state, valid_from: new Date(input.validFrom).toISOString(), valid_until: new Date(input.validUntil).toISOString(), agreed_price_minor: Math.round(Number(input.agreedPricePounds) * 100), discount_minor: Math.round(Number(input.discountPounds) * 100), grant_owner: null, reason: input.reason, preview_only: previewOnly })
+  if (error) throw error
+  return data
+}
+
 export async function createServiceIncident(input) {
   const { data, error } = await supabase.rpc('create_service_incident', { title: input.title, impact: input.impact, public_message: input.message, component_codes: input.components, reason: input.reason })
   if (error) throw error
