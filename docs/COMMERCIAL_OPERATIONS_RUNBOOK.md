@@ -39,10 +39,13 @@ future definition never mutates an existing entitlement.
 
 - Public support receipt is immediate. Proposed targets pending owner approval:
   urgent acknowledgement within 4 working hours; normal within 2 working days.
-- Status components cover web, API/authentication, iOS and transactional email;
-  payments are added when live Stripe checkout is enabled.
-- Incident updates state observed impact and mitigation without promising an
-  unsupported availability SLA. Post-incident actions are operator cases.
+- Status components cover web, API, authentication, data/entitlements, iOS,
+  notifications and payments. An incident selects every affected component.
+- Incident updates record observed impact, public timeline, mitigation,
+  resolution and post-incident actions without promising an unsupported SLA.
+  Major and critical updates can queue one deduplicated notice per active
+  billing customer; notification delivery failures remain visible in
+  Commercial Operations.
 
 ## Backup and recovery
 
@@ -69,9 +72,11 @@ the restored entitlement and financial counts reconcile.
 
 Account deletion immediately removes the playing profile through the existing
 journey. Commercial records that must be retained are access-restricted,
-anonymised where possible and excluded from marketing. A production retention
-job must run as an observable idempotent scheduled task; its run result belongs
-in `commercial_retention_runs`.
+anonymised where possible and excluded from marketing. Schedule the dedicated
+`commercial-lifecycle` Edge Function independently of notifications. Its
+default request is preview-only; after reviewing the recorded preview, an
+authorised schedule may send `{"mode":"apply","policyVersion":"v1.0"}` with
+`COMMERCIAL_CRON_SECRET`. Every run belongs in `commercial_retention_runs`.
 
 ## Capacity and cost review
 
