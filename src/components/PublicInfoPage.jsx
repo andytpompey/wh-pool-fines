@@ -32,7 +32,7 @@ const content = {
         'You can update your display name, sign out, leave eligible teams and initiate immediate permanent account deletion in the app.',
         'Depending on applicable law, you may ask to access, correct, erase, restrict or object to use of your personal information. You may also raise a concern with your data-protection authority.',
       ]],
-      ['Controller and contact', [`Andy Thomas, operator of RooBin, is the data controller. Email ${CONTACT_EMAIL} for privacy questions or requests.`]],
+      ['Controller and contact', [`Andy Thomas, trading as RooBin through TroveFinds, is the data controller. Email ${CONTACT_EMAIL} for privacy questions or requests.`]],
     ],
   },
   support: {
@@ -42,6 +42,7 @@ const content = {
     sections: [
       ['Contact support', [
         `Email ${CONTACT_EMAIL}. Include the team name and a short description of the problem, but never send a sign-in code, team unlock code or authentication link.`,
+        'We normally respond within five working days. Security, privacy, payment and widespread service incidents are triaged sooner where possible.',
       ]],
       ['Account deletion', [
         'In the iPhone app, open Settings, choose Delete account, then follow the verification and confirmation steps shown in the app.',
@@ -60,16 +61,20 @@ const content = {
       ['Using RooBin', [
         'You must provide accurate account information, protect access to your email account and use RooBin only for lawful team administration.',
         'Team captains and authorised members control team records. They are responsible for entering accurate fines, subscriptions, payments, fixtures and membership information.',
+        'A captain who purchases RooBin accepts these terms on behalf of the team and confirms that they are authorised to do so.',
       ]],
       ['Acceptable content', [
         'Do not upload or enter unlawful, abusive, discriminatory, misleading or rights-infringing content. Do not attempt to access another team without authorisation or interfere with the security or availability of RooBin.',
       ]],
       ['Money and records', [
-        'RooBin may collect the published app-access fee through Stripe on the web or Apple In-App Purchase on iPhone. The current price, covered playing cycle, renewal behaviour, tax and refund terms are shown before purchase.',
+        'RooBin may collect the published app-access fee through Stripe on the web or Apple In-App Purchase on iPhone. The initial Team offer is GBP 10 for one team and one named playing cycle. RooBin is not VAT registered, no VAT is added and no VAT invoice is issued.',
+        'The Team offer does not renew automatically. You may ask to cancel at any time, but access continues until the displayed expiry date and no further purchase is made automatically. We do not normally provide a full or partial refund for a period that has been used, except where required by law. Nothing in these terms affects statutory rights.',
         'RooBin records team fines, subs and payment status but does not collect or transfer the money team members owe each other. Teams remain responsible for agreeing, checking and settling those records.',
       ]],
       ['Availability and changes', [
-        'We work to keep RooBin secure and available, but service may occasionally be interrupted for maintenance or events outside our control. Features and these terms may change; material changes will be communicated where appropriate.',
+        'RooBin is provided with reasonable care, but we do not promise uninterrupted or error-free availability or a particular uptime. Planned maintenance, urgent security work, provider failures and events outside our reasonable control may interrupt access.',
+        'Teams should keep independent copies of records they need for time-critical club or league administration. To the extent permitted by law, RooBin is not responsible for indirect or consequential loss caused by temporary unavailability. Nothing excludes liability that cannot legally be excluded or limits statutory consumer rights.',
+        'Features and these terms may change; material changes will be communicated where appropriate.',
       ]],
       ['Ending use', [
         'You may stop using RooBin and delete your account at any time. We may restrict access needed to protect users, investigate misuse or comply with law.',

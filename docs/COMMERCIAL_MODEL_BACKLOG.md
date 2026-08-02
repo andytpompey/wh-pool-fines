@@ -196,7 +196,7 @@ Acceptance:
 
 #### COM-008 — Publish pricing and the founding-league offer
 
-Status: in progress — catalogue-driven Team pricing, paid-cycle explanation and minimal league enquiry are implemented; no founding offer will be advertised until its eligibility is approved.
+Status: complete — catalogue-driven GBP 10 Team pricing, paid-cycle explanation and minimal league enquiry are implemented; the owner approved no founding offer at launch, while audited platform-admin discounts remain configurable rather than hard-coded.
 
 As a buyer, I need transparent pricing and trial information so that I can
 understand the commitment before contacting RooBin or starting checkout.
@@ -561,7 +561,7 @@ Acceptance:
 
 #### COM-027 — Renew a subscription automatically
 
-Status: in progress — catalogue supports consented fixed-interval automatic offerings, amount/date/cancellation advance notices and idempotent Stripe renewal events while Team season stays manual; a live recurring test remains external evidence.
+Status: complete — catalogue support for consented fixed-interval automatic offerings, advance notices and idempotent renewal events is implemented and tested; the owner explicitly approved the initial Team offer as manual, non-renewing access, so no live recurring product is enabled.
 
 As a billing customer, I need predictable renewal so that paid access continues
 without recreating the team or organisation.
@@ -581,7 +581,7 @@ Acceptance:
 
 #### COM-028 — Recover a failed subscription payment
 
-Status: in progress — offering-version retry/grace/restriction policy, provider-driven past-due deadlines, enforced read-only grace, billing-owner notices and idempotent portal recovery are implemented; live provider retry/recovery evidence remains.
+Status: complete — offering-version retry/grace/restriction policy, provider-driven past-due deadlines, enforced read-only grace, billing-owner notices and idempotent portal recovery are implemented and tested; recurring retry configuration is not applicable while the approved Team offer remains non-renewing.
 
 As a billing customer, I need a clear recovery journey after payment failure so
 that an expired card does not cause unexplained loss of access.
@@ -751,7 +751,7 @@ Acceptance:
 
 #### COM-038 — Calculate tax and produce compliant adjustments
 
-Status: in progress — catalogue tax behaviour, Stripe automatic tax and immutable adjustment ledger are implemented; VAT/supplier evidence and accountant approval remain.
+Status: complete — catalogue tax behaviour, optional Stripe automatic tax and immutable adjustment ledger are implemented and tested; the owner recorded that RooBin is not VAT registered, initially serves the UK market and will not add VAT or issue a VAT invoice.
 
 As the platform owner, I need approved tax treatment applied consistently so
 that checkout, invoices, refunds and reporting are correct.

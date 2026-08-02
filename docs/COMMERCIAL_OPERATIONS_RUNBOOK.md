@@ -37,8 +37,13 @@ future definition never mutates an existing entitlement.
 
 ## Service and support targets
 
-- Public support receipt is immediate. Proposed targets pending owner approval:
-  urgent acknowledgement within 4 working hours; normal within 2 working days.
+- Public support receipt is immediate. The approved normal response target is
+  within 5 working days.
+- Andy Thomas is the primary operator. Proposed escalation wording pending final
+  owner approval: security, privacy, payment and widespread availability cases
+  are prioritised immediately where practicable; processor incidents are
+  escalated to the relevant provider, and legal or tax questions are escalated
+  to an appropriate professional adviser.
 - Status components cover web, API, authentication, data/entitlements, iOS,
   notifications and payments. An incident selects every affected component.
 - Incident updates record observed impact, public timeline, mitigation,
@@ -46,6 +51,11 @@ future definition never mutates an existing entitlement.
   Major and critical updates can queue one deduplicated notice per active
   billing customer; notification delivery failures remain visible in
   Commercial Operations.
+- Proposed incident ownership pending final owner approval: Andy Thomas is the
+  incident owner and decision maker. He records affected components, public
+  impact, investigation, mitigation, recovery and follow-up actions. Major or
+  critical incidents receive public updates when there is a material change;
+  no unsupported uptime or response-time SLA is promised.
 
 ## Backup and recovery
 
