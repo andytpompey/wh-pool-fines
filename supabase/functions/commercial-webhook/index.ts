@@ -222,6 +222,12 @@ async function reconcileSubscription(admin: ReturnType<typeof createClient>, str
     : remote.status === 'past_due' || remote.status === 'unpaid' ? 'past_due'
       : remote.status === 'paused' ? 'paused' : remote.status === 'canceled' ? 'cancelled' : 'expired'
   const item = remote.items.data[0]
+  const local = await admin.from('commercial_subscriptions').select('id,offering_id,commercial_offerings(lifecycle_policy)').eq('provider','stripe').eq('provider_subscription_id',subscriptionId).maybeSingle()
+  if (local.error) throw local.error
+  const lifecycle = (local.data?.commercial_offerings as unknown as { lifecycle_policy?: { graceDays?: number } } | null)?.lifecycle_policy ?? { graceDays: 7 }
+  const periodEnd = new Date(item.current_period_end * 1000)
+  const graceBase = Math.max(Date.now(), periodEnd.getTime())
+  const graceUntil = state === 'past_due' ? new Date(graceBase + Math.max(0,Math.min(30,lifecycle.graceDays ?? 7))*86_400_000).toISOString() : null
   const update = await admin.from('commercial_subscriptions').update({
     state, current_period_start: new Date(item.current_period_start * 1000).toISOString(),
     current_period_end: new Date(item.current_period_end * 1000).toISOString(),
@@ -232,7 +238,7 @@ async function reconcileSubscription(admin: ReturnType<typeof createClient>, str
   if (update.data) {
     await admin.from('team_season_entitlements').update({
       state: state === 'active' || state === 'trialing' ? (state === 'trialing' ? 'trial' : 'active') : state === 'past_due' ? 'grace' : 'expired',
-      valid_until: new Date(item.current_period_end * 1000).toISOString(), updated_at: new Date().toISOString(),
+      valid_until: periodEnd.toISOString(), grace_until: graceUntil, updated_at: new Date().toISOString(),
     }).eq('subscription_id', update.data.id)
     const notificationType = event.type === 'invoice.payment_failed' ? 'payment_failed'
       : event.type === 'invoice.paid' ? 'payment_recovered'

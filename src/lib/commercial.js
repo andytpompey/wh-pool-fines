@@ -152,6 +152,12 @@ export async function updateDraftCommercialOffering(offeringId, changes, reason)
   return data
 }
 
+export async function updateDraftCommercialRecoveryPolicy(offeringId, policy, reason) {
+  const { data, error } = await supabase.rpc('update_draft_commercial_recovery_policy', { target_offering_id: offeringId, new_policy: policy, reason })
+  if (error) throw error
+  return data
+}
+
 export async function getSupportAdminQueue() {
   const { data, error } = await supabase.rpc('get_support_admin_queue')
   if (error) throw error
