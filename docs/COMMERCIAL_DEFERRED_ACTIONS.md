@@ -2,6 +2,17 @@
 
 Updated: 2 August 2026
 
+## Local database reset notice
+
+At approximately 13:20 BST on 2 August 2026, an attempted isolated fresh-schema
+validation using `supabase db reset --db-url .../roobin_fresh_validation`
+unexpectedly reset the normal local Supabase database when the CLI restarted
+the local stack. All repository files and Git history are unaffected, and all
+migrations replayed successfully. Any pre-reset data that existed only in the
+local database is not recoverable from the current Docker volume; restore it
+from a linked environment or external backup if it was needed. Do not run
+another local reset. This notice must remain until the owner has reviewed it.
+
 These actions need account ownership, legal/tax judgement or production-console
 interaction. They do not block local implementation and tests. Evidence must be
 added to the named story before it can move to Done.
