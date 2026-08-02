@@ -575,9 +575,12 @@ export default function App() {
     auth.getSession()
       .then(currentSession => {
         setSession(currentSession)
-        if (currentSession?.user) setCurrentPlayer({ id: currentSession.user.id })
+        setCurrentPlayer(currentSession?.user ? { id: currentSession.user.id } : null)
       })
-      .catch(() => setSession(null))
+      .catch(() => {
+        setSession(null)
+        setCurrentPlayer(null)
+      })
       .finally(() => setAuthLoading(false))
 
     const unsubscribe = auth.onAuthStateChange(nextSession => {
@@ -1241,9 +1244,10 @@ export default function App() {
                 <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-sm text-zinc-400">
                   No current team is available for this account yet.
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Btn variant="outline" onClick={() => navigate('/teams/join')}>Join a team</Btn>
                   <Btn onClick={() => navigate('/teams/new')}>Create your first team</Btn>
+                  <Btn variant="ghost" onClick={handleSignOut}>Sign out</Btn>
                 </div>
               </div>
             ) : loading ? <Spinner /> : error ? <ErrorScreen error={error} onRetry={() => load(currentTeamId)} /> : route.name === 'team' ? (
