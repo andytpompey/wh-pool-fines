@@ -17,7 +17,7 @@ const content = {
         'RooBin does not sell personal information, show behavioural advertising or track you across other companies’ apps or websites.',
       ]],
       ['Who processes information', [
-        'RooBin uses Supabase for authentication, database and file storage; Resend for transactional email; and Vercel for web hosting. Apple or Google may process authentication data if you choose their sign-in service.',
+        'RooBin uses Supabase for authentication, database and file storage; Resend for transactional email; Vercel for web hosting; Stripe for web checkout; and Apple for App Store purchases. Apple or Google may also process authentication data if you choose their sign-in service.',
         'Public fixture information may be imported from publicly available RackEm pages when a team administrator requests it. RooBin is not affiliated with RackEm.',
       ]],
       ['How information is protected', [
@@ -65,7 +65,8 @@ const content = {
         'Do not upload or enter unlawful, abusive, discriminatory, misleading or rights-infringing content. Do not attempt to access another team without authorisation or interfere with the security or availability of RooBin.',
       ]],
       ['Money and records', [
-        'RooBin records team fines, subscriptions and payment status but does not collect or transfer money. Teams remain responsible for agreeing, checking and settling their own records.',
+        'RooBin may collect the published app-access fee through Stripe on the web or Apple In-App Purchase on iPhone. The current price, covered playing cycle, renewal behaviour, tax and refund terms are shown before purchase.',
+        'RooBin records team fines, subs and payment status but does not collect or transfer the money team members owe each other. Teams remain responsible for agreeing, checking and settling those records.',
       ]],
       ['Availability and changes', [
         'We work to keep RooBin secure and available, but service may occasionally be interrupted for maintenance or events outside our control. Features and these terms may change; material changes will be communicated where appropriate.',
@@ -108,7 +109,7 @@ export default function PublicInfoPage({ page }) {
           <a className="text-amber-400 hover:text-amber-300" href="/privacy">Privacy</a>
           <a className="text-amber-400 hover:text-amber-300" href="/support">Support and deletion</a>
           <a className="text-amber-400 hover:text-amber-300" href="/terms">Terms</a>
-          <a className="text-zinc-400 hover:text-white" href="/">Open RooBin</a>
+          <a className="text-zinc-400 hover:text-white" href="/app">Open RooBin</a>
         </nav>
       </article>
     </main>

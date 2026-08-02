@@ -23,6 +23,9 @@ struct RootTabView: View {
     let loadSeasons:() async throws->[ManagedSeason]
     let saveSeason:(UUID,String,String) async throws->Void
     let deleteSeason:(UUID,String) async throws->Void
+    let loadCommercialPlayingCycles: () async throws -> [CommercialPlayingCycle]
+    let beginAppStorePurchase: (UUID) async throws -> AppStorePurchaseContext
+    let verifyAppStoreTransaction: (String) async throws -> AppStoreVerificationResponse
     let loadTeamSettings:() async throws->TeamSettingsModel
     let uploadTeamLogo:(Data) async throws->URL
     let updateTeamSettings:(TeamSettingsModel) async throws->Void
@@ -118,6 +121,9 @@ struct RootTabView: View {
                 canManageTeam: selectedTeam?.role == .captain || selectedTeam?.role == .viceCaptain,
                 createFineType: createFineType,
                 updateFineType:updateFineType,deleteFineType:deleteFineType,loadSeasons:loadSeasons,saveSeason:saveSeason,deleteSeason:deleteSeason,
+                loadCommercialPlayingCycles: loadCommercialPlayingCycles,
+                beginAppStorePurchase: beginAppStorePurchase,
+                verifyAppStoreTransaction: verifyAppStoreTransaction,
                 loadTeamSettings:loadTeamSettings,uploadTeamLogo:uploadTeamLogo,updateTeamSettings:updateTeamSettings,
                 invitePlayer: invitePlayer,
                 setTeamUnlockCode: setTeamUnlockCode,
@@ -163,6 +169,9 @@ struct RootTabView: View {
         createMatch: { _ in },
         createFineType: { _, _ in },
         updateFineType:{_,_,_ in},deleteFineType:{_,_ in},loadSeasons:{[]},saveSeason:{_,_,_ in},deleteSeason:{_,_ in},
+        loadCommercialPlayingCycles: { [] },
+        beginAppStorePurchase: { _ in throw RooBinError.serviceUnavailable },
+        verifyAppStoreTransaction: { _ in throw RooBinError.serviceUnavailable },
         loadTeamSettings:{TeamSettingsModel(name:"Team",subsEnabled:true,driversVoidSubs:true,subAmount:0.5,logoURL:nil)},uploadTeamLogo:{_ in throw RooBinError.serviceUnavailable},updateTeamSettings:{_ in},
         invitePlayer: { _, _ in "Invite sent." },
         addFine: { _, _, _ in },

@@ -20,6 +20,9 @@ added to the named story before it can move to Done.
 | COM-041 | Accept Apple paid-app agreements, complete banking/tax, create the In-App Purchase product, price it at the closest approved GBP tier and provide sandbox accounts | App Store Connect | Before StoreKit end-to-end test |
 | COM-055 | Approve the support mailbox, response target and escalation owner | Product operations | Before public launch |
 | COM-056 | Select status-page provider/hostname and incident owner | Product operations | Before production launch |
+| COM-057 | Enable production backups/PITR and complete the first sanitised restore drill against the runbook | Supabase production + staging | Before entitlement enforcement |
+| COM-050 | Configure Supabase and Vercel 70/85/95 percent usage and spending alerts; record the alert owner | Supabase and Vercel dashboards | Before production launch |
+| COM-003 | Enter the first production monthly provider-usage and fixed-cost snapshot | Commercial Operations | At the end of the first live month |
 
 Never paste Stripe, App Store, Supabase or email secrets into a story or chat.
 Configure them directly in the relevant production secret store and record only

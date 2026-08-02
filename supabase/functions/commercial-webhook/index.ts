@@ -27,9 +27,15 @@ Deno.serve(async (request) => {
 
   try {
     if (event.type === 'checkout.session.completed') {
-      await fulfilCheckout(admin, event.data.object as Stripe.Checkout.Session)
+      const session = event.data.object as Stripe.Checkout.Session
+      await fulfilCheckout(admin, session)
+      await recordCheckoutFinancialEntry(admin, stripe, session)
     } else if (event.type === 'invoice.paid' || event.type === 'invoice.payment_failed' || event.type.startsWith('customer.subscription.')) {
       await reconcileSubscription(admin, stripe, event)
+    } else if (event.type === 'charge.refunded') {
+      await recordRefund(admin, event.data.object as Stripe.Charge)
+    } else if (event.type === 'charge.dispute.created' || event.type === 'charge.dispute.closed') {
+      await recordDispute(admin, event.type, event.data.object as Stripe.Dispute)
     }
     await admin.from('commercial_events').update({ status: 'processed', processed_at: new Date().toISOString() }).eq('id', ingress.data.id)
   } catch (error) {
@@ -42,20 +48,20 @@ Deno.serve(async (request) => {
 async function fulfilCheckout(admin: ReturnType<typeof createClient>, session: Stripe.Checkout.Session) {
   if (session.payment_status !== 'paid' && session.mode !== 'subscription') throw new Error('checkout_unpaid')
   const meta = session.metadata ?? {}
-  const required = ['roobin_team_id', 'roobin_season_id', 'roobin_offering_id', 'roobin_price_version_id', 'roobin_billing_customer_id']
+  const required = ['roobin_team_id', 'roobin_playing_cycle_id', 'roobin_coverage_start', 'roobin_coverage_end', 'roobin_offering_id', 'roobin_price_version_id', 'roobin_billing_customer_id']
   if (required.some(key => !meta[key])) throw new Error('checkout_metadata_invalid')
   const { data: offering } = await admin.from('commercial_offerings').select('entitlement_definition_id').eq('id', meta.roobin_offering_id).single()
   if (!offering) throw new Error('offering_missing')
-  const start = new Date()
-  const end = new Date(start)
-  end.setUTCFullYear(end.getUTCFullYear() + 1)
+  const start = new Date(`${meta.roobin_coverage_start}T00:00:00.000Z`)
+  const end = new Date(`${meta.roobin_coverage_end}T23:59:59.999Z`)
+  if (!Number.isFinite(start.valueOf()) || !Number.isFinite(end.valueOf()) || end <= start) throw new Error('coverage_invalid')
   const providerSubscriptionId = typeof session.subscription === 'string' ? session.subscription : null
   const subscriptionResult = await admin.from('commercial_subscriptions').upsert({
     billing_customer_id: meta.roobin_billing_customer_id,
     offering_id: meta.roobin_offering_id,
     price_version_id: meta.roobin_price_version_id,
     team_id: meta.roobin_team_id,
-    season_id: meta.roobin_season_id,
+    playing_cycle_id: meta.roobin_playing_cycle_id,
     provider: 'stripe',
     provider_subscription_id: providerSubscriptionId ?? `checkout:${session.id}`,
     state: 'active', current_period_start: start.toISOString(), current_period_end: end.toISOString(),
@@ -63,12 +69,85 @@ async function fulfilCheckout(admin: ReturnType<typeof createClient>, session: S
   }, { onConflict: 'provider,provider_subscription_id' }).select('id').single()
   if (subscriptionResult.error) throw subscriptionResult.error
   const entitlementResult = await admin.from('team_season_entitlements').upsert({
-    team_id: meta.roobin_team_id, season_id: meta.roobin_season_id,
+    team_id: meta.roobin_team_id, playing_cycle_id: meta.roobin_playing_cycle_id,
     subscription_id: subscriptionResult.data.id, entitlement_definition_id: offering.entitlement_definition_id,
     state: 'active', valid_from: start.toISOString(), valid_until: end.toISOString(),
     source: 'purchase', source_reference: `stripe:${session.id}`,
-  }, { onConflict: 'team_id,season_id,entitlement_definition_id,subscription_id' })
+  }, { onConflict: 'team_id,playing_cycle_id,entitlement_definition_id,subscription_id' })
   if (entitlementResult.error) throw entitlementResult.error
+}
+
+async function findSubscriptionByPaymentIntent(admin: ReturnType<typeof createClient>, paymentIntentId: string | null) {
+  if (!paymentIntentId) return null
+  const { data, error } = await admin.from('commercial_subscriptions').select('id')
+    .contains('metadata', { payment_intent_id: paymentIntentId }).maybeSingle()
+  if (error) throw error
+  return data
+}
+
+async function recordCheckoutFinancialEntry(admin: ReturnType<typeof createClient>, stripe: Stripe, session: Stripe.Checkout.Session) {
+  if (!session.payment_intent || session.payment_status !== 'paid') return
+  const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, { expand: ['latest_charge.balance_transaction'] })
+  const charge = typeof paymentIntent.latest_charge === 'object' ? paymentIntent.latest_charge as Stripe.Charge : null
+  const balance = charge && typeof charge.balance_transaction === 'object' ? charge.balance_transaction as Stripe.BalanceTransaction : null
+  const subscription = await findSubscriptionByPaymentIntent(admin, paymentIntentId)
+  const gross = session.amount_total ?? paymentIntent.amount_received
+  const discount = session.total_details?.amount_discount ?? 0
+  const tax = session.total_details?.amount_tax ?? 0
+  const fee = balance?.fee ?? 0
+  const result = await admin.from('commercial_financial_entries').upsert({
+    subscription_id: subscription?.id ?? null, provider: 'stripe', provider_reference: paymentIntentId,
+    entry_type: 'charge', currency: (session.currency ?? paymentIntent.currency).toUpperCase(),
+    gross_amount_minor: gross, discount_amount_minor: discount, tax_amount_minor: tax,
+    processor_fee_minor: fee, net_amount_minor: balance?.net ?? (gross - fee),
+    receipt_url: charge?.receipt_url ?? null,
+    occurred_at: new Date((charge?.created ?? session.created) * 1000).toISOString(),
+  }, { onConflict: 'provider,provider_reference,entry_type' })
+  if (result.error) throw result.error
+}
+
+async function recordRefund(admin: ReturnType<typeof createClient>, charge: Stripe.Charge) {
+  const paymentIntentId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id ?? null
+  const subscription = await findSubscriptionByPaymentIntent(admin, paymentIntentId)
+  for (const refund of charge.refunds?.data ?? []) {
+    const result = await admin.from('commercial_financial_entries').upsert({
+      subscription_id: subscription?.id ?? null, provider: 'stripe', provider_reference: refund.id,
+      entry_type: 'refund', currency: refund.currency.toUpperCase(), gross_amount_minor: -refund.amount,
+      discount_amount_minor: 0, tax_amount_minor: 0, processor_fee_minor: 0, net_amount_minor: -refund.amount,
+      occurred_at: new Date(refund.created * 1000).toISOString(),
+    }, { onConflict: 'provider,provider_reference,entry_type' })
+    if (result.error) throw result.error
+  }
+  if (subscription && charge.amount_refunded >= charge.amount) {
+    await admin.from('commercial_subscriptions').update({ state: 'cancelled', cancelled_at: new Date().toISOString() }).eq('id', subscription.id)
+    await admin.from('team_season_entitlements').update({ state: 'refunded', updated_at: new Date().toISOString() }).eq('subscription_id', subscription.id)
+  }
+}
+
+async function recordDispute(admin: ReturnType<typeof createClient>, eventType: string, dispute: Stripe.Dispute) {
+  const chargeId = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge?.id
+  const paymentIntentId = typeof dispute.payment_intent === 'string' ? dispute.payment_intent : dispute.payment_intent?.id ?? null
+  const subscription = await findSubscriptionByPaymentIntent(admin, paymentIntentId)
+  const resolvedInCustomerFavour = eventType === 'charge.dispute.closed' && dispute.status === 'won'
+  const entryType = resolvedInCustomerFavour ? 'dispute_reversal' : 'dispute'
+  const signedAmount = resolvedInCustomerFavour ? dispute.amount : -dispute.amount
+  const result = await admin.from('commercial_financial_entries').upsert({
+    subscription_id: subscription?.id ?? null, provider: 'stripe', provider_reference: `${dispute.id}:${dispute.status}`,
+    entry_type: entryType, currency: dispute.currency.toUpperCase(), gross_amount_minor: signedAmount,
+    discount_amount_minor: 0, tax_amount_minor: 0, processor_fee_minor: 0, net_amount_minor: signedAmount,
+    occurred_at: new Date(dispute.created * 1000).toISOString(),
+  }, { onConflict: 'provider,provider_reference,entry_type' })
+  if (result.error) throw result.error
+  if (subscription) {
+    await admin.from('commercial_subscriptions').update({ state: resolvedInCustomerFavour ? 'active' : 'past_due' }).eq('id', subscription.id)
+    await admin.from('team_season_entitlements').update({ state: resolvedInCustomerFavour ? 'active' : 'grace', updated_at: new Date().toISOString() }).eq('subscription_id', subscription.id)
+    await admin.from('commercial_audit_log').insert({
+      action: resolvedInCustomerFavour ? 'dispute.resolved' : 'dispute.opened', entity_type: 'commercial_subscription',
+      entity_id: subscription.id, reason: `Stripe dispute ${dispute.id} (${chargeId ?? 'charge unavailable'})`,
+      after_data: { dispute_id: dispute.id, status: dispute.status },
+    })
+  }
 }
 
 async function reconcileSubscription(admin: ReturnType<typeof createClient>, stripe: Stripe, event: Stripe.Event) {

@@ -176,6 +176,21 @@ final class AppCoordinator {
     func saveSeason(id:UUID,name:String,type:String) async throws { guard let authSession,let team=teams.first(where:{$0.id==selectedTeamID}) else { throw RooBinError.unauthenticated };try await teamClient.saveSeason(id:id,name:name,type:type,team:team,auth:authSession);await refreshMatches();await refreshDashboard() }
     func deleteSeason(id:UUID,unlockCode:String) async throws { guard let authSession,let team=teams.first(where:{$0.id==selectedTeamID}) else { throw RooBinError.unauthenticated };try await teamClient.deleteManagedEntity(id:id,type:"season",action:"delete_season",unlockCode:unlockCode,team:team,auth:authSession);await refreshMatches();await refreshDashboard() }
 
+    func loadCommercialPlayingCycles() async throws -> [CommercialPlayingCycle] {
+        guard let authSession, let team = teams.first(where: { $0.id == selectedTeamID }) else { throw RooBinError.unauthenticated }
+        return try await teamClient.loadCommercialPlayingCycles(team: team, auth: authSession)
+    }
+
+    func beginAppStorePurchase(playingCycleID: UUID) async throws -> AppStorePurchaseContext {
+        guard let authSession, let team = teams.first(where: { $0.id == selectedTeamID }) else { throw RooBinError.unauthenticated }
+        return try await teamClient.beginAppStorePurchase(playingCycleID: playingCycleID, team: team, auth: authSession)
+    }
+
+    func verifyAppStoreTransaction(_ signedTransaction: String) async throws -> AppStoreVerificationResponse {
+        guard let authSession else { throw RooBinError.unauthenticated }
+        return try await teamClient.verifyAppStoreTransaction(signedTransaction, auth: authSession)
+    }
+
     func invitePlayer(displayName: String, email: String) async throws -> String {
         guard let authSession, let team = teams.first(where: { $0.id == selectedTeamID }) else {
             throw RooBinError.unauthenticated

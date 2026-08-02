@@ -17,6 +17,9 @@ struct SettingsView: View {
     let loadSeasons: () async throws -> [ManagedSeason]
     let saveSeason: (UUID,String,String) async throws -> Void
     let deleteSeason: (UUID,String) async throws -> Void
+    let loadCommercialPlayingCycles: () async throws -> [CommercialPlayingCycle]
+    let beginAppStorePurchase: (UUID) async throws -> AppStorePurchaseContext
+    let verifyAppStoreTransaction: (String) async throws -> AppStoreVerificationResponse
     let loadTeamSettings:() async throws->TeamSettingsModel
     let uploadTeamLogo:(Data) async throws->URL
     let updateTeamSettings:(TeamSettingsModel) async throws->Void
@@ -58,6 +61,17 @@ struct SettingsView: View {
                 }
 
                 Section("Teams") {
+                    NavigationLink {
+                        TeamSubscriptionView(
+                            canPurchase: canManageTeam,
+                            load: loadCommercialPlayingCycles,
+                            beginPurchase: beginAppStorePurchase,
+                            verifyTransaction: verifyAppStoreTransaction
+                        )
+                    } label: {
+                        Label("Team subscription", systemImage: "creditcard")
+                    }
+
                     if canManageTeam {
                         NavigationLink {
                             InvitePlayerView(invitePlayer: invitePlayer)
