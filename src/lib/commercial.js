@@ -103,6 +103,13 @@ export async function scheduleCommercialPrice(input) {
   return data
 }
 
+export async function bindStripeCataloguePrice(priceId, reason) {
+  const { data, error } = await supabase.functions.invoke('commercial-catalogue-provider', { body: { priceId, reason } })
+  if (error) throw error
+  if (!data?.priceReference) throw new Error(data?.message ?? 'Stripe price binding failed.')
+  return data
+}
+
 export async function createCommercialDiscount(input) {
   const { data, error } = await supabase.rpc('create_commercial_discount', {
     discount_name: input.name,

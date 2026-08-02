@@ -13,7 +13,7 @@ added to the named story before it can move to Done.
 | COM-006 | Confirm production hostname (`roobin.trovefinds.co.uk` with `/app` is the implementation assumption), then preserve mail records while adding Vercel DNS | GoDaddy and Vercel | Before production callback verification |
 | COM-008 | Decide whether a founding-league offer will be published; standard GBP 10 pricing does not depend on it | Product decision | Before advertising a trial |
 | COM-020 | Create/verify the Stripe business account, enable GBP cards and wallets, and complete business verification | Stripe Dashboard | Before live checkout |
-| COM-020 | Create Stripe product/price references matching the published RooBin catalogue and add the reference to `provider_price_refs.stripe` | Stripe Dashboard + production database via audited admin flow | Before live checkout |
+| COM-017 | From Commercial Operations, create the Stripe binding for the published GBP 10 price and confirm its amount/currency/tax mode in Stripe; do not copy provider IDs manually | Production app + Stripe Dashboard | Before live checkout |
 | COM-021 | Add the deployed `commercial-webhook` endpoint and record the signing secret | Stripe Workbench | Before live payment fulfilment |
 | COM-026 | Enable and configure Stripe Customer Portal policies | Stripe Dashboard | Before self-service payment-method changes |
 | COM-038 | Confirm VAT status, customer market and whether Stripe Tax should collect inclusive or exclusive tax | Accountant/product owner | Before live charge |

@@ -267,7 +267,7 @@ Acceptance:
 
 #### COM-017 — Schedule and version base prices
 
-Status: in progress — immutable effective-dated price scheduling, overlap rejection and existing-purchase treatment are implemented; provider-price synchronisation and production preview remain.
+Status: in progress — immutable effective-dated scheduling, overlap rejection, existing-purchase treatment, admin preview and audited idempotent Stripe product/price creation are implemented; production provider binding evidence remains.
 
 As a platform owner, I need to change an offering's base price safely so that
 future customers receive the new price without rewriting existing commercial
