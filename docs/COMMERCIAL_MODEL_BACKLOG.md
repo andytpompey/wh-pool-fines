@@ -307,7 +307,7 @@ Acceptance:
 
 #### COM-019 — Audit and report commercial catalogue activity
 
-Status: in progress — restricted catalogue, discount, financial, reconciliation and unit-economics reports plus immutable audits are implemented; live renewal/cancellation cohort evidence remains.
+Status: in progress — restricted catalogue, offering/version purchase/trial/renewal/cancellation/discount cohorts, financial, reconciliation and unit-economics reports plus immutable audits are implemented; live cohort evidence remains.
 
 As a platform owner, I need to understand how offerings and discounts are being
 used so that pricing decisions and misuse can be investigated.
