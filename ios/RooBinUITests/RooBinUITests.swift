@@ -2,16 +2,15 @@ import XCTest
 
 @MainActor
 final class RooBinUITests: XCTestCase {
-    private var app: XCUIApplication!
-
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-        app = XCUIApplication()
+    private func launchApp() -> XCUIApplication {
+        let app = XCUIApplication()
         app.launchEnvironment["ROOBIN_FORCE_EXPIRED_SESSION"] = "1"
         app.launch()
+        return app
     }
 
     func testSignedOutWelcomeOffersAllSupportedMethods() {
+        let app = launchApp()
         XCTAssertTrue(app.buttons["auth.apple"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["auth.google"].exists)
         XCTAssertTrue(app.buttons["auth.email"].exists)
@@ -19,6 +18,7 @@ final class RooBinUITests: XCTestCase {
     }
 
     func testEmailJourneyCanOpenAndReturnWithoutNetworkRequest() {
+        let app = launchApp()
         let emailButton = app.buttons["auth.email"]
         XCTAssertTrue(emailButton.waitForExistence(timeout: 5))
         emailButton.tap()
@@ -31,6 +31,7 @@ final class RooBinUITests: XCTestCase {
     }
 
     func testUnconfiguredProviderExplainsEmailFallback() {
+        let app = launchApp()
         let googleButton = app.buttons["auth.google"]
         XCTAssertTrue(googleButton.waitForExistence(timeout: 5))
         googleButton.tap()
