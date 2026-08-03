@@ -1037,7 +1037,7 @@ export default function App() {
     const logoUrl = logoFile
       ? await uploadTeamLogo({ teamId: currentTeamId, file: logoFile })
       : currentTeamMembership.team.logoUrl
-    await teamModel.updateTeamSettings({
+    const updatedTeam = await teamModel.updateTeamSettings({
       teamId: currentTeamId,
       subsEnabled: settings.subsEnabled,
       driversVoidSubs: settings.driversVoidSubs,
@@ -1052,7 +1052,30 @@ export default function App() {
       actorMembership: currentTeamMembership,
       platformRole: memberContext.platformRole,
     })
+    const persistedLogoUrl = updatedTeam.logo_url ?? ''
+    if (logoFile && !persistedLogoUrl) throw new Error('The logo uploaded but its saved URL could not be confirmed.')
+
+    setMemberContext(current => ({
+      ...current,
+      memberships: current.memberships.map(membership => membership.team.id === currentTeamId
+        ? {
+            ...membership,
+            team: {
+              ...membership.team,
+              subsEnabled: updatedTeam.subs_enabled !== false,
+              driversVoidSubs: updatedTeam.drivers_void_subs !== false,
+              subAmount: Number(updatedTeam.sub_amount ?? 0.50),
+              logoUrl: persistedLogoUrl,
+            },
+          }
+        : membership),
+    }))
+    setFailedTeamLogoUrl(current => current === persistedLogoUrl ? '' : current)
     await refreshMemberContext(session?.user)
+    return {
+      logoUrl: persistedLogoUrl,
+      subAmount: Number(updatedTeam.sub_amount ?? 0.50),
+    }
   }), [currentTeamId, currentTeamMembership, memberContext.platformRole, refreshMemberContext, session?.user])
 
   const handleImportRackemSeason = useCallback((rackemSeason) => withSave(async () => {
